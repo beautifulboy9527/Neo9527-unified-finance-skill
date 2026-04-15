@@ -52,6 +52,11 @@ from features.research import (
     run_research,
     ResearchFramework
 )
+from features.earnings import (
+    generate_earnings_preview,
+    generate_earnings_recap,
+    get_beat_miss_history
+)
 
 
 def full_analysis(symbol: str) -> Dict:
@@ -197,6 +202,20 @@ def main():
     research_parser.add_argument('--phase', type=int, choices=range(1, 9), help='执行指定阶段')
     research_parser.add_argument('--full', action='store_true', help='完整分析')
     
+    # earnings
+    earn_parser = subparsers.add_parser('earnings', help='财报分析')
+    earn_sub = earn_parser.add_subparsers(dest='earn_type', help='财报类型')
+    
+    earn_preview = earn_sub.add_parser('preview', help='财报预览')
+    earn_preview.add_argument('symbol', help='股票代码')
+    
+    earn_recap = earn_sub.add_parser('recap', help='财报回顾')
+    earn_recap.add_argument('symbol', help='股票代码')
+    
+    earn_history = earn_sub.add_parser('history', help='历史 beat/miss')
+    earn_history.add_argument('symbol', help='股票代码')
+    earn_history.add_argument('--quarters', type=int, default=8, help='季度数')
+    
     # full
     full_parser = subparsers.add_parser('full', help='完整分析')
     full_parser.add_argument('symbol', help='股票代码')
@@ -276,6 +295,16 @@ def main():
             result = run_research(args.symbol, args.phase)
         else:
             result = run_research(args.symbol)
+    
+    elif args.command == 'earnings':
+        if args.earn_type == 'preview':
+            result = generate_earnings_preview(args.symbol)
+        elif args.earn_type == 'recap':
+            result = generate_earnings_recap(args.symbol)
+        elif args.earn_type == 'history':
+            result = get_beat_miss_history(args.symbol, args.quarters)
+        else:
+            result = generate_earnings_preview(args.symbol)
     
     elif args.command == 'full':
         result = full_analysis(args.symbol)
