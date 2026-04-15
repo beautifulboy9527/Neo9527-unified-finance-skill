@@ -1,0 +1,86 @@
+{
+  "alerts": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "target": 260.0,
+      "stop": 240.0,
+      "created_at": "2026-04-07T20:29:46.300395",
+      "last_triggered": null,
+      "enabled": true
+    },
+    {
+      "id": 2,
+      "symbol": "AAPL",
+      "target": 260.0,
+      "stop": 240.0,
+      "created_at": "2026-04-07T20:30:10.104259",
+      "last_triggered": null,
+      "enabled": true
+    },
+    {
+      "id": 3,
+      "symbol": "NVDA",
+      "target": 150,
+      "stop": 120,
+      "created_at": "2026-04-07T20:34:04.262343",
+      "last_triggered": "2026-04-08T04:22:22.330166",
+      "enabled": true
+    },
+    {
+      "id": 4,
+      "symbol": "NVDA",
+      "target": 150,
+      "stop": 120,
+      "created_at": "2026-04-07T20:58:57.027038",
+      "last_triggered": "2026-04-08T04:22:23.254827",
+      "enabled": true
+    },
+    {
+      "id": 5,
+      "symbol": "NVDA",
+      "target": 150,
+      "stop": 120,
+      "created_at": "2026-04-08T04:10:48.513319",
+      "last_triggered": "2026-04-08T04:22:25.253248",
+      "enabled": true
+    },
+    {
+      "id": 6,
+      "symbol": "NVDA",
+      "target": 150,
+      "stop": 120,
+      "created_at": "2026-04-08T04:22:07.832396",
+      "last_triggered": "2026-04-08T04:22:26.146638",
+      "enabled": true
+    },
+    {
+      "id": 7,
+      "symbol": "002241",
+      "target": 28.0,
+      "stop": 18.0,
+      "created_at": "2026-04-08T04:56:45.984970",
+      "last_triggered": null,
+      "enabled": true
+    },
+    {
+      "id": 8,
+      "symbol": "002241",
+      "target": 28.0,
+      "stop": 18.0,
+      "created_at": "2026-04-08T05:39:48.310859",
+      "last_triggered": null,
+      "enabled": true
+    },
+    {
+      "id": 9,
+      "symbol": "002241",
+      "target": 28.0,
+      "stop": 18.0,
+      "created_at": "2026-04-08T05:41:03.159722",
+      "last_triggered": null,
+      "enabled": true
+    }
+  ],
+  "last_check": null
+}

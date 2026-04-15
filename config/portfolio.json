@@ -1,0 +1,51 @@
+{
+  "positions": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "quantity": 10,
+      "cost_price": 150,
+      "cost_basis": 1500,
+      "type": "stock",
+      "created_at": "2026-04-08T04:10:45.021482"
+    },
+    {
+      "id": 2,
+      "symbol": "AAPL",
+      "quantity": 10,
+      "cost_price": 150,
+      "cost_basis": 1500,
+      "type": "stock",
+      "created_at": "2026-04-08T04:21:53.991330"
+    },
+    {
+      "id": 3,
+      "symbol": "MSFT",
+      "quantity": 5,
+      "cost_price": 300,
+      "cost_basis": 1500,
+      "type": "stock",
+      "created_at": "2026-04-08T04:21:53.992329"
+    },
+    {
+      "id": 4,
+      "symbol": "600519",
+      "quantity": 100,
+      "cost_price": 1400,
+      "cost_basis": 140000,
+      "type": "stock",
+      "created_at": "2026-04-08T04:21:53.993330"
+    },
+    {
+      "id": 5,
+      "symbol": "002241",
+      "quantity": 1000,
+      "cost_price": 23.0,
+      "cost_basis": 23000.0,
+      "type": "stock",
+      "created_at": "2026-04-08T04:56:38.438083"
+    }
+  ],
+  "cash": 832500.0,
+  "created_at": "2026-04-08T04:10:45.021482"
+}
