@@ -316,11 +316,11 @@ class SignalTracker:
                         hot_stocks.append({
                             'symbol': symbol,
                             'name': info.get('shortName', symbol),
-                            'price': round(current_price, 2),
-                            'change_pct': round(change_pct, 2),
-                            'volume': hist['Volume'].iloc[-1] if 'Volume' in hist else None,
-                            'market_cap': info.get('marketCap'),
-                            'pe_ratio': info.get('trailingPE')
+                            'price': round(float(current_price), 2),
+                            'change_pct': round(float(change_pct), 2),
+                            'volume': int(hist['Volume'].iloc[-1]) if 'Volume' in hist else None,
+                            'market_cap': int(info.get('marketCap')) if info.get('marketCap') else None,
+                            'pe_ratio': float(info.get('trailingPE')) if info.get('trailingPE') else None
                         })
                 except:
                     pass

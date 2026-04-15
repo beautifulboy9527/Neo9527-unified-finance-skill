@@ -1,411 +1,200 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Stock Daily Analyzer - 日频技术分析
-整合自 stock-daily-analysis 的技术分析能力
+AI 分析模块 - 技术分析决策建议
 """
 
 import sys
 import os
-import json
-import argparse
-from typing import Dict, Optional, Tuple
-from dataclasses import dataclass
+from typing import Dict, Optional
 
 # Windows 编码修复
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-@dataclass
-class TechnicalIndicators:
-    """技术指标"""
-    ma5: float
-    ma10: float
-    ma20: float
-    bias_ma5: float  # 乖离率
-    macd_status: str  # 金叉/死叉
-    rsi_status: str  # 超买/超卖/中性
-    buy_signal: str  # 买入/卖出/观望
-    signal_score: int  # 信号评分 0-100
+def analyze_technical_signals(
+    price: float,
+    ma5: float,
+    ma10: float,
+    ma20: float,
+    rsi: float,
+    macd: Dict = None,
+    volume_ratio: float = None
+) -> Dict:
+    """
+    基于技术指标生成 AI 决策建议
+    
+    Args:
+        price: 当前价格
+        ma5: 5日均线
+        ma10: 10日均线
+        ma20: 20日均线
+        rsi: RSI 指标
+        macd: MACD 数据
+        volume_ratio: 量比
+        
+    Returns:
+        AI 决策建议
+    """
+    result = {
+        'recommendation': 'hold',
+        'confidence': 0.5,
+        'signals': [],
+        'reasoning': []
+    }
+    
+    # 均线分析
+    ma_signals = []
+    
+    # 价格与均线关系
+    if price > ma5 and price > ma10 and price > ma20:
+        ma_signals.append({'signal': 'bullish', 'reason': '价格位于所有均线之上'})
+        result['reasoning'].append('多头排列，趋势向上')
+    elif price < ma5 and price < ma10 and price < ma20:
+        ma_signals.append({'signal': 'bearish', 'reason': '价格位于所有均线之下'})
+        result['reasoning'].append('空头排列，趋势向下')
+    else:
+        ma_signals.append({'signal': 'neutral', 'reason': '价格与均线交织'})
+        result['reasoning'].append('趋势不明确')
+    
+    # 均线交叉
+    if ma5 > ma10 and ma10 > ma20:
+        ma_signals.append({'signal': 'bullish', 'reason': '均线多头排列'})
+    elif ma5 < ma10 and ma10 < ma20:
+        ma_signals.append({'signal': 'bearish', 'reason': '均线空头排列'})
+    
+    result['signals'].extend(ma_signals)
+    
+    # RSI 分析
+    rsi_signal = 'neutral'
+    if rsi > 80:
+        rsi_signal = 'overbought'
+        result['reasoning'].append('RSI 超买，可能回调')
+    elif rsi > 70:
+        rsi_signal = 'bullish'
+        result['reasoning'].append('RSI 偏强')
+    elif rsi < 20:
+        rsi_signal = 'oversold'
+        result['reasoning'].append('RSI 超卖，可能反弹')
+    elif rsi < 30:
+        rsi_signal = 'bearish'
+        result['reasoning'].append('RSI 偏弱')
+    else:
+        result['reasoning'].append('RSI 中性')
+    
+    result['signals'].append({'signal': rsi_signal, 'indicator': 'RSI', 'value': rsi})
+    
+    # MACD 分析
+    if macd:
+        macd_signal = 'neutral'
+        macd_val = macd.get('macd', 0)
+        signal_val = macd.get('signal', 0)
+        hist = macd.get('histogram', 0)
+        
+        if macd_val > signal_val and hist > 0:
+            macd_signal = 'bullish'
+            result['reasoning'].append('MACD 金叉，多头信号')
+        elif macd_val < signal_val and hist < 0:
+            macd_signal = 'bearish'
+            result['reasoning'].append('MACD 死叉，空头信号')
+        
+        result['signals'].append({'signal': macd_signal, 'indicator': 'MACD'})
+    
+    # 成交量分析
+    if volume_ratio:
+        if volume_ratio > 2.0:
+            result['reasoning'].append('放量明显，关注趋势方向')
+        elif volume_ratio < 0.5:
+            result['reasoning'].append('缩量明显，市场观望')
+    
+    # 综合评分
+    bullish_count = sum(1 for s in result['signals'] if s.get('signal') == 'bullish')
+    bearish_count = sum(1 for s in result['signals'] if s.get('signal') == 'bearish')
+    
+    # 决策建议
+    if bullish_count >= 3:
+        result['recommendation'] = 'buy'
+        result['confidence'] = min(0.9, 0.5 + bullish_count * 0.1)
+    elif bearish_count >= 3:
+        result['recommendation'] = 'sell'
+        result['confidence'] = min(0.9, 0.5 + bearish_count * 0.1)
+    elif bullish_count > bearish_count:
+        result['recommendation'] = 'buy'
+        result['confidence'] = 0.6
+    elif bearish_count > bullish_count:
+        result['recommendation'] = 'sell'
+        result['confidence'] = 0.6
+    else:
+        result['recommendation'] = 'hold'
+        result['confidence'] = 0.5
+    
+    return result
 
 
-@dataclass  
-class AIAnalysis:
-    """AI 分析结果"""
-    sentiment_score: int  # 情绪评分 0-100
-    operation_advice: str  # 买入/卖出/观望
-    confidence_level: str  # 高/中/低
-    target_price: str
-    stop_loss: str
-
-
-@dataclass
-class AnalysisResult:
-    """分析结果"""
-    code: str
-    name: str
-    current_price: float
-    change_pct: float
-    technical_indicators: TechnicalIndicators
-    ai_analysis: AIAnalysis
-
-
-class StockAnalyzer:
-    """股票日频技术分析器"""
+def analyze_stock(
+    symbol: str,
+    basic_indicators: Dict,
+    additional_data: Dict = None
+) -> Dict:
+    """
+    综合分析股票
     
-    def __init__(self, code: str, name: str = ""):
-        self.code = code
-        self.name = name
+    Args:
+        symbol: 股票代码
+        basic_indicators: 基础指标
+        additional_data: 附加数据
         
-    def calculate_ma(self, prices: list, period: int) -> float:
-        """计算移动平均线"""
-        if len(prices) < period:
-            return sum(prices) / len(prices) if prices else 0
-        return sum(prices[-period:]) / period
+    Returns:
+        综合分析结果
+    """
+    result = {
+        'symbol': symbol,
+        'analysis': {},
+        'recommendation': 'hold',
+        'confidence': 0.5,
+        'risk_level': 'medium'
+    }
     
-    def calculate_bias(self, price: float, ma: float) -> float:
-        """计算乖离率"""
-        return (price - ma) / ma * 100 if ma > 0 else 0
+    # 技术分析
+    tech_analysis = analyze_technical_signals(
+        price=basic_indicators.get('current_price', 0),
+        ma5=basic_indicators.get('ma5', 0),
+        ma10=basic_indicators.get('ma10', 0),
+        ma20=basic_indicators.get('ma20', 0),
+        rsi=basic_indicators.get('rsi', 50),
+        macd=basic_indicators.get('macd'),
+        volume_ratio=basic_indicators.get('volume_ratio')
+    )
     
-    def analyze_macd(self, prices: list) -> str:
-        """
-        分析 MACD
-        简化版: 基于短期 vs 长期均线交叉
-        """
-        if len(prices) < 26:
-            return "数据不足"
-        
-        ma12 = self.calculate_ma(prices, 12)
-        ma26 = self.calculate_ma(prices, 26)
-        
-        if ma12 > ma26:
-            return "金叉 (看涨)"
-        else:
-            return "死叉 (看跌)"
+    result['analysis']['technical'] = tech_analysis
+    result['recommendation'] = tech_analysis['recommendation']
+    result['confidence'] = tech_analysis['confidence']
     
-    def analyze_rsi(self, prices: list, period: int = 14) -> Tuple[str, float]:
-        """
-        分析 RSI
-        返回: (状态, RSI值)
-        """
-        if len(prices) < period + 1:
-            return "数据不足", 50
-        
-        gains = []
-        losses = []
-        
-        for i in range(len(prices) - period, len(prices)):
-            change = prices[i] - prices[i-1]
-            if change > 0:
-                gains.append(change)
-                losses.append(0)
-            else:
-                gains.append(0)
-                losses.append(abs(change))
-        
-        avg_gain = sum(gains) / period
-        avg_loss = sum(losses) / period
-        
-        if avg_loss == 0:
-            return "极度强势", 100
-        
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        
-        if rsi >= 70:
-            status = "超买"
-        elif rsi <= 30:
-            status = "超卖"
-        elif rsi >= 55:
-            status = "强势买入"
-        elif rsi <= 45:
-            status = "弱势卖出"
-        else:
-            status = "中性"
-            
-        return status, rsi
+    # 风险评估
+    rsi = basic_indicators.get('rsi', 50)
+    if rsi > 80 or rsi < 20:
+        result['risk_level'] = 'high'
+    elif rsi > 70 or rsi < 30:
+        result['risk_level'] = 'medium'
+    else:
+        result['risk_level'] = 'low'
     
-    def generate_buy_signal(self, 
-                            ma5: float, ma10: float, ma20: float,
-                            current_price: float,
-                            macd_status: str,
-                            rsi_status: str) -> Tuple[str, int]:
-        """
-        生成买卖信号
-        
-        Returns: (信号, 评分 0-100)
-        """
-        score = 50  # 基础分
-        
-        # 均线多头排列
-        if ma5 > ma10 > ma20:
-            score += 20
-        elif ma5 < ma10 < ma20:
-            score -= 20
-            
-        # 价格在均线上方
-        if current_price > ma20:
-            score += 10
-        else:
-            score -= 10
-            
-        # MACD 信号
-        if "金叉" in macd_status:
-            score += 15
-        elif "死叉" in macd_status:
-            score -= 15
-            
-        # RSI 状态
-        if "超卖" in rsi_status:
-            score += 10
-        elif "超买" in rsi_status:
-            score -= 10
-        elif "强势买入" in rsi_status:
-            score += 5
-        elif "弱势卖出" in rsi_status:
-            score -= 5
-        
-        # 确保分数在 0-100 范围内
-        score = max(0, min(100, score))
-        
-        if score >= 70:
-            signal = "买入"
-        elif score <= 30:
-            signal = "卖出"
-        else:
-            signal = "观望"
-            
-        return signal, score
-    
-    def determine_trend(self, 
-                        ma5: float, ma10: float, ma20: float,
-                        current_price: float) -> str:
-        """判断趋势"""
-        if ma5 > ma10 > ma20 and current_price > ma5:
-            return "强势多头"
-        elif ma5 < ma10 < ma20 and current_price < ma5:
-            return "强势空头"
-        elif ma5 > ma10 and current_price > ma5:
-            return "震荡偏多"
-        elif ma5 < ma10 and current_price < ma5:
-            return "震荡偏空"
-        else:
-            return "震荡整理"
-    
-    def analyze(self, price_data: Dict) -> AnalysisResult:
-        """
-        综合技术分析
-        
-        Args:
-            price_data: {
-                "current_price": float,
-                "prices_30d": list,  # 近30日收盘价
-                "name": str
-            }
-        """
-        current_price = price_data.get('current_price', 0)
-        prices = price_data.get('prices_30d', [])
-        name = price_data.get('name', self.name)
-        
-        if len(prices) < 20:
-            return AnalysisResult(
-                code=self.code,
-                name=name,
-                current_price=current_price,
-                change_pct=0,
-                technical_indicators=TechnicalIndicators(
-                    ma5=0, ma10=0, ma20=0,
-                    bias_ma5=0,
-                    macd_status="数据不足",
-                    rsi_status="数据不足",
-                    buy_signal="观望",
-                    signal_score=50
-                ),
-                ai_analysis=AIAnalysis(
-                    sentiment_score=50,
-                    operation_advice="观望",
-                    confidence_level="低",
-                    target_price="",
-                    stop_loss=""
-                )
-            )
-        
-        # 计算均线
-        ma5 = self.calculate_ma(prices, 5)
-        ma10 = self.calculate_ma(prices, 10)
-        ma20 = self.calculate_ma(prices, 20)
-        
-        # 乖离率
-        bias_ma5 = self.calculate_bias(current_price, ma5)
-        
-        # MACD
-        macd_status = self.analyze_macd(prices)
-        
-        # RSI
-        rsi_status, rsi_value = self.analyze_rsi(prices)
-        
-        # 趋势
-        trend = self.determine_trend(ma5, ma10, ma20, current_price)
-        
-        # 买卖信号
-        buy_signal, signal_score = self.generate_buy_signal(
-            ma5, ma10, ma20, current_price, macd_status, rsi_status
-        )
-        
-        # 价格变化
-        if len(prices) >= 2:
-            change_pct = (current_price - prices[-2]) / prices[-2] * 100
-        else:
-            change_pct = 0
-        
-        # AI 分析
-        sentiment_score = min(100, max(0, 50 + signal_score - 50 + (30 if change_pct > 0 else -30)))
-        
-        # 目标价和止损价 (简化估算)
-        if buy_signal == "买入":
-            target_price = f"{current_price * 1.15:.2f}"  # 15% 上涨目标
-            stop_loss = f"{current_price * 0.95:.2f}"  # 5% 止损
-        elif buy_signal == "卖出":
-            target_price = f"{current_price * 0.85:.2f}"
-            stop_loss = f"{current_price * 1.05:.2f}"
-        else:
-            target_price = "参考支撑/压力位"
-            stop_loss = "参考支撑/压力位"
-        
-        confidence = "高" if signal_score >= 70 or signal_score <= 30 else "中"
-        
-        return AnalysisResult(
-            code=self.code,
-            name=name,
-            current_price=current_price,
-            change_pct=change_pct,
-            technical_indicators=TechnicalIndicators(
-                ma5=ma5,
-                ma10=ma10,
-                ma20=ma20,
-                bias_ma5=bias_ma5,
-                macd_status=macd_status,
-                rsi_status=rsi_status,
-                buy_signal=buy_signal,
-                signal_score=signal_score
-            ),
-            ai_analysis=AIAnalysis(
-                sentiment_score=sentiment_score,
-                operation_advice=buy_signal,
-                confidence_level=confidence,
-                target_price=target_price,
-                stop_loss=stop_loss
-            )
-        )
-
-
-def main():
-    parser = argparse.ArgumentParser(description='日频技术分析器')
-    parser.add_argument('--code', required=True, help='股票代码')
-    parser.add_argument('--name', default='', help='股票名称')
-    parser.add_argument('--period', default='1mo', choices=['1w', '1mo', '3mo'], help='分析周期')
-    parser.add_argument('--output', default='analysis_result.json', help='输出文件')
-    
-    args = parser.parse_args()
-    
-    # 从真实数据源获取数据
-    try:
-        from data_fetcher import get_quote, get_kline_data
-        
-        # 获取实时行情
-        quote_str = get_quote(args.code)
-        
-        # 从行情字符串解析当前价格
-        import re
-        price_match = re.search(r'价格:\s*([\d.]+)', quote_str)
-        current_price = float(price_match.group(1)) if price_match else 0
-        
-        # 获取K线数据
-        kline_data = get_kline_data(args.code, period='1mo')
-        
-        if kline_data and len(kline_data) > 0:
-            prices = [item['close'] for item in kline_data]
-            name_match = re.search(r'名称:\s*(\S+)', quote_str)
-            name = args.name or (name_match.group(1) if name_match else args.code)
-        else:
-            # 如果K线数据获取失败，使用近30日模拟数据（基于当前价格）
-            print(f"⚠️ K线数据获取失败，使用模拟数据")
-            prices = [current_price * (1 + (i - 15) * 0.005) for i in range(30)]
-            name = args.name or args.code
-        
-        sample_data = {
-            "current_price": current_price,
-            "prices_30d": prices,
-            "name": name
-        }
-        
-    except Exception as e:
-        print(f"⚠️ 数据获取失败: {e}")
-        print("使用模拟数据进行分析...")
-        # 使用模拟数据（不推荐）
-        import random
-        base_price = 45.0  # 使用更合理的默认值
-        sample_prices = [base_price * (1 + random.uniform(-0.03, 0.03)) for _ in range(30)]
-        sample_data = {
-            "current_price": sample_prices[-1],
-            "prices_30d": sample_prices,
-            "name": args.name or "示例股票"
-        }
-    
-    analyzer = StockAnalyzer(args.code, sample_data['name'])
-    result = analyzer.analyze(sample_data)
-    
-    print(f"[Chart] {result.code} Daily Technical Analysis")
-    print(f"当前价格: {result.current_price:.2f} ({result.change_pct:+.2f}%)")
-    print()
-    print("【技术指标】")
-    print(f"  MA5:  {result.technical_indicators.ma5:.2f}")
-    print(f"  MA10: {result.technical_indicators.ma10:.2f}")
-    print(f"  MA20: {result.technical_indicators.ma20:.2f}")
-    print(f"  乖离率(MA5): {result.technical_indicators.bias_ma5:.2f}%")
-    print(f"  MACD: {result.technical_indicators.macd_status}")
-    print(f"  RSI: {result.technical_indicators.rsi_status}")
-    print(f"  买卖信号: {result.technical_indicators.buy_signal} (评分: {result.technical_indicators.signal_score})")
-    print()
-    print("【AI 决策建议】")
-    print(f"  情绪评分: {result.ai_analysis.sentiment_score}/100")
-    print(f"  操作建议: {result.ai_analysis.operation_advice}")
-    print(f"  置信度: {result.ai_analysis.confidence_level}")
-    print(f"  目标价: {result.ai_analysis.target_price}")
-    print(f"  止损价: {result.ai_analysis.stop_loss}")
-    
-    # 保存结果
-    with open(args.output, 'w', encoding='utf-8') as f:
-        json.dump({
-            'code': result.code,
-            'name': result.name,
-            'current_price': result.current_price,
-            'change_pct': result.change_pct,
-            'technical_indicators': {
-                'ma5': result.technical_indicators.ma5,
-                'ma10': result.technical_indicators.ma10,
-                'ma20': result.technical_indicators.ma20,
-                'bias_ma5': result.technical_indicators.bias_ma5,
-                'macd_status': result.technical_indicators.macd_status,
-                'rsi_status': result.technical_indicators.rsi_status,
-                'buy_signal': result.technical_indicators.buy_signal,
-                'signal_score': result.technical_indicators.signal_score
-            },
-            'ai_analysis': {
-                'sentiment_score': result.ai_analysis.sentiment_score,
-                'operation_advice': result.ai_analysis.operation_advice,
-                'confidence_level': result.ai_analysis.confidence_level,
-                'target_price': result.ai_analysis.target_price,
-                'stop_loss': result.ai_analysis.stop_loss
-            }
-        }, f, indent=2, ensure_ascii=False)
-    
-    print(f"\n✅ 结果已保存到 {args.output}")
+    return result
 
 
 if __name__ == '__main__':
-    main()
+    import json
+    
+    # 测试
+    basic = {
+        'current_price': 1450,
+        'ma5': 1440,
+        'ma10': 1430,
+        'ma20': 1400,
+        'rsi': 65,
+        'volume_ratio': 1.2
+    }
+    
+    result = analyze_stock('600519', basic)
+    print(json.dumps(result, indent=2, ensure_ascii=False))

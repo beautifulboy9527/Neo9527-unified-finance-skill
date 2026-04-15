@@ -141,12 +141,17 @@ class TechnicalAnalyzer:
             sys.path.insert(0, r'C:\Users\Administrator\.openclaw\workspace\.agents\skills\unified-finance-skill\scripts')
             from analyzer import analyze_stock
             
-            analysis = analyze_stock(self.symbol)
+            # 先获取基础指标
+            basic = self.get_basic_indicators()
+            basic_indicators = basic.get('indicators', {})
             
-            if analysis and 'ai_analysis' in analysis:
-                result['ai_analysis'] = analysis['ai_analysis']
-                result['data_source'] = 'stock-daily-analysis'
-                
+            # 调用 AI 分析
+            analysis = analyze_stock(self.symbol, basic_indicators)
+            
+            if analysis:
+                result['ai_analysis'] = analysis
+                result['data_source'] = 'analyzer'
+            
         except Exception as e:
             result['error'] = str(e)
         

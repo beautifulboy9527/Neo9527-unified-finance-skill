@@ -314,11 +314,54 @@ class ValuationMonitor:
             }
             
             # 股息率分析
-            div_result = self.calculate_percentile(symbol, 'dividend_yield', 5)
-            result['dividend_analysis'] = {
-                'current_yield': div_result.get('current_value'),
-                'level': div_result.get('valuation_level')
-            }
+            try:
+                import yfinance as yf
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                
+                # 获取股息率 (yfinance 可能返回小数或百分比)
+                div_yield = info.get('dividendYield')
+                trailing_yield = info.get('trailingAnnualDividendYield')
+                
+                # 优先使用 trailing 值
+                if trailing_yield and trailing_yield < 1:
+                    div_yield_pct = trailing_yield * 100
+                elif div_yield:
+                    # yfinance 有时返回错误的比例
+                    if div_yield > 1:
+                        # 可能已经是百分比
+                        div_yield_pct = div_yield
+                    else:
+                        div_yield_pct = div_yield * 100
+                else:
+                    div_yield_pct = 0
+                
+                if div_yield_pct > 0:
+                    # 分类
+                    if div_yield_pct < 1:
+                        level = '偏低'
+                    elif div_yield_pct < 3:
+                        level = '合理'
+                    elif div_yield_pct < 5:
+                        level = '较高'
+                    else:
+                        level = '高收益'
+                    
+                    result['dividend_analysis'] = {
+                        'current_yield': round(float(div_yield_pct), 2),
+                        'level': level
+                    }
+                else:
+                    result['dividend_analysis'] = {
+                        'current_yield': 0,
+                        'level': '无分红'
+                    }
+            except Exception as e:
+                result['dividend_analysis'] = {
+                    'current_yield': 0,
+                    'level': '数据缺失',
+                    'error': str(e)
+                }
             
             # BAND 分析
             band_result = self.calculate_band(symbol)
