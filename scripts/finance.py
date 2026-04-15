@@ -57,6 +57,17 @@ from features.earnings import (
     generate_earnings_recap,
     get_beat_miss_history
 )
+from features.news import (
+    fetch_hot_news,
+    get_unified_trends,
+    get_polymarket_summary,
+    get_finance_brief
+)
+from features.reporter import (
+    plan_report,
+    write_section,
+    generate_full_report
+)
 
 
 def full_analysis(symbol: str) -> Dict:
@@ -216,6 +227,24 @@ def main():
     earn_history.add_argument('symbol', help='股票代码')
     earn_history.add_argument('--quarters', type=int, default=8, help='季度数')
     
+    # news
+    news_parser = subparsers.add_parser('news', help='新闻聚合')
+    news_sub = news_parser.add_subparsers(dest='news_type', help='新闻类型')
+    
+    news_fetch = news_sub.add_parser('fetch', help='获取新闻')
+    news_fetch.add_argument('--source', default='cls', help='新闻源')
+    news_fetch.add_argument('--count', type=int, default=15, help='数量')
+    
+    news_trends = news_sub.add_parser('trends', help='统一趋势')
+    news_trends.add_argument('--sources', nargs='+', help='新闻源列表')
+    
+    news_brief = news_sub.add_parser('brief', help='财经简报')
+    
+    # reporter
+    report_parser = subparsers.add_parser('report', help='研报生成')
+    report_parser.add_argument('topic', help='研报主题')
+    report_parser.add_argument('--symbol', help='股票代码')
+    
     # full
     full_parser = subparsers.add_parser('full', help='完整分析')
     full_parser.add_argument('symbol', help='股票代码')
@@ -305,6 +334,20 @@ def main():
             result = get_beat_miss_history(args.symbol, args.quarters)
         else:
             result = generate_earnings_preview(args.symbol)
+    
+    elif args.command == 'news':
+        if args.news_type == 'fetch':
+            result = fetch_hot_news(args.source, args.count)
+        elif args.news_type == 'trends':
+            result = get_unified_trends(args.sources)
+        elif args.news_type == 'brief':
+            result = get_finance_brief()
+        else:
+            result = get_finance_brief()
+    
+    elif args.command == 'report':
+        data = {'symbol': args.symbol} if args.symbol else {}
+        result = generate_full_report(args.topic, data)
     
     elif args.command == 'full':
         result = full_analysis(args.symbol)
