@@ -31,6 +31,8 @@
 | **akshare-data** | `.agents\skills\akshare-data` | 通用金融数据获取 | 📋 待评估 |
 | **yfinance-data** | `.agents\skills\yfinance-data` | 美股/港股数据 | ✅ 已集成 |
 | **akshare-data** | `.agents\skills\akshare-data` | 增强财务数据 | ✅ 已集成 (代码) |
+| **stock-valuation-monitor** | `.agents\skills\stock-valuation-monitor` | 估值监控 | ✅ 已集成 (代码) |
+| **china-stock-research** | `.agents\skills\china-stock-research` | 深度投研框架 | ✅ 已集成 (代码) |
 | **stock-liquidity** | `.agents\skills\stock-liquidity` | 流动性分析 | ✅ 已集成 (代码) |
 | **finance-sentiment** | `.agents\skills\finance-sentiment` | 情绪分析 | ✅ 已集成 (代码) |
 | **stock-market-pro** | `.agents\skills\stock-market-pro` | 高级技术图表 | ✅ 已集成 (代码) |
@@ -89,6 +91,8 @@ unified-finance-skill/
 | 高级技术图表 | `features/chart.py` | yfinance + mplfinance | 全球 |
 | 相关性分析 | `features/correlation.py` | yfinance | 全球 |
 | 增强财务数据 | `features/enhanced_financial.py` | akshare | A股/港股/美股 |
+| 估值监控 | `features/valuation.py` | yfinance | 全球 |
+| 深度投研框架 | `features/research.py` | yfinance | 全球 |
 | 技术指标 | `core/technical.py` | agent-stock | A股 |
 | 财务摘要 | `core/financial.py` | akshare, yfinance | A股/美股 |
 | 资金流向 | `core/financial.py` | akshare | A股 |
@@ -234,6 +238,7 @@ def get_data(symbol):
 
 | 日期 | 版本 | 变更内容 |
 |------|------|---------|
+| 2026-04-15 | v2.6.0 | 饕餮整合 stock-valuation-monitor + china-stock-research (估值监控+深度投研) |
 | 2026-04-15 | v2.5.0 | 完整集成 akshare-data (增强财务数据、宏观数据) |
 | 2026-04-15 | v2.4.0 | 完整集成 stock-correlation (相关性分析) |
 | 2026-04-15 | v2.3.0 | 完整集成 stock-market-pro (高级技术图表) |

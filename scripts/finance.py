@@ -42,6 +42,16 @@ from features.enhanced_financial import (
     get_index_data,
     get_industry_data
 )
+from features.valuation import (
+    calculate_percentile,
+    analyze_etf_premium,
+    calculate_band,
+    get_valuation_summary
+)
+from features.research import (
+    run_research,
+    ResearchFramework
+)
 
 
 def full_analysis(symbol: str) -> Dict:
@@ -167,6 +177,26 @@ def main():
     corr_rolling.add_argument('--ticker-a', required=True, help='股票A')
     corr_rolling.add_argument('--ticker-b', required=True, help='股票B')
     
+    # valuation
+    val_parser = subparsers.add_parser('val', help='估值分析')
+    val_sub = val_parser.add_subparsers(dest='val_type', help='估值类型')
+    
+    val_pct = val_sub.add_parser('percentile', help='估值百分位')
+    val_pct.add_argument('symbol', help='股票代码')
+    val_pct.add_argument('--metric', default='pe', help='指标 (pe/pb)')
+    
+    val_band = val_sub.add_parser('band', help='BAND分析')
+    val_band.add_argument('symbol', help='股票代码')
+    
+    val_sum = val_sub.add_parser('summary', help='估值摘要')
+    val_sum.add_argument('symbol', help='股票代码')
+    
+    # research
+    research_parser = subparsers.add_parser('research', help='深度投研')
+    research_parser.add_argument('symbol', help='股票代码')
+    research_parser.add_argument('--phase', type=int, choices=range(1, 9), help='执行指定阶段')
+    research_parser.add_argument('--full', action='store_true', help='完整分析')
+    
     # full
     full_parser = subparsers.add_parser('full', help='完整分析')
     full_parser.add_argument('symbol', help='股票代码')
@@ -228,6 +258,24 @@ def main():
             result = analyze_rolling_correlation(args.ticker_a, args.ticker_b)
         else:
             result = {'error': '请指定相关性类型'}
+    
+    elif args.command == 'val':
+        if args.val_type == 'percentile':
+            result = calculate_percentile(args.symbol, args.metric)
+        elif args.val_type == 'band':
+            result = calculate_band(args.symbol)
+        elif args.val_type == 'summary':
+            result = get_valuation_summary(args.symbol)
+        else:
+            result = {'error': '请指定估值类型'}
+    
+    elif args.command == 'research':
+        if args.full:
+            result = run_research(args.symbol)
+        elif args.phase:
+            result = run_research(args.symbol, args.phase)
+        else:
+            result = run_research(args.symbol)
     
     elif args.command == 'full':
         result = full_analysis(args.symbol)

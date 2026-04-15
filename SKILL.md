@@ -2,10 +2,10 @@
 name: unified-finance-skill
 description: >
   统一金融分析技能 - 饕餮整合多个金融 Skills 的最优能力。
-  支持全球市场 (A 股/港股/美股) 数据查询、技术分析、流动性分析、情绪分析、技术图表、相关性分析、增强财务数据、宏观数据。
-  **完整集成** (非路径引用): agent-stock + akshare + yfinance + stock-liquidity + finance-sentiment + stock-market-pro + stock-correlation + akshare-data。
-  触发：股票分析、行情查询、技术分析、流动性分析、情绪分析、技术图表、相关性分析、财务数据、宏观数据。
-version: 2.5.0
+  支持全球市场 (A 股/港股/美股) 数据查询、技术分析、流动性分析、情绪分析、技术图表、相关性分析、估值监控、深度投研。
+  **完整集成** (非路径引用): agent-stock + akshare + yfinance + stock-liquidity + finance-sentiment + stock-market-pro + stock-correlation + akshare-data + stock-valuation-monitor + china-stock-research。
+  触发：股票分析、行情查询、技术分析、流动性分析、情绪分析、技术图表、相关性分析、估值分析、投研报告。
+version: 2.6.0
 integration: full
 tested: 2026-04-15
 ---
