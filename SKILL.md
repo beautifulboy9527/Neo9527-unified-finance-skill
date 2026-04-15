@@ -1,10 +1,10 @@
 ---
 name: unified-finance-skill
 description: >
-  统一金融分析技能 - 饕餮整合 stock-research-executor, china-stock-analysis, 
-  stock-daily-analysis, unified-finance-skill 等多个 Skills 的最优能力。
-  支持全球市场 (A 股/港股/美股) 数据查询、技术分析、图表生成、智能警报、投资组合管理、
+  统一金融分析技能 - 饕餮整合多个金融 Skills 的最优能力。
+  支持全球市场 (A 股/港股/美股) 数据查询、技术分析、图表生成、智能警报、
   8阶段深度投研框架、选股器、财务异常检测、估值监控。
+  触发：股票分析、行情查询、投研报告、技术指标、估值计算、选股。
 version: 2.0.0
 ---
 
@@ -271,6 +271,72 @@ print(result['ai_analysis']['operation_advice'])
 | `valuation_calculator.py` | 估值计算器 (新增 DCF/DDM) |
 | `financial_analyzer.py` | 财务分析器 (新增 异常检测) |
 | `analyzer.py` | 日频技术分析 (新增 stock-daily-analysis) |
+
+## Gotchas
+
+> ⚠️ 环境特定的坑，使用前必读
+
+### 数据源限制
+- **A股数据**：使用东方财富 API，需代理或境内网络
+- **yfinance 限制**：对 A 股支持有限，优先使用 akshare
+- **港股代码格式**：`00700.HK`（必须带后缀）
+- **美股代码**：直接使用 ticker（如 `AAPL`）
+
+### 编码问题（Windows）
+- Windows 默认 GBK，所有脚本已添加 UTF-8 修复
+- 如遇乱码，检查终端编码设置
+
+### 选股器网络依赖
+- A股选股器依赖东方财富 API，网络不稳定时可能失败
+- 美股选股器使用 yfinance，速度较慢（需遍历多只股票）
+- 建议在网络稳定时使用
+
+### 图表输出
+- 图表默认保存到 `D:\OpenClaw\outputs\charts\`
+- 确保目录存在或脚本会自动创建
+
+### 数据时效性
+- 行情数据有 15 分钟延迟
+- 财务数据按季度更新
+- 建议结合实时数据验证
+
+## 测试工作流
+
+### 快速验证
+
+```bash
+# 1. 测试行情查询
+python scripts/finance.py quote 600519
+
+# 2. 测试图表生成
+python scripts/finance.py chart 600519 3mo --rsi
+
+# 3. 测试技术分析
+python scripts/analyzer.py --code 600519
+```
+
+### 完整测试
+
+```bash
+# 运行所有测试
+python scripts/test_all.py
+
+# 测试选股器（需网络）
+python scripts/stock_screener.py cn --pe-max 20 --limit 10
+
+# 测试估值计算
+python scripts/valuation_calculator.py --code 600519 --methods dcf
+
+# 测试财务异常检测
+python scripts/financial_analyzer.py --code 600519
+```
+
+### 预期输出
+
+- 行情查询：返回 JSON 格式的实时价格
+- 图表生成：PNG 文件保存到输出目录
+- 技术分析：JSON 文件包含技术指标和 AI 建议
+- 估值计算：DCF/DDM 估值结果
 
 ## 依赖
 
