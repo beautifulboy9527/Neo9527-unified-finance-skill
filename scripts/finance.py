@@ -68,6 +68,25 @@ from features.reporter import (
     write_section,
     generate_full_report
 )
+from features.signal_tracker import (
+    create_signal,
+    track_signal,
+    get_active_signals,
+    scan_hot_stocks,
+    scan_rumors
+)
+from features.visualizer import (
+    generate_transmission_chain,
+    generate_signal_radar,
+    generate_sentiment_trend
+)
+from features.search import (
+    search_ddg,
+    search_baidu,
+    search_jina,
+    aggregate_search,
+    search_finance_news
+)
 
 
 def full_analysis(symbol: str) -> Dict:
@@ -245,6 +264,40 @@ def main():
     report_parser.add_argument('topic', help='研报主题')
     report_parser.add_argument('--symbol', help='股票代码')
     
+    # signal
+    signal_parser = subparsers.add_parser('signal', help='信号追踪')
+    signal_sub = signal_parser.add_subparsers(dest='signal_type', help='信号类型')
+    
+    signal_create = signal_sub.add_parser('create', help='创建信号')
+    signal_create.add_argument('symbol', help='股票代码')
+    signal_create.add_argument('--type', choices=['bullish', 'bearish', 'neutral'], default='bullish')
+    signal_create.add_argument('--thesis', required=True, help='核心论点')
+    signal_create.add_argument('--confidence', type=float, default=0.5)
+    
+    signal_list = signal_sub.add_parser('list', help='列出信号')
+    signal_list.add_argument('--symbol', help='股票代码')
+    
+    signal_hot = signal_sub.add_parser('hot', help='热门扫描')
+    signal_rumors = signal_sub.add_parser('rumors', help='谣言扫描')
+    
+    # visualizer
+    viz_parser = subparsers.add_parser('viz', help='可视化')
+    viz_sub = viz_parser.add_subparsers(dest='viz_type', help='图表类型')
+    
+    viz_chain = viz_sub.add_parser('chain', help='传导链路')
+    viz_chain.add_argument('--nodes', help='节点 JSON')
+    
+    viz_radar = viz_sub.add_parser('radar', help='信号雷达')
+    viz_radar.add_argument('--sentiment', type=float, default=0.5)
+    viz_radar.add_argument('--confidence', type=float, default=0.7)
+    viz_radar.add_argument('--intensity', type=int, default=3)
+    
+    # search
+    search_parser = subparsers.add_parser('search', help='搜索')
+    search_parser.add_argument('query', help='搜索关键词')
+    search_parser.add_argument('--engine', choices=['ddg', 'baidu', 'jina', 'all'], default='all')
+    search_parser.add_argument('--max', type=int, default=5)
+    
     # full
     full_parser = subparsers.add_parser('full', help='完整分析')
     full_parser.add_argument('symbol', help='股票代码')
@@ -348,6 +401,39 @@ def main():
     elif args.command == 'report':
         data = {'symbol': args.symbol} if args.symbol else {}
         result = generate_full_report(args.topic, data)
+    
+    elif args.command == 'signal':
+        if args.signal_type == 'create':
+            result = create_signal(args.symbol, args.type, args.thesis, args.confidence)
+        elif args.signal_type == 'list':
+            result = get_active_signals(args.symbol)
+        elif args.signal_type == 'hot':
+            result = scan_hot_stocks()
+        elif args.signal_type == 'rumors':
+            result = scan_rumors()
+        else:
+            result = scan_hot_stocks()
+    
+    elif args.command == 'viz':
+        if args.viz_type == 'chain':
+            nodes = json.loads(args.nodes) if args.nodes else []
+            result = generate_transmission_chain(nodes)
+        elif args.viz_type == 'radar':
+            result = generate_signal_radar(args.sentiment, args.confidence, args.intensity)
+        else:
+            result = {'error': '请指定图表类型'}
+    
+    elif args.command == 'search':
+        if args.engine == 'all':
+            result = aggregate_search(args.query, max_results=args.max)
+        elif args.engine == 'ddg':
+            result = search_ddg(args.query, args.max)
+        elif args.engine == 'baidu':
+            result = search_baidu(args.query, args.max)
+        elif args.engine == 'jina':
+            result = search_jina(args.query, args.max)
+        else:
+            result = aggregate_search(args.query)
     
     elif args.command == 'full':
         result = full_analysis(args.symbol)
