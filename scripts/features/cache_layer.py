@@ -25,12 +25,15 @@ class CacheLayer:
     - 数据缓存 (行情、财务、回测结果)
     - TTL 支持 (自动过期)
     - 缓存统计 (命中率、大小)
+    - 自动清理 (防止无限膨胀)
     """
     
     def __init__(
         self,
         cache_dir: str = "D:\\OpenClaw\\cache",
-        default_ttl: int = 3600  # 默认1小时过期
+        default_ttl: int = 3600,  # 默认1小时过期
+        max_size: int = 1000,  # 最大缓存条目数
+        auto_cleanup: bool = True  # 自动清理过期缓存
     ):
         """
         初始化
@@ -38,13 +41,18 @@ class CacheLayer:
         Args:
             cache_dir: 缓存目录
             default_ttl: 默认过期时间(秒)
+            max_size: 最大缓存条目数
+            auto_cleanup: 是否自动清理过期缓存
         """
         self.cache_dir = cache_dir
         self.default_ttl = default_ttl
+        self.max_size = max_size
+        self.auto_cleanup = auto_cleanup
         self.stats = {
             'hits': 0,
             'misses': 0,
-            'sets': 0
+            'sets': 0,
+            'evictions': 0  # 清理次数
         }
         
         os.makedirs(cache_dir, exist_ok=True)
@@ -56,10 +64,18 @@ class CacheLayer:
             self.cache = Cache(cache_dir)
             self._use_diskcache = True
             print("✅ 使用 diskcache 加速")
+            
+            # 设置 diskcache 大小限制 (默认 1GB)
+            self.cache.size_limit = 1024 * 1024 * 1024  # 1GB
+            
         except ImportError:
             # 回退到内存缓存
             self.cache = {}
             print("⚠️ diskcache 未安装，使用内存缓存 (pip install diskcache)")
+        
+        # 启动时清理过期缓存
+        if auto_cleanup:
+            self._cleanup_expired()
     
     def _generate_key(self, *args, **kwargs) -> str:
         """生成缓存键"""
@@ -117,6 +133,13 @@ class CacheLayer:
             
             self.stats['sets'] += 1
             
+            # 自动清理过期缓存
+            if self.auto_cleanup and self.stats['sets'] % 100 == 0:
+                self._cleanup_expired()
+            
+            # 强制执行大小限制
+            self._enforce_size_limit()
+            
         except Exception as e:
             print(f"⚠️ 缓存设置失败: {e}")
     
@@ -139,21 +162,104 @@ class CacheLayer:
             else:
                 self.cache.clear()
             
-            self.stats = {'hits': 0, 'misses': 0, 'sets': 0}
+            self.stats = {'hits': 0, 'misses': 0, 'sets': 0, 'evictions': 0}
             
         except Exception as e:
             print(f"⚠️ 清空缓存失败: {e}")
+    
+    def _cleanup_expired(self) -> int:
+        """
+        清理过期缓存
+        
+        Returns:
+            清理的条目数
+        """
+        cleaned = 0
+        now = datetime.now()
+        
+        try:
+            if self._use_diskcache:
+                # diskcache 自动过期，但我们也手动检查
+                for key in list(self.cache):
+                    try:
+                        value = self.cache.get(key)
+                        if value and isinstance(value, tuple) and len(value) == 2:
+                            _, expire_time = value
+                            if now > expire_time:
+                                self.cache.delete(key)
+                                cleaned += 1
+                    except:
+                        pass
+            else:
+                # 内存缓存
+                keys_to_delete = []
+                for key, (value, expire_time) in self.cache.items():
+                    if now > expire_time:
+                        keys_to_delete.append(key)
+                
+                for key in keys_to_delete:
+                    del self.cache[key]
+                    cleaned += 1
+            
+            self.stats['evictions'] += cleaned
+            if cleaned > 0:
+                print(f"🧹 清理过期缓存: {cleaned} 条")
+            
+        except Exception as e:
+            print(f"⚠️ 清理缓存失败: {e}")
+        
+        return cleaned
+    
+    def _enforce_size_limit(self) -> None:
+        """
+        强制执行缓存大小限制
+        超过 max_size 时，删除最旧的缓存
+        """
+        try:
+            if self._use_diskcache:
+                # diskcache 自动管理大小
+                pass
+            else:
+                # 内存缓存
+                if len(self.cache) > self.max_size:
+                    # 按过期时间排序，删除最旧的
+                    items = [(k, v[1]) for k, v in self.cache.items()]
+                    items.sort(key=lambda x: x[1])
+                    
+                    # 删除最旧的 10%
+                    to_delete = int(self.max_size * 0.1)
+                    for key, _ in items[:to_delete]:
+                        del self.cache[key]
+                        self.stats['evictions'] += 1
+                    
+                    print(f"🧹 缓存超限，清理: {to_delete} 条")
+        
+        except Exception as e:
+            print(f"⚠️ 强制清理失败: {e}")
     
     def get_stats(self) -> Dict:
         """获取缓存统计"""
         total = self.stats['hits'] + self.stats['misses']
         hit_rate = self.stats['hits'] / total if total > 0 else 0
         
+        # 获取缓存大小
+        cache_size = 0
+        try:
+            if self._use_diskcache:
+                cache_size = len(self.cache)
+            else:
+                cache_size = len(self.cache)
+        except:
+            pass
+        
         return {
             **self.stats,
             'total_requests': total,
             'hit_rate': hit_rate,
-            'cache_type': 'diskcache' if self._use_diskcache else 'memory'
+            'cache_type': 'diskcache' if self._use_diskcache else 'memory',
+            'cache_size': cache_size,
+            'max_size': self.max_size,
+            'usage_pct': (cache_size / self.max_size * 100) if self.max_size > 0 else 0
         }
 
 
