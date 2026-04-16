@@ -280,12 +280,37 @@ class ReportGenerator:
         crypto_result = analyze_crypto(symbol)
         asset_info = detect_asset_type(symbol)
         
-        # 生成图表
+        # 雷达图数据 - 计算技术面评分
+        tech = crypto_result.get('technical', {})
+        basic = tech.get('basic_indicators', {})
+        tech_score = 50
+        
+        if basic:
+            scores = []
+            rsi = basic.get('rsi', 0)
+            if rsi:
+                scores.append(80 if 40 <= rsi <= 70 else 60 if 30 <= rsi < 40 or 70 < rsi <= 80 else 40)
+            
+            trend = basic.get('trend', 'unknown')
+            scores.append(80 if trend == 'uptrend' else 30 if trend == 'downtrend' else 50)
+            
+            if basic.get('macd_trend') == 'bullish':
+                scores.append(75)
+            elif basic.get('macd_trend') == 'bearish':
+                scores.append(25)
+            
+            adx = basic.get('adx', 0)
+            if adx:
+                scores.append(80 if adx > 25 else 60 if adx > 20 else 40)
+            
+            if scores:
+                tech_score = sum(scores) / len(scores)
+        
         radar_data = {
-            '技术面': crypto_result['technical'].get('ai_decision', {}).get('confidence', 0),
+            '技术面': tech_score,
             '信号强度': crypto_result['signals'].get('score', {}).get('overall_score', 0),
             '市场情绪': crypto_result['sentiment'].get('sentiment_score', 50),
-            '链上活跃度': 60,  # 默认值
+            '链上活跃度': 60,
             '流动性': 70
         }
         
