@@ -662,20 +662,12 @@ class ReportGenerator:
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <strong>分析时间:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}<br>
             <strong>资产类型:</strong> 加密货币<br>
-            <strong>报告版本:</strong> v3.2 (多资产适配版 - 真实数据)
+            <strong>报告版本:</strong> v3.2 (专业版)
         </div>
         
-        <h2>📊 一、市场数据 (实时)</h2>
+        <!-- 调整顺序: 综合评分 -> 市场数据 -> 技术分析 -> 情绪 -> 风险 -> 决策 -->
         
-        <table>
-            <tr><th>指标</th><th>数值</th><th>说明</th></tr>
-            <tr><td>当前价格</td><td><strong>${current_price:,.2f}</strong></td><td>实时价格</td></tr>
-            <tr><td>24h 涨跌</td><td>{price_change_24h:+.2f}%</td><td>{'📈 上涨' if price_change_24h and price_change_24h > 0 else '📉 下跌' if price_change_24h else '-'}</td></tr>
-            <tr><td>24h 成交量</td><td>${volume_24h/1e9:.2f}B</td><td>市场活跃度</td></tr>
-            <tr><td>市值</td><td>${market_cap/1e9:.2f}B</td><td>市场排名第 {market_cap_rank}</td></tr>
-        </table>
-        
-        <h2>📊 二、综合评分</h2>
+        <h2>📊 一、综合评分</h2>
         
         <div class="score-card">
             <div class="score-value">{crypto_result['score']}/100</div>
@@ -686,14 +678,17 @@ class ReportGenerator:
             {radar_img}
         </div>
         
-        <h2>🎯 三、投资决策</h2>
+        <h2>💰 二、市场数据 (实时)</h2>
         
-        <div class="decision">
-            <div class="decision-action">{crypto_result['recommendation'].upper()}</div>
-            <div style="margin-top: 10px;">建议操作 | 评分 {crypto_result['score']}/100</div>
-        </div>
+        <table>
+            <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+            <tr><td>当前价格</td><td><strong>${current_price:,.2f}</strong></td><td>实时价格</td></tr>
+            <tr><td>24h 涨跌</td><td>{price_change_24h:+.2f}%</td><td>{'📈 上涨' if price_change_24h and price_change_24h > 0 else '📉 下跌' if price_change_24h else '-'}</td></tr>
+            <tr><td>24h 成交量</td><td>${volume_24h/1e9:.2f}B</td><td>市场活跃度</td></tr>
+            <tr><td>市值</td><td>${market_cap/1e9:.2f}B</td><td>市场排名第 {market_cap_rank}</td></tr>
+        </table>
         
-        <h2>📈 四、市场情绪</h2>
+        <h2>📉 三、技术分析</h2>
         
         <table>
             <tr><th>指标</th><th>数值</th><th>解读</th></tr>

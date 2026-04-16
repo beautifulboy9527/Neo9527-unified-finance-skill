@@ -259,85 +259,109 @@ class CryptoAnalyzer:
                 if volatility_ratio > 0.05:  # ATR > 5% 价格
                     result['volatility_warning'] = f"⚠️ 高波动率: {volatility_ratio*100:.1f}% (建议ATR止损倍数3-4)"
             
-            # 新增: 更多技术指标
+            # 新增: 更多技术指标 (使用 CoinGecko OHLC)
             try:
+                import yfinance as yf
+                import pandas as pd
+                import numpy as np
+                
+                # 使用 yfinance 获取 OHLCV 数据
                 ticker = yf.Ticker(symbol)
                 hist = ticker.history(period='6mo')
                 
                 if not hist.empty and len(hist) >= 30:
+                    closes = hist['Close']
+                    highs = hist['High']
+                    lows = hist['Low']
+                    volumes = hist['Volume']
+                    
                     # MACD
-                    exp1 = hist['Close'].ewm(span=12, adjust=False).mean()
-                    exp2 = hist['Close'].ewm(span=26, adjust=False).mean()
+                    exp1 = closes.ewm(span=12, adjust=False).mean()
+                    exp2 = closes.ewm(span=26, adjust=False).mean()
                     macd = exp1 - exp2
                     signal = macd.ewm(span=9, adjust=False).mean()
                     histogram = macd - signal
                     
-                    result['indicators']['macd'] = round(macd.iloc[-1], 4)
-                    result['indicators']['macd_signal'] = round(signal.iloc[-1], 4)
-                    result['indicators']['macd_histogram'] = round(histogram.iloc[-1], 4)
-                    result['indicators']['macd_trend'] = 'bullish' if histogram.iloc[-1] > 0 else 'bearish'
+                    result['indicators']['macd'] = round(float(macd.iloc[-1]), 4)
+                    result['indicators']['macd_signal'] = round(float(signal.iloc[-1]), 4)
+                    result['indicators']['macd_histogram'] = round(float(histogram.iloc[-1]), 4)
+                    result['indicators']['macd_trend'] = 'bullish' if float(histogram.iloc[-1]) > 0 else 'bearish'
                     
                     # Bollinger Bands
-                    bb_middle = hist['Close'].rolling(window=20).mean()
-                    bb_std = hist['Close'].rolling(window=20).std()
+                    bb_middle = closes.rolling(window=20).mean()
+                    bb_std = closes.rolling(window=20).std()
                     bb_upper = bb_middle + (bb_std * 2)
                     bb_lower = bb_middle - (bb_std * 2)
                     
-                    result['indicators']['bb_upper'] = round(bb_upper.iloc[-1], 2)
-                    result['indicators']['bb_middle'] = round(bb_middle.iloc[-1], 2)
-                    result['indicators']['bb_lower'] = round(bb_lower.iloc[-1], 2)
-                    result['indicators']['bb_position'] = (
-                        'above_upper' if current_price > bb_upper.iloc[-1] else
-                        'below_lower' if current_price < bb_lower.iloc[-1] else
-                        'middle'
-                    )
+                    result['indicators']['bb_upper'] = round(float(bb_upper.iloc[-1]), 2)
+                    result['indicators']['bb_middle'] = round(float(bb_middle.iloc[-1]), 2)
+                    result['indicators']['bb_lower'] = round(float(bb_lower.iloc[-1]), 2)
+                    
+                    current_price = float(current_price) if current_price else float(closes.iloc[-1])
+                    
+                    if current_price > float(bb_upper.iloc[-1]):
+                        result['indicators']['bb_position'] = 'above_upper'
+                    elif current_price < float(bb_lower.iloc[-1]):
+                        result['indicators']['bb_position'] = 'below_lower'
+                    else:
+                        result['indicators']['bb_position'] = 'middle'
                     
                     # Volume Analysis
-                    avg_volume_20 = hist['Volume'].rolling(window=20).mean().iloc[-1]
-                    current_volume = hist['Volume'].iloc[-1]
-                    volume_ratio = current_volume / avg_volume_20 if avg_volume_20 > 0 else 1
+                    avg_volume_20 = float(volumes.rolling(window=20).mean().iloc[-1])
+                    current_volume = float(volumes.iloc[-1])
+                    volume_ratio = current_volume / avg_volume_20 if avg_volume_20 > 0 else 1.0
                     
                     result['indicators']['volume_ratio'] = round(volume_ratio, 2)
                     result['indicators']['volume_trend'] = 'high' if volume_ratio > 1.5 else 'low' if volume_ratio < 0.7 else 'normal'
                     
                     # Stochastic
-                    low_14 = hist['Low'].rolling(window=14).min()
-                    high_14 = hist['High'].rolling(window=14).max()
-                    k = 100 * (hist['Close'] - low_14) / (high_14 - low_14)
+                    low_14 = lows.rolling(window=14).min()
+                    high_14 = highs.rolling(window=14).max()
+                    k = 100 * (closes - low_14) / (high_14 - low_14 + 0.0001)  # 避免除零
                     d = k.rolling(window=3).mean()
                     
-                    result['indicators']['stoch_k'] = round(k.iloc[-1], 2)
-                    result['indicators']['stoch_d'] = round(d.iloc[-1], 2)
+                    result['indicators']['stoch_k'] = round(float(k.iloc[-1]), 2)
+                    result['indicators']['stoch_d'] = round(float(d.iloc[-1]), 2)
                     
                     # ADX (趋势强度)
-                    high = hist['High']
-                    low = hist['Low']
-                    close = hist['Close']
+                    high = highs
+                    low = lows
+                    close = closes
                     
                     plus_dm = high.diff()
                     minus_dm = low.diff()
-                    plus_dm[plus_dm < 0] = 0
-                    minus_dm[minus_dm > 0] = 0
+                    plus_dm = plus_dm.where(plus_dm > 0, 0)
+                    minus_dm = minus_dm.where(minus_dm < 0, 0).abs()
                     
-                    tr = pd.concat([high - low, abs(high - close.shift()), abs(low - close.shift())], axis=1).max(axis=1)
+                    tr1 = high - low
+                    tr2 = (high - close.shift()).abs()
+                    tr3 = (low - close.shift()).abs()
+                    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
                     atr_14 = tr.rolling(window=14).mean()
                     
-                    plus_di = 100 * (plus_dm.rolling(window=14).mean() / atr_14)
-                    minus_di = 100 * (abs(minus_dm).rolling(window=14).mean() / atr_14)
-                    dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+                    plus_di = 100 * (plus_dm.rolling(window=14).mean() / (atr_14 + 0.0001))
+                    minus_di = 100 * (minus_dm.rolling(window=14).mean() / (atr_14 + 0.0001))
+                    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di + 0.0001)
                     adx = dx.rolling(window=14).mean()
                     
-                    result['indicators']['adx'] = round(adx.iloc[-1], 2)
-                    result['indicators']['trend_strength'] = (
-                        'strong' if adx.iloc[-1] > 25 else
-                        'weak' if adx.iloc[-1] < 20 else
-                        'moderate'
-                    )
+                    result['indicators']['adx'] = round(float(adx.iloc[-1]), 2)
+                    result['indicators']['plus_di'] = round(float(plus_di.iloc[-1]), 2)
+                    result['indicators']['minus_di'] = round(float(minus_di.iloc[-1]), 2)
+                    
+                    adx_value = float(adx.iloc[-1])
+                    if adx_value > 25:
+                        result['indicators']['trend_strength'] = 'strong'
+                    elif adx_value < 20:
+                        result['indicators']['trend_strength'] = 'weak'
+                    else:
+                        result['indicators']['trend_strength'] = 'moderate'
                     
                     result['data_source'] = 'yfinance + pandas'
                     
             except Exception as e:
                 print(f"⚠️ 扩展指标计算失败: {e}")
+                import traceback
+                traceback.print_exc()
             
             # 新增: 生成专业文字解读
             result['narrative'] = self._generate_technical_narrative(result['indicators'], symbol)
