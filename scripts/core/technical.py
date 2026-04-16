@@ -29,7 +29,7 @@ class TechnicalAnalyzer:
         
     def get_basic_indicators(self) -> Dict:
         """
-        获取基础技术指标 (agent-stock)
+        获取基础技术指标 (agent-stock + yfinance 备用)
         """
         result = {
             'symbol': self.symbol,
@@ -38,6 +38,7 @@ class TechnicalAnalyzer:
             'error': None
         }
         
+        # 方法1: 尝试 agent-stock
         try:
             import subprocess
             
@@ -88,9 +89,61 @@ class TechnicalAnalyzer:
                         'trend': 'uptrend' if current_price > ma5 > ma10 else 'downtrend'
                     }
                     result['data_source'] = 'agent-stock'
+                    return result
                     
         except Exception as e:
             result['error'] = str(e)
+        
+        # 方法2: yfinance 备用 (适用于加密货币)
+        try:
+            import yfinance as yf
+            import pandas as pd
+            
+            ticker = yf.Ticker(self.symbol)
+            hist = ticker.history(period='3mo')
+            
+            if not hist.empty and len(hist) >= 20:
+                closes = hist['Close'].tolist()
+                
+                # 计算均线
+                ma5 = sum(closes[-5:]) / 5
+                ma10 = sum(closes[-10:]) / 10
+                ma20 = sum(closes[-20:]) / 20
+                
+                current_price = closes[-1]
+                
+                # 计算RSI
+                rsi = self._calculate_rsi(closes)
+                
+                # 计算ATR (波动率)
+                highs = hist['High'].tolist()[-14:]
+                lows = hist['Low'].tolist()[-14:]
+                closes_14 = closes[-14:]
+                
+                tr_list = []
+                for i in range(1, len(highs)):
+                    tr = max(highs[i] - lows[i], abs(highs[i] - closes_14[i-1]), abs(lows[i] - closes_14[i-1]))
+                    tr_list.append(tr)
+                
+                atr = sum(tr_list) / len(tr_list) if tr_list else 0
+                
+                result['indicators'] = {
+                    'current_price': round(current_price, 2),
+                    'ma5': round(ma5, 2),
+                    'ma10': round(ma10, 2),
+                    'ma20': round(ma20, 2),
+                    'rsi': round(rsi, 2) if rsi else None,
+                    'atr': round(atr, 2),
+                    'trend': 'uptrend' if current_price > ma5 > ma10 else 'downtrend' if current_price < ma5 < ma10 else 'sideways'
+                }
+                result['data_source'] = 'yfinance'
+                result['error'] = None
+                
+        except Exception as e:
+            if result.get('error'):
+                result['error'] += f'; yfinance failed: {str(e)}'
+            else:
+                result['error'] = f'yfinance failed: {str(e)}'
         
         return result
     
