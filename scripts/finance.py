@@ -121,6 +121,8 @@ from features.regulation_monitor import monitor_regulations, check_regulatory_ri
 from features.board_scanner import scan_limit_up, scan_strong_stocks, scan_continuous_boards, analyze_board_market, get_board_opportunities
 # 新增模块 - 整合自 stock-recommend 思路 (地区化分析)
 from features.regional_news import analyze_regional_news, recommend_from_news
+# 新增模块 - 整合自 stock-screener-cn (股票筛选器)
+from features.stock_screener import screen_stocks, screen_multi_strategies, list_strategies
 
 
 def full_analysis(symbol: str) -> Dict:
