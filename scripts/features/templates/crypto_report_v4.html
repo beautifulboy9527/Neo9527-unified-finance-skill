@@ -309,12 +309,39 @@
             <!-- 第四节: 链上数据 -->
             <div class="section">
                 <h2 class="section-title">四、链上数据</h2>
-                <table>
-                    <tr><th>指标</th><th>数值</th><th>说明</th></tr>
-                    {onchain_rows}
-                </table>
+                
+                <!-- 鲸鱼交易数据 -->
+                <div class="card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); margin-bottom: 20px;">
+                    <h3 style="font-size: 18px; margin-bottom: 15px;">🐋 鲸鱼行为分析</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: bold; color: {whale_signal_color};">{whale_net_flow:+,}</div>
+                            <div style="font-size: 13px; color: #666;">24h 净流入 ({symbol_base})</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: bold;">{whale_activity}</div>
+                            <div style="font-size: 13px; color: #666;">鲸鱼状态</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 28px; font-weight: bold;">{whale_signal_text}</div>
+                            <div style="font-size: 13px; color: #666;">信号解读</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px;">
+                        <div style="font-size: 14px; color: #555;">{whale_signal_desc}</div>
+                    </div>
+                </div>
+                
+                <!-- 网络指标 (BTC) -->
+                {network_metrics_html}
+                
+                <!-- DeFi 数据 (ETH) -->
+                {defi_metrics_html}
+                
                 <div class="data-source">
-                    数据来源: {onchain_source}
+                    数据来源: DeFiLlama + Blockchain.com + 模拟数据 (需配置 API key)
                 </div>
             </div>
             

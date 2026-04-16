@@ -29,6 +29,7 @@ def generate_crypto_report_v4(symbol: str, output_dir: str = "D:\\OpenClaw\\outp
     
     from features.complete_crypto_analyzer import analyze_complete
     from features.kline_chart import get_kline_data
+    from features.onchain_data import get_onchain_data
     
     print(f"正在分析 {symbol}...")
     
@@ -38,6 +39,11 @@ def generate_crypto_report_v4(symbol: str, output_dir: str = "D:\\OpenClaw\\outp
     # 2. 获取K线数据
     print("获取K线数据...")
     kline_data = get_kline_data(symbol, '3mo')
+    
+    # 3. 获取链上数据
+    print("获取链上数据...")
+    base_symbol = symbol.split('-')[0]  # BTC-USD -> BTC
+    onchain_full = get_onchain_data(base_symbol)
     
     # 2. 提取数据
     market = result.get('market', {})
@@ -281,6 +287,62 @@ def generate_crypto_report_v4(symbol: str, output_dir: str = "D:\\OpenClaw\\outp
         )
     
     template_vars['kline_html'] = kline_html
+    
+    # 9. 处理链上数据
+    whale_data = onchain_full.get('whale', {})
+    network_data = onchain_full.get('network', {})
+    defi_data = onchain_full.get('defi', {})
+    
+    # 鲸鱼数据
+    net_flow = whale_data.get('net_flow', 0)
+    template_vars['whale_net_flow'] = net_flow
+    template_vars['whale_activity'] = whale_data.get('whale_activity', 'N/A')
+    template_vars['whale_signal'] = whale_data.get('signal', 'neutral')
+    template_vars['whale_signal_text'] = '看涨' if net_flow > 0 else '看跌' if net_flow < 0 else '中性'
+    template_vars['whale_signal_color'] = '#27ae60' if net_flow > 0 else '#e74c3c' if net_flow < 0 else '#95a5a6'
+    template_vars['whale_signal_desc'] = whale_data.get('signal_desc', '暂无数据')
+    template_vars['symbol_base'] = base_symbol
+    
+    # 网络指标 (BTC)
+    network_metrics_html = ''
+    if network_data and 'error' not in network_data:
+        network_metrics_html = f'''
+            <div class="card" style="margin-bottom: 20px;">
+                <h3 style="font-size: 18px; margin-bottom: 15px;">⛏️ 网络指标</h3>
+                <table>
+                    <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+                    <tr><td>算力</td><td>{network_data.get('hashrate', 0):.2f} EH/s</td><td>网络安全度</td></tr>
+                    <tr><td>难度</td><td>{network_data.get('difficulty', 0):.2f} T</td><td>挖矿难度</td></tr>
+                    <tr><td>流通量</td><td>{network_data.get('total_btc', 0):,.0f} BTC</td><td>已挖出数量</td></tr>
+                </table>
+            </div>
+        '''
+    template_vars['network_metrics_html'] = network_metrics_html
+    
+    # DeFi 数据 (ETH)
+    defi_metrics_html = ''
+    if defi_data and 'error' not in defi_data:
+        top_protocols_html = ''
+        for i, p in enumerate(defi_data.get('top_protocols', [])[:5], 1):
+            top_protocols_html += f'<li>{p["name"]}: ${p["tvl"]:,.0f} ({p["change_1d"]:+.2f}%)</li>'
+        
+        defi_metrics_html = f'''
+            <div class="card" style="margin-bottom: 20px;">
+                <h3 style="font-size: 18px; margin-bottom: 15px;">💎 DeFi 数据</h3>
+                <table>
+                    <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+                    <tr><td>总 TVL</td><td>${defi_data.get('total_tvl', 0):,.0f}</td><td>链上总锁仓量</td></tr>
+                    <tr><td>TVL 变化</td><td>{defi_data.get('tvl_change_24h', 0):+.2f}%</td><td>24h 变化</td></tr>
+                    <tr><td>协议数量</td><td>{defi_data.get('protocol_count', 0)}</td><td>链上协议总数</td></tr>
+                </table>
+                
+                <h4 style="margin-top: 15px; font-size: 14px;">Top 5 协议:</h4>
+                <ol style="margin-left: 20px; line-height: 1.8;">
+                    {top_protocols_html}
+                </ol>
+            </div>
+        '''
+    template_vars['defi_metrics_html'] = defi_metrics_html
     
     # 7. 读取模板并填充
     template_path = os.path.join(os.path.dirname(__file__), 'templates', 'crypto_report_v4.html')
