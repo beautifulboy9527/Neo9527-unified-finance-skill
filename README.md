@@ -106,9 +106,9 @@ python finance.py regional-news --type regional
 | **回测引擎** | 信号验证 + 评级 | `backtest_engine.py` | 563 |
 | **组合管理** | Markowitz + Kelly | `portfolio_manager.py` | 488 |
 | **投资框架** | 长中短线分析 | `investment_framework.py` | 560 |
+| **可视化报告** | HTML/PDF + 图表 | `report_generator.py` | 597 |
 | **信号库** | 30个验证信号 | `entry_signals.py` | - |
 | **风险管理** | ATR止损 + 仓位 | `risk_management.py` | - |
-| **评分引擎** | 0-100分评分 | `scoring_engine.py` | - |
 
 ---
 
@@ -296,6 +296,27 @@ print(f"DuPont: {fundamentals['dupont']}")
 print(f"Z-Score: {fundamentals['zscore']}")
 ```
 
+### 5. 可视化报告生成
+
+```python
+from features.report_generator import generate_report
+
+# HTML 报告 (推荐)
+html_path = generate_report('002241', 'medium', 'html')
+print(f"报告已生成: {html_path}")
+
+# PDF 报告
+pdf_path = generate_report('002241', 'medium', 'pdf')
+
+# Markdown 报告
+md_path = generate_report('002241', 'medium', 'markdown')
+```
+
+**输出示例**:
+- HTML: `D:\OpenClaw\outputs\reports\002241_report.html`
+- PDF: `D:\OpenClaw\outputs\reports\002241_report.pdf`
+- Markdown: `D:\OpenClaw\outputs\reports\002241_report.md`
+
 ---
 
 ## 🏗️ 架构图
@@ -342,7 +363,64 @@ Unified Finance Skill v3.2
 | Phase 2 | 回测验证引擎 | backtest_engine.py | 563 | 83b3f74 |
 | Phase 3 | 组合优化 | portfolio_manager.py | 488 | d474f84 |
 
-**总新增代码**: 2,616 行 (5个核心模块)
+**总新增代码**: 3,213 行 (6个核心模块)
+
+---
+
+## 📊 Phase 4: 可视化报告系统
+
+### 新增能力对比
+
+| 维度 | Phase 3 | Phase 4 | 改进 |
+|------|---------|---------|------|
+| 报告格式 | ❌ 仅 Markdown | ✅ Markdown/HTML/PDF | 3种格式 |
+| 可视化 | ❌ 无 | ✅ 4种图表 | 雷达/K线/热力/Monte Carlo |
+| 排版质量 | ⚠️ 纯文本 | ✅ 专业CSS | 美观度大幅提升 |
+| 图表嵌入 | ❌ 无 | ✅ Base64嵌入 | 无需外部文件 |
+
+### 支持的图表类型
+
+1. **雷达图** - 综合评分可视化
+2. **K线图** - 价格走势 + 成交量
+3. **相关性热力图** - 组合相关性矩阵
+4. **Monte Carlo 分布图** - 价格模拟路径 + 终值分布
+
+### 报告格式
+
+#### HTML 格式 (推荐)
+```python
+from features.report_generator import generate_report
+
+html_path = generate_report('002241', 'medium', 'html')
+# → D:\OpenClaw\outputs\reports\002241_report.html
+```
+
+**特点**:
+- ✅ 专业 CSS 样式
+- ✅ 嵌入 Base64 图表
+- ✅ 响应式布局
+- ✅ 无需外部依赖
+
+#### Markdown 格式
+```python
+md_path = generate_report('002241', 'medium', 'markdown')
+```
+
+**特点**:
+- ✅ 纯文本
+- ✅ 版本控制友好
+- ⚠️ 无图表
+
+#### PDF 格式
+```python
+pdf_path = generate_report('002241', 'medium', 'pdf')
+# 需要先安装: pip install weasyprint
+```
+
+**特点**:
+- ✅ 适合打印
+- ✅ 正式文档
+- ⚠️ 需要安装 weasyprint (Windows/Mac/Linux 系统依赖不同)
 
 ---
 
