@@ -117,6 +117,8 @@ from features.context_filter import filter_signal_context
 from features.failed_patterns import detect_failed_patterns
 # 新增模块 - 整合自 regulation-monitor (监管监控)
 from features.regulation_monitor import monitor_regulations, check_regulatory_risk, summarize_regulations
+# 新增模块 - 整合自 stock-board (打板筛选)
+from features.board_scanner import scan_limit_up, scan_strong_stocks, scan_continuous_boards, analyze_board_market, get_board_opportunities
 
 
 def full_analysis(symbol: str) -> Dict:
