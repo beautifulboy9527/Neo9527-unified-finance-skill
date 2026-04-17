@@ -28,6 +28,7 @@ if sys.platform == 'win32':
 BAOSTOCK_AVAILABLE = False
 TUSHARE_AVAILABLE = False
 AKSHARE_AVAILABLE = False
+EFINANCE_AVAILABLE = False
 
 try:
     import baostock as bs
@@ -44,6 +45,12 @@ except ImportError:
 try:
     import akshare as ak
     AKSHARE_AVAILABLE = True
+except ImportError:
+    pass
+
+try:
+    import efinance as ef
+    EFINANCE_AVAILABLE = True
 except ImportError:
     pass
 
@@ -101,6 +108,12 @@ class StableFundamentalSkill:
             data = self._fetch_akshare(symbol)
             if data:
                 return self._format_result(data, 'AkShare', 0.70)
+        
+        # 尝试 efinance
+        if EFINANCE_AVAILABLE:
+            data = self._fetch_efinance(symbol)
+            if data:
+                return self._format_result(data, 'efinance', 0.75)
         
         return {
             'success': False,
@@ -257,6 +270,30 @@ class StableFundamentalSkill:
             
         except Exception as e:
             print(f"  AkShare 错误: {e}")
+            return None
+    
+    def _fetch_efinance(self, symbol: str) -> Optional[Dict]:
+        """从 efinance 获取数据"""
+        try:
+            import efinance as ef
+            
+            # 获取行情数据
+            df = ef.stock.get_quote_history(symbol)
+            
+            if df.empty:
+                return None
+            
+            latest = df.iloc[-1]
+            
+            return {
+                'price': self._safe_float(latest.get('收盘')),
+                'volume': self._safe_float(latest.get('成交量')),
+                'high': self._safe_float(latest.get('最高')),
+                'low': self._safe_float(latest.get('最低')),
+            }
+            
+        except Exception as e:
+            print(f"  efinance 错误: {e}")
             return None
     
     def _safe_float(self, value) -> float:
