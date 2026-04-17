@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Apple风格专业报告生成器 v4.8
+Apple风格专业报告生成器 v4.9
 - 纯黑背景 + 卡片式布局
 - 数据可视化优先
 - 支撑阻力位直观展示
@@ -12,6 +12,9 @@ Apple风格专业报告生成器 v4.8
   - 概率分析
   - 场景应对方案
   - 风险提示完善
+- Phase 5: 共享模块整合
+  - 引用验证体系
+  - 风险监控清单
 """
 
 import sys
@@ -32,6 +35,14 @@ try:
 except ImportError:
     TECHNICAL_ANALYZER_AVAILABLE = False
 
+# 导入共享模块
+try:
+    from skills.shared.citation_validator.validator import CitationValidator
+    from skills.shared.risk_monitor.monitor import RiskMonitor
+    SHARED_MODULES_AVAILABLE = True
+except ImportError:
+    SHARED_MODULES_AVAILABLE = False
+
 
 class AssetType:
     """资产类型"""
@@ -45,15 +56,28 @@ def generate_apple_style_report(symbol: str, output_dir: str = r"D:\OpenClaw\out
     """生成Apple风格专业报告"""
     
     print("=" * 60)
-    print(f"生成 {symbol} Apple风格报告 (v4.8)")
+    print(f"生成 {symbol} Apple风格报告 (v4.9)")
     print("=" * 60)
     
-    # 1. 获取数据
+    # 初始化共享模块
+    validator = CitationValidator() if SHARED_MODULES_AVAILABLE else None
+    monitor = RiskMonitor(asset_type='crypto') if SHARED_MODULES_AVAILABLE else None
+    
+    # 1. 获取数据 (带引用标注)
     market_data = get_real_market_data(symbol)
+    if validator and market_data:
+        market_data['citation'] = validator.cite('yfinance', '', datetime.now().strftime('%Y-%m-%d'))
+    
     kline_data = get_real_kline_data(symbol, '3mo')
+    if validator and kline_data:
+        kline_data['citation'] = validator.cite('yfinance', '', datetime.now().strftime('%Y-%m-%d'))
+    
     technical_data = calculate_indicators(kline_data)
     sr_levels = calculate_support_resistance(kline_data, 'fibonacci')
     onchain_data = get_onchain_data(symbol) if 'USD' in symbol else {}
+    if validator and onchain_data:
+        onchain_data['citation'] = validator.cite('DeFiLlama', '', datetime.now().strftime('%Y-%m-%d'))
+    
     signals = generate_signals(market_data, technical_data, onchain_data, sr_levels)
     
     # 2. Phase 4: 综合结论深度分析
@@ -70,7 +94,12 @@ def generate_apple_style_report(symbol: str, output_dir: str = r"D:\OpenClaw\out
     # 场景应对方案
     scenarios = generate_scenarios(market_data, technical_data, sr_levels, signals, tech_analysis)
     
-    # 3. 生成HTML
+    # 3. 生成监控清单
+    monitoring_checklist = ''
+    if monitor:
+        monitoring_checklist = monitor.generate_checklist_html(symbol)
+    
+    # 4. 生成HTML
     html = generate_apple_html(
         symbol=symbol,
         market=market_data,
@@ -81,14 +110,16 @@ def generate_apple_style_report(symbol: str, output_dir: str = r"D:\OpenClaw\out
         signals=signals,
         tech_analysis=tech_analysis,
         probability=probability,
-        scenarios=scenarios
+        scenarios=scenarios,
+        monitoring_checklist=monitoring_checklist,
+        validator=validator
     )
     
-    # 4. 保存
+    # 5. 保存
     os.makedirs(output_dir, exist_ok=True)
     report_file = os.path.join(
         output_dir,
-        f'{symbol}_apple_v4.8_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+        f'{symbol}_apple_v4.9_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     )
     
     with open(report_file, 'w', encoding='utf-8') as f:
@@ -710,6 +741,8 @@ def generate_apple_html(**kwargs) -> str:
     tech_analysis = kwargs.get('tech_analysis', {})
     probability = kwargs.get('probability', {})
     scenarios = kwargs.get('scenarios', {})
+    monitoring_checklist = kwargs.get('monitoring_checklist', '')
+    validator = kwargs.get('validator', None)
     
     # 计算评分
     total_strength = sum(s['strength'] for s in signals)
@@ -1510,12 +1543,25 @@ def generate_apple_html(**kwargs) -> str:
                 </div>
                 {f'<div class="bg-gray-800 rounded-lg p-3 text-center"><i class="fas fa-link text-orange-400 mb-1"></i><div class="text-gray-400">链上数据</div><div class="text-white font-bold">{onchain.get("data_source", "DeFiLlama")}</div></div>' if onchain else ''}
             </div>
+            
+            <!-- 引用评级说明 -->
+            <div class="mt-4 p-4 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+                <p><strong class="text-white">数据来源评级:</strong>
+                <span class="text-green-400">A</span> (最权威) | 
+                <span class="text-blue-400">B</span> (高可信) | 
+                <span class="text-yellow-400">C</span> (中等可信) | 
+                <span class="text-red-400">D</span> (低可信) | 
+                <span class="text-gray-400">E</span> (未验证)</p>
+            </div>
         </div>
+        
+        <!-- 监控清单 -->
+        {monitoring_checklist}
         
         <!-- 页脚 -->
         <div class="text-center mt-12 pb-8 text-gray-500 text-sm">
-            <p>Neo9527 Finance Skill v4.8 | 专业级金融分析系统</p>
-            <p class="mt-2">Apple风格设计 | 数据真实可靠 | 分析专业深入 | Phase 4 综合结论优化</p>
+            <p>Neo9527 Finance Skill v4.9 | 专业级金融分析系统</p>
+            <p class="mt-2">Apple风格设计 | 数据真实可靠 | 分析专业深入 | 引用验证 + 风险监控</p>
         </div>
     </div>
     
