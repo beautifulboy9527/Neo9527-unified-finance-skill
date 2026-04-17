@@ -21,14 +21,17 @@ description: >
   - onchain-skill: 链上数据
   
   触发: 加密货币分析、信号检测、投资报告、链上数据
-version: 4.9.0
+version: 5.0.0
 integration: full
 tested: 2026-04-17
 skills:
   - crypto-skill
+  - stock-skill
   - signal-skill
   - report-skill
   - onchain-skill
+  - shared/citation-validator
+  - shared/risk-monitor
 api: true
 cli: true
 ---
