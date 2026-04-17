@@ -186,6 +186,24 @@ stock-skill/
 pip install yfinance akshare pandas numpy
 ```
 
+## 参考资料
+
+### 核心框架
+- **FinanceToolkit** - 150+财务比率、DCF、VaR等
+- **pandas-ta** - 130+技术指标
+- **backtesting.py** - 轻量回测引擎
+
+### 数据源
+- **AkShare** - A股专用 (免费)
+- **yfinance** - 美股/港股通用
+- **CoinGecko** - 加密货币数据
+- **DeFiLlama** - 链上数据
+
+### Agent框架
+- **Claude-Code-Stock-Deep-Research-Agent** - 8阶段投研框架
+
+详细资料包见: `📊 金融Skills开发资料包.md`
+
 ---
 
-*v2.1 - 恢复完整架构，支持快速分析 + 深度研报*
+*v2.2 - 恢复完整架构，支持快速分析 + 深度研报*
