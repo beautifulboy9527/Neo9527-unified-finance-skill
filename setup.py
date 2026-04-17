@@ -66,7 +66,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "neo-finance=finance:main",
+            "neo-finance=scripts.finance:main",
         ],
     },
     classifiers=[

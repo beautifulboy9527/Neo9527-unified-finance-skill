@@ -30,7 +30,7 @@ Repository = "https://github.com/beautifulboy9527/Neo9527-unified-finance-skill"
 Issues = "https://github.com/beautifulboy9527/Neo9527-unified-finance-skill/issues"
 
 [project.scripts]
-neo-finance = "finance:main"
+neo-finance = "scripts.finance:main"
 
 [project.optional-dependencies]
 crypto = ["ccxt>=4.3.0", "pandas-ta>=0.3.14b0"]
