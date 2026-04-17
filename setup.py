@@ -12,7 +12,7 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="neo9527-finance-skill",
-    version="4.4.1",
+    version="4.4.2",
     author="beautifulboy9527",
     author_email="beautifulboy9527@gmail.com",
     description="Lightweight production-ready AI finance skill platform for multi-market analysis, signals, reports, and on-chain intelligence.",
@@ -66,7 +66,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "neo-finance=scripts.finance:main",
+            "neo-finance=neo9527_finance_skill:main",
         ],
     },
     classifiers=[
