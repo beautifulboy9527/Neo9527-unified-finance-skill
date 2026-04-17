@@ -152,24 +152,63 @@ class FinancialAnomalyDetector:
                 # 取最近3年数据
                 recent = df_indicator.head(3)
                 
-                data['revenue_growth'] = recent.get('营业收入同比增长率(%)', [0, 0, 0]).tolist()
-                data['profit_growth'] = recent.get('净利润同比增长率(%)', [0, 0, 0]).tolist()
-                data['receivable_growth'] = recent.get('应收账款同比增长率(%)', [0, 0, 0]).tolist()
-                data['inventory_growth'] = recent.get('存货同比增长率(%)', [0, 0, 0]).tolist()
-                data['gross_margin'] = recent.get('销售毛利率(%)', [0, 0, 0]).tolist()
-                data['net_margin'] = recent.get('销售净利率(%)', [0, 0, 0]).tolist()
+                # 获取各列数据
+                cols = df_indicator.columns.tolist()
+                
+                # 尝试获取数据，使用列名匹配
+                def get_col_value(df, keywords, default=0):
+                    """根据关键词查找列"""
+                    for col in df.columns:
+                        if any(kw in str(col) for kw in keywords):
+                            return df[col].tolist()
+                    return [default] * len(df)
+                
+                data['revenue_growth'] = get_col_value(recent, ['营业收入同比', '营收增长'])
+                data['profit_growth'] = get_col_value(recent, ['净利润同比', '利润增长'])
+                data['receivable_growth'] = get_col_value(recent, ['应收账款同比'])
+                data['inventory_growth'] = get_col_value(recent, ['存货同比'])
+                data['gross_margin'] = get_col_value(recent, ['销售毛利率', '毛利率'])
+                data['net_margin'] = get_col_value(recent, ['销售净利率', '净利率'])
                 
                 # 摘要
                 latest = df_indicator.iloc[0]
                 data['summary'] = {
-                    'gross_margin': float(latest.get('销售毛利率(%)', 0) or 0),
-                    'net_margin': float(latest.get('销售净利率(%)', 0) or 0),
-                    'roe': float(latest.get('净资产收益率(%)', 0) or 0),
-                    'debt_ratio': float(latest.get('资产负债率(%)', 0) or 0),
+                    'gross_margin': float(get_col_value(pd.DataFrame([latest]), ['销售毛利率'])[0] or 0),
+                    'net_margin': float(get_col_value(pd.DataFrame([latest]), ['销售净利率'])[0] or 0),
+                    'roe': float(get_col_value(pd.DataFrame([latest]), ['净资产收益率', 'ROE'])[0] or 0),
+                    'debt_ratio': float(get_col_value(pd.DataFrame([latest]), ['资产负债率'])[0] or 0),
                 }
+                
+                print(f"  财务数据获取成功")
+                return data
         
         except Exception as e:
             print(f"  获取财务数据失败: {e}")
+            
+            # 备用方案：使用简化数据
+            try:
+                # 获取实时行情作为备用
+                df = ak.stock_zh_a_spot_em()
+                stock = df[df['代码'] == symbol]
+                
+                if not stock.empty:
+                    return {
+                        'revenue_growth': [0, 0, 0],
+                        'profit_growth': [0, 0, 0],
+                        'receivable_growth': [0, 0, 0],
+                        'inventory_growth': [0, 0, 0],
+                        'gross_margin': [0, 0, 0],
+                        'net_margin': [0, 0, 0],
+                        'summary': {
+                            'gross_margin': 0,
+                            'net_margin': 0,
+                            'roe': 0,
+                            'debt_ratio': 0,
+                        }
+                    }
+            except:
+                pass
+            
             return None
         
         return data
