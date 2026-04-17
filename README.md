@@ -226,6 +226,68 @@ scripts/
 
 ---
 
+## 🧩 Skills 生态架构
+
+### 6个独立Skills
+
+| Skill | Emoji | 市场 | 功能 | 触发词 |
+|-------|-------|------|------|--------|
+| **crypto-analysis** | 📊 | 加密货币 | K线+技术+信号 | 分析/加密/BTC/ETH |
+| **signal-detection** | 🎯 | 多市场 | S/A/B/C分级 | 信号/检测/评级 |
+| **ai-commentary** | 🤖 | 多市场 | 专业解读 | 解读/评论/风险提示 |
+| **onchain-whale** | 🐋 | 链上 | TVL+资金流 | 链上/鲸鱼/DeFi |
+| **stock-analysis** | 📈 | 股票 | 技术面+基本面 | 股票/A股/美股 |
+| **forex-analysis** | 💱 | 外汇 | 汇率+技术 | 外汇/汇率/货币对 |
+
+### Skills 调用方式
+
+#### 1. Python API
+
+```python
+from skills.base_skill import SkillInput, SkillRegistry
+
+# 加密货币分析
+output = SkillRegistry.execute(
+    'CryptoAnalysisSkill',
+    SkillInput(symbol='BTC-USD', market='crypto')
+)
+
+print(f"Score: {output.score}/100")
+print(f"Signals: {len(output.signals)}")
+```
+
+#### 2. REST API
+
+```bash
+# 启动服务
+uvicorn api.server:app --reload
+
+# 调用分析
+curl -X POST http://localhost:8000/api/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{"symbol":"BTC-USD"}'
+```
+
+#### 3. OpenAI Function Calling
+
+```python
+# 获取Schema
+import requests
+
+schema = requests.get('http://localhost:8000/api/schema/openai').json()
+
+# 用于 ChatGPT
+response = openai.ChatCompletion.create(
+    model='gpt-4',
+    messages=[...],
+    functions=schema['functions']
+)
+```
+
+---
+
+---
+
 ## 🎨 特色功能
 
 ### 1. 交互式K线图
@@ -268,6 +330,19 @@ scripts/
 ---
 
 ## 📝 更新日志
+
+### v4.3 (2026-04-17)
+
+- ✨ Skills生态架构 (6个独立Skills)
+- ✨ StockAnalysisSkill (A股/港股/美股)
+- ✨ ForexAnalysisSkill (外汇分析)
+- ✨ REST API服务 (FastAPI)
+- ✨ OpenAI Function Calling Schema
+- ✨ 信号分级系统 (S/A/B/C)
+- ✨ AI专业解读生成
+- ✨ GitHub Actions CI/CD
+- 🔧 标准化接口 (BaseSkill)
+- 📝 完整测试套件 (27+用例)
 
 ### v4.2 (2026-04-16)
 
