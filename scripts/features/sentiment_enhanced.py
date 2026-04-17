@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-情绪分析模块 - 多数据源方案
-支持免费本地模型 + Adanos API (付费)
+鎯呯华鍒嗘瀽妯″潡 - 澶氭暟鎹簮鏂规
+鏀寔鍏嶈垂鏈湴妯″瀷 + Adanos API (浠樿垂)
 """
 
 import sys
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from pathlib import Path
 
-# Windows 编码修复
+# Windows 缂栫爜淇
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -26,12 +26,12 @@ except ImportError:
 
 class SentimentAnalyzer:
     """
-    情绪分析器 - 多数据源方案
+    鎯呯华鍒嗘瀽鍣?- 澶氭暟鎹簮鏂规
     
-    数据源优先级:
-    1. Adanos API (付费，需配置 ADANOS_API_KEY)
-    2. 本地情感模型 (免费，TextBlob/VADER)
-    3. 新闻标题分析 (免费)
+    鏁版嵁婧愪紭鍏堢骇:
+    1. Adanos API (浠樿垂锛岄渶閰嶇疆 ADANOS_API_KEY)
+    2. 鏈湴鎯呮劅妯″瀷 (鍏嶈垂锛孴extBlob/VADER)
+    3. 鏂伴椈鏍囬鍒嗘瀽 (鍏嶈垂)
     """
     
     def __init__(self):
@@ -42,36 +42,35 @@ class SentimentAnalyzer:
     
     def analyze(self, symbol: str, days: int = 7) -> Dict:
         """
-        综合情绪分析
+        缁煎悎鎯呯华鍒嗘瀽
         
         Args:
-            symbol: 股票代码
-            days: 天数
+            symbol: 鑲＄エ浠ｇ爜
+            days: 澶╂暟
             
         Returns:
-            情绪分析结果
+            鎯呯华鍒嗘瀽缁撴灉
         """
         result = {
             'symbol': symbol,
             'avg_bullish_pct': None,
             'avg_buzz': None,
             'sentiment': 'unknown',
-            'sentiment_description': '未知',
+            'sentiment_description': '鏈煡',
             'alignment': 'insufficient_data',
-            'alignment_description': '数据不足',
+            'alignment_description': '鏁版嵁涓嶈冻',
             'sources_available': [],
             'sources': {},
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         
-        # 尝试 Adanos API
+        # 灏濊瘯 Adanos API
         if self.has_adanos:
             adanos_result = self._fetch_adanos(symbol, days)
             if adanos_result.get('success'):
                 return adanos_result['data']
         
-        # 降级到本地分析
-        local_result = self._analyze_local(symbol, days)
+        # 闄嶇骇鍒版湰鍦板垎鏋?        local_result = self._analyze_local(symbol, days)
         if local_result.get('success'):
             return local_result['data']
         
@@ -79,14 +78,14 @@ class SentimentAnalyzer:
     
     def _fetch_adanos(self, symbol: str, days: int) -> Dict:
         """
-        从 Adanos API 获取情绪数据
+        浠?Adanos API 鑾峰彇鎯呯华鏁版嵁
         
         Args:
-            symbol: 股票代码
-            days: 天数
+            symbol: 鑲＄エ浠ｇ爜
+            days: 澶╂暟
             
         Returns:
-            API 结果
+            API 缁撴灉
         """
         result = {
             'success': False,
@@ -122,7 +121,7 @@ class SentimentAnalyzer:
         return result
     
     def _process_adanos_data(self, symbol: str, data: Dict) -> Dict:
-        """处理 Adanos 数据"""
+        """澶勭悊 Adanos 鏁版嵁"""
         sources_available = list(data.keys())
         bullish_pcts = []
         buzz_scores = []
@@ -154,20 +153,20 @@ class SentimentAnalyzer:
         avg_bullish = sum(bullish_pcts) / len(bullish_pcts) if bullish_pcts else None
         avg_buzz = sum(buzz_scores) / len(buzz_scores) if buzz_scores else None
         
-        # 确定整体情绪
+        # 纭畾鏁翠綋鎯呯华
         if avg_bullish:
             if avg_bullish > 60:
                 sentiment = 'bullish'
-                sentiment_desc = '看涨'
+                sentiment_desc = '鐪嬫定'
             elif avg_bullish < 40:
                 sentiment = 'bearish'
-                sentiment_desc = '看跌'
+                sentiment_desc = '鐪嬭穼'
             else:
                 sentiment = 'neutral'
-                sentiment_desc = '中性'
+                sentiment_desc = '涓€?
         else:
             sentiment = 'unknown'
-            sentiment_desc = '未知'
+            sentiment_desc = '鏈煡'
         
         return {
             'symbol': symbol,
@@ -176,7 +175,7 @@ class SentimentAnalyzer:
             'sentiment': sentiment,
             'sentiment_description': sentiment_desc,
             'alignment': 'aligned' if len(set([s.get('trend') for s in sources_result.values()])) == 1 else 'mixed',
-            'alignment_description': '一致' if len(set([s.get('trend') for s in sources_result.values()])) == 1 else '分歧',
+            'alignment_description': '涓€鑷? if len(set([s.get('trend') for s in sources_result.values()])) == 1 else '鍒嗘',
             'sources_available': sources_available,
             'sources': sources_result,
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -184,18 +183,18 @@ class SentimentAnalyzer:
     
     def _analyze_local(self, symbol: str, days: int) -> Dict:
         """
-        本地情绪分析 (免费方案)
+        鏈湴鎯呯华鍒嗘瀽 (鍏嶈垂鏂规)
         
-        使用:
-        1. 新闻标题情感分析 (TextBlob/VADER)
-        2. 社交媒体文本分析
+        浣跨敤:
+        1. 鏂伴椈鏍囬鎯呮劅鍒嗘瀽 (TextBlob/VADER)
+        2. 绀句氦濯掍綋鏂囨湰鍒嗘瀽
         
         Args:
-            symbol: 股票代码
-            days: 天数
+            symbol: 鑲＄エ浠ｇ爜
+            days: 澶╂暟
             
         Returns:
-            本地分析结果
+            鏈湴鍒嗘瀽缁撴灉
         """
         result = {
             'success': False,
@@ -204,11 +203,11 @@ class SentimentAnalyzer:
         }
         
         try:
-            # 获取新闻标题
+            # 鑾峰彇鏂伴椈鏍囬
             news_headlines = self._fetch_news_headlines(symbol)
             
             if news_headlines:
-                # 使用本地情感模型分析
+                # 浣跨敤鏈湴鎯呮劅妯″瀷鍒嗘瀽
                 sentiment_scores = []
                 
                 for headline in news_headlines:
@@ -218,18 +217,17 @@ class SentimentAnalyzer:
                 if sentiment_scores:
                     avg_score = sum(sentiment_scores) / len(sentiment_scores)
                     
-                    # 转换为 bullish_pct
+                    # 杞崲涓?bullish_pct
                     bullish_pct = (avg_score + 1) / 2 * 100  # -1~1 -> 0~100
                     
                     result['success'] = True
                     result['data'] = {
                         'symbol': symbol,
                         'avg_bullish_pct': round(bullish_pct, 2),
-                        'avg_buzz': len(news_headlines) * 10,  # 简单估算
-                        'sentiment': 'bullish' if avg_score > 0.1 else ('bearish' if avg_score < -0.1 else 'neutral'),
-                        'sentiment_description': '看涨' if avg_score > 0.1 else ('看跌' if avg_score < -0.1 else '中性'),
+                        'avg_buzz': len(news_headlines) * 10,  # 绠€鍗曚及绠?                        'sentiment': 'bullish' if avg_score > 0.1 else ('bearish' if avg_score < -0.1 else 'neutral'),
+                        'sentiment_description': '鐪嬫定' if avg_score > 0.1 else ('鐪嬭穼' if avg_score < -0.1 else '涓€?),
                         'alignment': 'local',
-                        'alignment_description': '基于新闻标题分析',
+                        'alignment_description': '鍩轰簬鏂伴椈鏍囬鍒嗘瀽',
                         'sources_available': ['news'],
                         'sources': {
                             'news': {
@@ -246,13 +244,13 @@ class SentimentAnalyzer:
                                 'source': 'reddit',
                                 'symbol': symbol,
                                 'data_source': 'none',
-                                'error': '需配置 ADANOS_API_KEY'
+                                'error': '闇€閰嶇疆 ADANOS_API_KEY'
                             },
                             'x': {
                                 'source': 'x',
                                 'symbol': symbol,
                                 'data_source': 'none',
-                                'error': '需配置 ADANOS_API_KEY'
+                                'error': '闇€閰嶇疆 ADANOS_API_KEY'
                             }
                         },
                         'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -265,19 +263,18 @@ class SentimentAnalyzer:
     
     def _fetch_news_headlines(self, symbol: str, max_headlines: int = 20) -> List[str]:
         """
-        获取新闻标题
+        鑾峰彇鏂伴椈鏍囬
         
         Args:
-            symbol: 股票代码
-            max_headlines: 最大数量
-            
+            symbol: 鑲＄エ浠ｇ爜
+            max_headlines: 鏈€澶ф暟閲?            
         Returns:
-            新闻标题列表
+            鏂伴椈鏍囬鍒楄〃
         """
         headlines = []
         
         try:
-            # 使用 yfinance 获取相关新闻
+            # 浣跨敤 yfinance 鑾峰彇鐩稿叧鏂伴椈
             import yfinance as yf
             
             ticker = yf.Ticker(symbol)
@@ -289,8 +286,7 @@ class SentimentAnalyzer:
                     if title:
                         headlines.append(title)
             
-            # 如果 yfinance 没有新闻，使用模拟数据
-            if not headlines:
+            # 濡傛灉 yfinance 娌℃湁鏂伴椈锛屼娇鐢ㄦā鎷熸暟鎹?            if not headlines:
                 headlines = [
                     f'{symbol} stock shows mixed signals amid market volatility',
                     f'Analysts remain cautious on {symbol} outlook',
@@ -299,7 +295,7 @@ class SentimentAnalyzer:
                 ]
             
         except Exception as e:
-            # 使用模拟数据
+            # 浣跨敤妯℃嫙鏁版嵁
             headlines = [
                 f'{symbol} stock trading in focus',
                 f'Market sentiment on {symbol} remains neutral'
@@ -309,16 +305,16 @@ class SentimentAnalyzer:
     
     def _analyze_text_sentiment(self, text: str) -> float:
         """
-        分析文本情感
+        鍒嗘瀽鏂囨湰鎯呮劅
         
         Args:
-            text: 文本内容
+            text: 鏂囨湰鍐呭
             
         Returns:
-            情感分数 (-1 到 1)
+            鎯呮劅鍒嗘暟 (-1 鍒?1)
         """
         try:
-            # 尝试使用 TextBlob
+            # 灏濊瘯浣跨敤 TextBlob
             from textblob import TextBlob
             blob = TextBlob(text)
             return blob.sentiment.polarity
@@ -326,7 +322,7 @@ class SentimentAnalyzer:
             pass
         
         try:
-            # 尝试使用 VADER
+            # 灏濊瘯浣跨敤 VADER
             from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
             analyzer = SentimentIntensityAnalyzer()
             scores = analyzer.polarity_scores(text)
@@ -334,7 +330,7 @@ class SentimentAnalyzer:
         except ImportError:
             pass
         
-        # 简单关键词分析
+        # 绠€鍗曞叧閿瘝鍒嗘瀽
         positive_words = ['buy', 'bullish', 'up', 'gain', 'profit', 'rise', 'positive', 
                          'growth', 'strong', 'surge', 'rally', 'jump', 'soar']
         negative_words = ['sell', 'bearish', 'down', 'loss', 'fall', 'drop', 'negative',
@@ -352,7 +348,7 @@ class SentimentAnalyzer:
 
 
 def analyze_sentiment(symbol: str, days: int = 7) -> Dict:
-    """情绪分析入口"""
+    """鎯呯华鍒嗘瀽鍏ュ彛"""
     analyzer = SentimentAnalyzer()
     return analyzer.analyze(symbol, days)
 
@@ -360,9 +356,9 @@ def analyze_sentiment(symbol: str, days: int = 7) -> Dict:
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='情绪分析')
-    parser.add_argument('symbol', help='股票代码')
-    parser.add_argument('--days', type=int, default=7, help='天数')
+    parser = argparse.ArgumentParser(description='鎯呯华鍒嗘瀽')
+    parser.add_argument('symbol', help='鑲＄エ浠ｇ爜')
+    parser.add_argument('--days', type=int, default=7, help='澶╂暟')
     
     args = parser.parse_args()
     

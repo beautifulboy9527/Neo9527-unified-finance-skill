@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-情绪分析模块 - 完整集成自 finance-sentiment skill
-Reddit、X.com、新闻、Polymarket 情绪分析
+鎯呯华鍒嗘瀽妯″潡 - 瀹屾暣闆嗘垚鑷?finance-sentiment skill
+Reddit銆乆.com銆佹柊闂汇€丳olymarket 鎯呯华鍒嗘瀽
 """
 
 import sys
@@ -11,23 +11,23 @@ import json
 from datetime import datetime
 from typing import Dict, Optional, List
 
-# Windows 编码修复
+# Windows 缂栫爜淇
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 
 class SentimentAnalyzer:
     """
-    情绪分析器 - 集成自 finance-sentiment skill
+    鎯呯华鍒嗘瀽鍣?- 闆嗘垚鑷?finance-sentiment skill
     
-    数据源:
-    - Reddit (Reddit 情绪)
-    - X.com (Twitter 情绪)
-    - News (新闻情绪)
-    - Polymarket (预测市场)
+    鏁版嵁婧?
+    - Reddit (Reddit 鎯呯华)
+    - X.com (Twitter 鎯呯华)
+    - News (鏂伴椈鎯呯华)
+    - Polymarket (棰勬祴甯傚満)
     
     API: Adanos Finance API
-    依赖: ADANOS_API_KEY 环境变量
+    渚濊禆: ADANOS_API_KEY 鐜鍙橀噺
     """
     
     API_BASE = "https://api.adanos.org"
@@ -38,12 +38,12 @@ class SentimentAnalyzer:
         
     def _make_request(self, endpoint: str, tickers: str, days: int = 7) -> Optional[List]:
         """
-        发送 API 请求
+        鍙戦€?API 璇锋眰
         
         Args:
-            endpoint: 端点路径
-            tickers: 股票代码 (逗号分隔)
-            days: 天数
+            endpoint: 绔偣璺緞
+            tickers: 鑲＄エ浠ｇ爜 (閫楀彿鍒嗛殧)
+            days: 澶╂暟
         """
         if not self.api_key:
             return None
@@ -67,20 +67,20 @@ class SentimentAnalyzer:
     
     def analyze_reddit(self, days: int = 7) -> Dict:
         """
-        Reddit 情绪分析
+        Reddit 鎯呯华鍒嗘瀽
         
         Returns:
             {
                 'source': 'reddit',
-                'buzz': 热度分数 (0-100),
-                'bullish_pct': 看涨百分比,
-                'bearish_pct': 看跌百分比,
-                'mentions': 提及次数,
-                'trend': 趋势 (rising/falling/stable),
-                'sentiment_score': 情绪分数,
-                'unique_posts': 独立帖子数,
-                'subreddit_count': 涉及的子版块数,
-                'total_upvotes': 总点赞数
+                'buzz': 鐑害鍒嗘暟 (0-100),
+                'bullish_pct': 鐪嬫定鐧惧垎姣?
+                'bearish_pct': 鐪嬭穼鐧惧垎姣?
+                'mentions': 鎻愬強娆℃暟,
+                'trend': 瓒嬪娍 (rising/falling/stable),
+                'sentiment_score': 鎯呯华鍒嗘暟,
+                'unique_posts': 鐙珛甯栧瓙鏁?
+                'subreddit_count': 娑夊強鐨勫瓙鐗堝潡鏁?
+                'total_upvotes': 鎬荤偣璧炴暟
             }
         """
         result = {
@@ -100,7 +100,7 @@ class SentimentAnalyzer:
         }
         
         if not self.api_key:
-            result['error'] = '需要设置 ADANOS_API_KEY 环境变量'
+            result['error'] = '闇€瑕佽缃?ADANOS_API_KEY 鐜鍙橀噺'
             return result
         
         data = self._make_request('/reddit/stocks/v1/compare', self.symbol, days)
@@ -120,23 +120,23 @@ class SentimentAnalyzer:
                 'data_source': 'adanos_reddit'
             })
         else:
-            result['error'] = '无法获取 Reddit 数据'
+            result['error'] = '鏃犳硶鑾峰彇 Reddit 鏁版嵁'
         
         return result
     
     def analyze_x(self, days: int = 7) -> Dict:
         """
-        X.com (Twitter) 情绪分析
+        X.com (Twitter) 鎯呯华鍒嗘瀽
         
         Returns:
             {
                 'source': 'x',
-                'buzz': 热度分数,
-                'bullish_pct': 看涨百分比,
-                'mentions': 推文数,
-                'trend': 趋势,
-                'unique_tweets': 独立推文数,
-                'total_upvotes': 总点赞数
+                'buzz': 鐑害鍒嗘暟,
+                'bullish_pct': 鐪嬫定鐧惧垎姣?
+                'mentions': 鎺ㄦ枃鏁?
+                'trend': 瓒嬪娍,
+                'unique_tweets': 鐙珛鎺ㄦ枃鏁?
+                'total_upvotes': 鎬荤偣璧炴暟
             }
         """
         result = {
@@ -155,7 +155,7 @@ class SentimentAnalyzer:
         }
         
         if not self.api_key:
-            result['error'] = '需要设置 ADANOS_API_KEY 环境变量'
+            result['error'] = '闇€瑕佽缃?ADANOS_API_KEY 鐜鍙橀噺'
             return result
         
         data = self._make_request('/x/stocks/v1/compare', self.symbol, days)
@@ -174,23 +174,22 @@ class SentimentAnalyzer:
                 'data_source': 'adanos_x'
             })
         else:
-            result['error'] = '无法获取 X.com 数据'
+            result['error'] = '鏃犳硶鑾峰彇 X.com 鏁版嵁'
         
         return result
     
     def analyze_news(self, days: int = 7) -> Dict:
         """
-        新闻情绪分析
+        鏂伴椈鎯呯华鍒嗘瀽
         
         Returns:
             {
                 'source': 'news',
-                'buzz': 热度分数,
-                'bullish_pct': 看涨百分比,
-                'mentions': 新闻数,
-                'trend': 趋势,
-                'source_count': 新闻来源数
-            }
+                'buzz': 鐑害鍒嗘暟,
+                'bullish_pct': 鐪嬫定鐧惧垎姣?
+                'mentions': 鏂伴椈鏁?
+                'trend': 瓒嬪娍,
+                'source_count': 鏂伴椈鏉ユ簮鏁?            }
         """
         result = {
             'source': 'news',
@@ -207,7 +206,7 @@ class SentimentAnalyzer:
         }
         
         if not self.api_key:
-            result['error'] = '需要设置 ADANOS_API_KEY 环境变量'
+            result['error'] = '闇€瑕佽缃?ADANOS_API_KEY 鐜鍙橀噺'
             return result
         
         data = self._make_request('/news/stocks/v1/compare', self.symbol, days)
@@ -225,25 +224,24 @@ class SentimentAnalyzer:
                 'data_source': 'adanos_news'
             })
         else:
-            result['error'] = '无法获取新闻数据'
+            result['error'] = '鏃犳硶鑾峰彇鏂伴椈鏁版嵁'
         
         return result
     
     def analyze_polymarket(self, days: int = 7) -> Dict:
         """
-        Polymarket 预测市场分析
+        Polymarket 棰勬祴甯傚満鍒嗘瀽
         
         Returns:
             {
                 'source': 'polymarket',
-                'buzz': 热度分数,
-                'bullish_pct': 看涨百分比,
-                'trade_count': 交易数,
-                'trend': 趋势,
-                'market_count': 市场数,
-                'unique_traders': 独立交易者数,
-                'total_liquidity': 总流动性
-            }
+                'buzz': 鐑害鍒嗘暟,
+                'bullish_pct': 鐪嬫定鐧惧垎姣?
+                'trade_count': 浜ゆ槗鏁?
+                'trend': 瓒嬪娍,
+                'market_count': 甯傚満鏁?
+                'unique_traders': 鐙珛浜ゆ槗鑰呮暟,
+                'total_liquidity': 鎬绘祦鍔ㄦ€?            }
         """
         result = {
             'source': 'polymarket',
@@ -262,7 +260,7 @@ class SentimentAnalyzer:
         }
         
         if not self.api_key:
-            result['error'] = '需要设置 ADANOS_API_KEY 环境变量'
+            result['error'] = '闇€瑕佽缃?ADANOS_API_KEY 鐜鍙橀噺'
             return result
         
         data = self._make_request('/polymarket/stocks/v1/compare', self.symbol, days)
@@ -282,17 +280,16 @@ class SentimentAnalyzer:
                 'data_source': 'adanos_polymarket'
             })
         else:
-            result['error'] = '无法获取 Polymarket 数据'
+            result['error'] = '鏃犳硶鑾峰彇 Polymarket 鏁版嵁'
         
         return result
     
     def analyze_all(self, days: int = 7) -> Dict:
         """
-        全源情绪分析
+        鍏ㄦ簮鎯呯华鍒嗘瀽
         
         Returns:
-            所有数据源的情绪分析结果
-        """
+            鎵€鏈夋暟鎹簮鐨勬儏缁垎鏋愮粨鏋?        """
         return {
             'symbol': self.symbol,
             'reddit': self.analyze_reddit(days),
@@ -304,21 +301,21 @@ class SentimentAnalyzer:
     
     def get_summary(self, days: int = 7) -> Dict:
         """
-        获取情绪摘要 - 综合所有数据源
+        鑾峰彇鎯呯华鎽樿 - 缁煎悎鎵€鏈夋暟鎹簮
         
         Returns:
             {
-                'symbol': 股票代码,
-                'avg_bullish_pct': 平均看涨百分比,
-                'avg_buzz': 平均热度,
-                'sentiment': 综合情绪,
-                'alignment': 数据源一致性,
-                'sources': 各数据源详情
+                'symbol': 鑲＄エ浠ｇ爜,
+                'avg_bullish_pct': 骞冲潎鐪嬫定鐧惧垎姣?
+                'avg_buzz': 骞冲潎鐑害,
+                'sentiment': 缁煎悎鎯呯华,
+                'alignment': 鏁版嵁婧愪竴鑷存€?
+                'sources': 鍚勬暟鎹簮璇︽儏
             }
         """
         all_sources = self.analyze_all(days)
         
-        # 综合计算
+        # 缁煎悎璁＄畻
         bullish_scores = []
         buzz_scores = []
         sources_available = []
@@ -334,36 +331,35 @@ class SentimentAnalyzer:
         avg_bullish = sum(bullish_scores) / len(bullish_scores) if bullish_scores else None
         avg_buzz = sum(buzz_scores) / len(buzz_scores) if buzz_scores else None
         
-        # 情绪判断
+        # 鎯呯华鍒ゆ柇
         if avg_bullish:
             if avg_bullish > 60:
                 sentiment = 'bullish'
-                sentiment_desc = '看涨'
+                sentiment_desc = '鐪嬫定'
             elif avg_bullish > 40:
                 sentiment = 'neutral'
-                sentiment_desc = '中性'
+                sentiment_desc = '涓€?
             else:
                 sentiment = 'bearish'
-                sentiment_desc = '看跌'
+                sentiment_desc = '鐪嬭穼'
         else:
             sentiment = 'unknown'
-            sentiment_desc = '未知'
+            sentiment_desc = '鏈煡'
         
-        # 数据源一致性
-        if len(bullish_scores) >= 2:
+        # 鏁版嵁婧愪竴鑷存€?        if len(bullish_scores) >= 2:
             max_diff = max(bullish_scores) - min(bullish_scores)
             if max_diff < 10:
                 alignment = 'aligned'
-                alignment_desc = '数据源一致'
+                alignment_desc = '鏁版嵁婧愪竴鑷?
             elif max_diff < 25:
                 alignment = 'somewhat_aligned'
-                alignment_desc = '数据源大致一致'
+                alignment_desc = '鏁版嵁婧愬ぇ鑷翠竴鑷?
             else:
                 alignment = 'diverging'
-                alignment_desc = '数据源分歧较大'
+                alignment_desc = '鏁版嵁婧愬垎姝ц緝澶?
         else:
             alignment = 'insufficient_data'
-            alignment_desc = '数据不足'
+            alignment_desc = '鏁版嵁涓嶈冻'
         
         return {
             'symbol': self.symbol,
@@ -380,13 +376,11 @@ class SentimentAnalyzer:
     
     def compare_tickers(self, symbols: List[str], days: int = 7, source: str = 'reddit') -> Dict:
         """
-        对比多只股票的情绪
-        
+        瀵规瘮澶氬彧鑲＄エ鐨勬儏缁?        
         Args:
-            symbols: 股票代码列表
-            days: 天数
-            source: 数据源
-        """
+            symbols: 鑲＄エ浠ｇ爜鍒楄〃
+            days: 澶╂暟
+            source: 鏁版嵁婧?        """
         result = {
             'symbols': symbols,
             'source': source,
@@ -397,7 +391,7 @@ class SentimentAnalyzer:
         }
         
         if not self.api_key:
-            result['error'] = '需要设置 ADANOS_API_KEY 环境变量'
+            result['error'] = '闇€瑕佽缃?ADANOS_API_KEY 鐜鍙橀噺'
             return result
         
         endpoints = {
@@ -417,37 +411,37 @@ class SentimentAnalyzer:
             result['ranking'] = sorted(data, key=lambda x: x.get('buzz_score', 0), reverse=True)
             result['data_source'] = f'adanos_{source}'
         else:
-            result['error'] = '无法获取对比数据'
+            result['error'] = '鏃犳硶鑾峰彇瀵规瘮鏁版嵁'
         
         return result
 
 
 def analyze_sentiment(symbol: str, days: int = 7) -> Dict:
-    """情绪分析入口"""
+    """鎯呯华鍒嗘瀽鍏ュ彛"""
     analyzer = SentimentAnalyzer(symbol)
     return analyzer.get_summary(days)
 
 
 def analyze_reddit(symbol: str, days: int = 7) -> Dict:
-    """Reddit 情绪分析"""
+    """Reddit 鎯呯华鍒嗘瀽"""
     analyzer = SentimentAnalyzer(symbol)
     return analyzer.analyze_reddit(days)
 
 
 def analyze_x(symbol: str, days: int = 7) -> Dict:
-    """X.com 情绪分析"""
+    """X.com 鎯呯华鍒嗘瀽"""
     analyzer = SentimentAnalyzer(symbol)
     return analyzer.analyze_x(days)
 
 
 def analyze_news(symbol: str, days: int = 7) -> Dict:
-    """新闻情绪分析"""
+    """鏂伴椈鎯呯华鍒嗘瀽"""
     analyzer = SentimentAnalyzer(symbol)
     return analyzer.analyze_news(days)
 
 
 def compare_sentiment(symbols: List[str], days: int = 7, source: str = 'reddit') -> Dict:
-    """多股票情绪对比"""
+    """澶氳偂绁ㄦ儏缁姣?""
     analyzer = SentimentAnalyzer(symbols[0])
     return analyzer.compare_tickers(symbols, days, source)
 
@@ -455,11 +449,11 @@ def compare_sentiment(symbols: List[str], days: int = 7, source: str = 'reddit')
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='情绪分析 - 集成自 finance-sentiment skill')
-    parser.add_argument('--symbol', required=True, help='股票代码')
-    parser.add_argument('--days', type=int, default=7, help='分析天数')
+    parser = argparse.ArgumentParser(description='鎯呯华鍒嗘瀽 - 闆嗘垚鑷?finance-sentiment skill')
+    parser.add_argument('--symbol', required=True, help='鑲＄エ浠ｇ爜')
+    parser.add_argument('--days', type=int, default=7, help='鍒嗘瀽澶╂暟')
     parser.add_argument('--type', choices=['summary', 'reddit', 'x', 'news', 'polymarket'], default='summary')
-    parser.add_argument('--compare', nargs='+', help='对比多只股票')
+    parser.add_argument('--compare', nargs='+', help='瀵规瘮澶氬彧鑲＄エ')
     parser.add_argument('--source', choices=['reddit', 'x', 'news', 'polymarket'], default='reddit')
     
     args = parser.parse_args()
