@@ -1,139 +1,158 @@
 ---
-name: onchain-whale-skill
+name: onchain-whale
 description: |
-  链上鲸鱼数据分析 - TVL变化、资金流、协议排名、DeFi健康度。
-  使用 DeFiLlama 免费 API，无需 API Key。
-  输出标准 JSON 格式，可被 Agent 直接调用。
+  Analyze crypto whale flows, ecosystem TVL changes, smart-money signals, and on-chain risk for tokens, protocols, and chains.
+  Use when the user asks about whale accumulation, distribution, smart money movement, large wallet activity, protocol inflows or outflows, DeFi ecosystem strength, or on-chain confirmation for crypto trading and investment decisions.
 metadata:
   openclaw:
     emoji: "🐋"
     triggers:
-      - "链上"
       - "鲸鱼"
-      - "TVL"
-      - "DeFi"
+      - "吸筹"
+      - "派发"
+      - "链上"
+      - "大户"
+      - "主力资金"
       - "资金流"
-      - "协议"
-      - "Ethereum"
+      - "异动"
+      - "smart money"
+      - "whale"
+      - "onchain flow"
+      - "netflow"
+      - "accumulation"
+      - "distribution"
     inputs:
-      chain:
+      symbol:
         type: string
-        description: 链名称
-        default: Ethereum
-        enum: [Ethereum, BSC, Polygon, Arbitrum, Optimism]
+        description: Crypto symbol (BTC, ETH, SOL)
+        required: true
+      metadata.chain:
+        type: string
+        description: Chain name (Ethereum, Solana, Arbitrum)
+        required: false
+      metadata.include_dune:
+        type: boolean
+        description: Enable Dune enrichment (requires DUNE_API_KEY)
+        required: false
+        default: false
     outputs:
-      tvl:
-        type: number
-        description: 总锁仓量
-      tvl_change_1d:
-        type: number
-        description: 24小时变化率
+      success:
+        type: boolean
+        description: Whether the analysis succeeded
       score:
         type: number
-        description: 健康度评分 (0-100)
-      signals:
+        description: Overall score (0-100)
+      confidence:
+        type: number
+        description: Confidence level (0.0-1.0)
+      data_source:
         type: array
-        description: 链上信号
+        description: List of data sources used
+      data.whale_summary:
+        type: object
+        description: Whale activity summary
+      data.risk_flags:
+        type: array
+        description: Risk warnings
+      data.commentary:
+        type: string
+        description: Professional analyst commentary
 ---
 
 # Onchain Whale Skill
 
-链上鲸鱼数据分析 Skill，符合 OpenClaw Skills 规范。
+Use this skill to analyze whale-related on-chain signals for crypto assets using lightweight public data sources.
 
-## 快速开始
+## Inputs
 
-### Agent 调用
+Expected input fields:
 
-```python
-from skills.base_skill import SkillInput, SkillRegistry
+- `symbol`: crypto symbol, such as `BTC`, `ETH`, `SOL`
+- `metadata.chain`: optional chain name, such as `Ethereum`, `Solana`, `Arbitrum`
+- `metadata.include_dune`: optional boolean to enable Dune enrichment if API credentials are available
 
-output = SkillRegistry.execute(
-    'OnchainWhaleSkill',
-    SkillInput(symbol='Ethereum', market='crypto')
-)
+## Output Contract
 
-print(f"TVL: ${output.data['tvl']:,.0f}")
-print(f"Score: {output.score}/100")
-```
+Always return a structured object with:
 
-### CLI 调用
+- `success`
+- `skill_name`
+- `score` (0-100)
+- `confidence` (0.0-1.0)
+- `data_source`
+- `timestamp`
+- `data.whale_summary`
+- `data.risk_flags`
+- `data.commentary`
 
-```bash
-neo-finance onchain Ethereum
-```
+## Trigger Phrases
 
-## 功能
+This skill should be used for prompts such as:
 
-| 功能 | API | 说明 |
-|------|-----|------|
-| 链级TVL | `/v2/chains` | 总锁仓量 |
-| 协议资金流 | `/protocols` | 资金流向 |
-| Top协议 | `/protocols` | 排名 |
-| 稳定币 | `/stablecoins` | 市场稳定度 |
-| 健康度分析 | 综合 | 评分+信号 |
+- "BTC 鲸鱼最近在买还是在卖？"
+- "ETH 最近有大户吸筹吗"
+- "看看 SOL 链上资金流"
+- "有没有 smart money 信号"
+- "这个币的 onchain 表现支持做多吗"
+- "协议 TVL 最近有没有明显异动"
 
-## 信号生成
+## Data Sources
 
-### TVL变化信号
+### Primary
+- **DeFiLlama Protocols API**
+  - Use for protocol TVL, 1d/7d/1m TVL changes, ecosystem breadth
+- **DeFiLlama Chains API**
+  - Use for chain-level TVL and recent trend confirmation
 
-| 条件 | 信号 | 强度 |
-|------|------|------|
-| 24h > 10% | bullish | +4 |
-| 24h > 3% | bullish | +2 |
-| 24h < -10% | bearish | -4 |
-| 24h < -3% | bearish | -2 |
-| 7d > 20% | bullish | +3 |
-| 7d < -20% | bearish | -3 |
+### Secondary
+- **Dune Analytics API**
+  - Use for whale wallet count, large transfer activity, exchange inflow/outflow, smart-money netflow
+  - Treat as optional enrichment, not a hard dependency
 
-### 集中度信号
+## Analysis Rules
 
-| 条件 | 信号 | 强度 |
-|------|------|------|
-| Top1 > 60% | bearish | -2 |
+1. Prefer direct whale wallet flow data when Dune is available.
+2. If direct whale data is unavailable, infer ecosystem accumulation or distribution from DeFiLlama protocol and chain trend proxies.
+3. Never claim exact whale behavior unless the source directly provides wallet or transfer evidence.
+4. Always include at least one caveat when Dune data is unavailable.
+5. Always expose source names in `data_source`.
+6. If data is weak, reduce `confidence` instead of forcing a strong conclusion.
 
-## 输出示例
+## Scoring Guidance
 
-```json
-{
-  "skill_name": "OnchainWhaleSkill",
-  "success": true,
-  "score": 45,
-  "data": {
-    "chain": "Ethereum",
-    "tvl": 55446579084,
-    "tvl_change_1d": 0.0,
-    "tvl_change_7d": 0.0,
-    "top_protocols": [
-      {"name": "Binance CEX", "tvl": 153711505104},
-      {"name": "Aave V3", "tvl": 25519356232}
-    ]
-  },
-  "signals": [
-    {
-      "type": "concentration",
-      "signal": "bearish",
-      "strength": -2,
-      "desc": "协议集中度过高 (64.6%)"
-    }
-  ]
-}
-```
+Use a base score near neutral and adjust gradually:
 
-## 数据来源
+- Positive whale netflow or strong ecosystem TVL growth: increase score
+- Negative whale netflow or broad TVL deterioration: decrease score
+- Missing direct whale evidence: reduce confidence
+- Multiple risk flags: cap score upside
 
-- **DeFiLlama** (免费，无需 API Key)
-- 完全免费
-- 无速率限制
-- 实时数据
+## Commentary Style
 
-## 依赖
+The commentary should sound like a concise institutional analyst note:
 
-```bash
-pip install requests
-```
+- State the current whale bias: accumulation, distribution, or neutral
+- Mention the strongest supporting metric
+- Mention one risk or uncertainty
+- Avoid hype language
+- Avoid making execution advice sound certain
 
-## 注意事项
+Example:
 
-- DeFiLlama 数据有 5-10 分钟延迟
-- 某些小链可能无数据
-- 协议名称可能变化
+> On-chain conditions suggest moderate accumulation, supported by improving protocol TVL breadth over the past 7 days. However, direct whale wallet flow is unavailable, so this remains a proxy-based signal rather than hard confirmation.
+
+## Failure Behavior
+
+If the skill cannot retrieve usable data:
+
+- return `success=false`
+- keep `score=0`
+- keep `confidence=0.0`
+- provide a short `error` message
+- do not fabricate fallback metrics
+
+## Notes
+
+- Keep this skill lightweight and API-friendly
+- Do not hardcode strategy advice
+- Keep all conclusions traceable to source data
