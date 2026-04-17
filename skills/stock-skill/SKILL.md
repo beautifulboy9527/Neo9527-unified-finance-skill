@@ -1,320 +1,191 @@
 ---
-name: stock-skill
-description: >
-  股票投资尽调系统 - 8阶段基本面分析框架
-  
-  核心能力:
-  - 公司事实底座 (Phase 1)
-  - 行业周期分析 (Phase 2)
-  - 业务拆解 (Phase 3)
-  - 财务质量验证 (Phase 4)
-  - 股权治理分析 (Phase 5)
-  - 市场分歧解读 (Phase 6)
-  - 估值与护城河 (Phase 7)
-  - 综合投资报告 (Phase 8)
-  
-  支持市场:
-  - A股 (沪深交易所)
-  - 港股 (港交所)
-  - 美股 (NYSE/NASDAQ)
-  
-  触发: /stock-research [代码] 或股票分析请求
-  
-version: 1.0.0
-author: Neo9527
-integration: full
-uses:
-  - shared/citation-validator
-  - shared/risk-monitor
+name: stock-analysis-skill
+description: |
+  股票多维度分析 - 技术指标、基本面、资金流向、异常检测。
+  支持A股/港股/美股市场，包含快速分析和深度研报两种模式。
+metadata:
+  openclaw:
+    emoji: "📈"
+    triggers:
+      - "股票分析"
+      - "A股"
+      - "美股"
+      - "港股"
+      - "技术指标"
+      - "基本面"
+      - "选股"
+      - "财务异常"
+version: 2.1.0
 ---
 
-# Stock Skill - 股票投资尽调系统
+# Stock Analysis Skill v2.1
 
-> 基于8阶段基本面分析框架的专业投资研究系统
+股票多维度分析 Skill，支持快速分析和深度研报两种模式。
 
-## 一、框架概述
+## 功能模块
 
-### 1.1 8阶段尽调流程
+### 1. 快速分析 (analyzer.py)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 1: 公司事实底座                                       │
-│  核心业务、产品线、收入构成、客户、产业链位置                  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 2: 行业周期分析                                       │
-│  周期阶段、供需格局、竞争态势、政策影响                        │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 3: 业务拆解                                          │
-│  业务结构、赚钱机制、定价权、客户经济                          │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 4: 财务质量 ⭐ 核心验证                               │
-│  现金流匹配、异常排查、同行对比、ROE杜邦分析                   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 5: 股权治理                                          │
-│  股权结构、管理层激励、资本配置、ROIC                         │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 6: 市场分歧                                          │
-│  多空逻辑、关键验证节点、做空报告分析                          │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 7: 估值与护城河                                       │
-│  护城河评分(0-5)、DCF估值、相对估值、风险场景                  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 8: 综合报告                                          │
-│  信号评级(🟢/🟡/🔴)、投资论点、监控清单                        │
-└─────────────────────────────────────────────────────────────┘
-```
+| 功能 | A股 | 美股 | 港股 |
+|------|-----|------|------|
+| 行情数据 | ✅ akshare | ✅ yfinance | ✅ yfinance |
+| 技术指标 | ✅ MA/RSI/MACD | ✅ | ✅ |
+| 基本面 | ✅ PE/PB/ROE | ✅ | ✅ |
+| 资金流向 | ✅ 主力资金 | ❌ | ❌ |
+| 信号生成 | ✅ 买入/卖出 | ✅ | ✅ |
+| 综合评分 | ✅ 0-100分 | ✅ | ✅ |
 
-### 1.2 投资风格适配
+### 2. A股选股器 (screener.py)
 
-| 风格 | 重点阶段 | 估值方法 | 关键指标 |
-|------|---------|---------|---------|
-| **价值投资** | 4,5,7 | P/B, EV/EBITDA, DCF(保守) | P/B, 归母净利润, FCF收益率 |
-| **成长投资** | 1,2,3 | PEG, DCF(激进), 用户模型 | 收入增速, TAM渗透率 |
-| **困境反转** | 4,5 | 清算价值, 期权价值 | 负债率, 现金跑道, 催化剂 |
-| **红利投资** | 4,5,7 | DDM, FCF收益率 | 股息率, 派息率, FCF覆盖 |
-
----
-
-## 二、使用方法
-
-### 命令行
-
-```bash
-# A股
-/stock-research 600519
-
-# 美股
-/stock-research AAPL
-
-# 港股
-/stock-research 00700.HK
-```
-
-### Python API
+多条件选股：
+- 估值指标: PE/PB/PS
+- 盈利指标: ROE/ROA/毛利率/净利率
+- 成长指标: 营收增长率/净利润增长率
+- 股息指标: 股息率
+- 财务安全: 资产负债率/流动比率
 
 ```python
-from skills.stock_skill.analyzer import StockAnalyzer
+from skills.stock_skill.screener import screen_stocks
 
-# 创建分析器
+result = screen_stocks(
+    scope='hs300',      # 沪深300
+    pe_max=20,          # PE上限
+    roe_min=15,         # ROE下限
+    debt_ratio_max=50   # 负债率上限
+)
+```
+
+### 3. 财务异常检测 (financial_check.py)
+
+自动检测：
+- 🟡 应收账款异常: 增速超过营收增速1.5倍
+- 🟡 现金流背离: 净利润增长但现金流下降
+- 🟡 存货异常: 增速超过营收增速2倍
+- 🟡 毛利率异常: 波动过大
+- 🟡 关联交易: 占比过高
+
+```python
+from skills.stock_skill.financial_check import check_financial_anomaly
+
+result = check_financial_anomaly('600519')
+# → 风险等级: low/medium/high
+```
+
+### 4. 深度研报 (deep-research/)
+
+8阶段投研框架：
+- Phase 1: 公司事实底座
+- Phase 2: 行业周期分析
+- Phase 3: 业务拆解
+- Phase 4: 财务质量分析
+- Phase 5: 股权治理分析
+- Phase 6: 市场分歧分析
+- Phase 7: 估值与护城河
+- Phase 8: 综合报告
+
+```python
+from skills.stock_skill.deep_research.analyzer import StockAnalyzer
+
 analyzer = StockAnalyzer(style='value')
-
-# 执行完整分析
-report = analyzer.analyze('600519')
-
-# 按阶段分析
-phase1 = analyzer.phase1_business_foundation('600519')
-phase4 = analyzer.phase4_financial_quality('600519')
-
-# 生成报告
-report_file = analyzer.generate_report('600519', output_dir='./reports')
+result = analyzer.analyze('AAPL')
 ```
 
----
+## 使用方式
 
-## 三、核心功能
-
-### 3.1 Phase 1: 公司事实底座
-
-**输出**:
-```markdown
-## 公司事实底座
-
-### 核心业务
-- 主营业务: 白酒生产与销售
-- 产品线: 茅台酒、系列酒
-- 收入构成: 茅台酒 85% / 系列酒 15%
-
-### 主要客户
-- 经销商体系
-- 直销渠道(电商平台)
-
-### 产业链位置
-- 上游: 高粱、小麦种植
-- 中游: 酿造生产
-- 下游: 经销商 → 消费者
-
-### 战略变化
-- 提价策略
-- 直销渠道扩张
-- 系列酒品牌升级
-```
-
-**数据来源**: 年报、招股书、投资者关系材料
-
----
-
-### 3.2 Phase 4: 财务质量 ⭐
-
-**强制验证机制**:
+### 快速分析
 
 ```python
-# 1. 现金流 vs 利润匹配度
-ocf_to_ni = operating_cash_flow / net_income
-# 健康标准: > 0.8
+from skills.stock_skill.analyzer import analyze_stock
 
-# 2. 应收账款异常
-ar_turnover_change = ar_turnover_days_current - ar_turnover_days_last_year
-# 警戒线: 增加 > 20%
-
-# 3. 存货异常
-inventory_turnover_change = inventory_turnover_days_current - inventory_turnover_days_last_year
-# 警戒线: 增加 > 20%
-
-# 4. 非经常性损益占比
-non_recurring_ratio = non_recurring_pnl / net_income
-# 警戒线: > 30%
+result = analyze_stock('AAPL')
+print(f"评分: {result['score']}/100")
+print(f"趋势: {result['data']['technical']['trend']}")
+print(f"信号: {len(result['signals'])}个")
 ```
 
-**输出示例**:
-```markdown
-## 财务质量
-
-### 关键指标趋势 (5年)
-| 指标 | 2022 | 2023 | 2024 | 趋势 |
-|------|------|------|------|------|
-| ROE | 31% | 32% | 31% | → |
-| 毛利率 | 91% | 92% | 91% | → |
-| OCF/NI | 1.1 | 1.2 | 1.1 | ✅ |
-
-### 现金流验证
-- OCF/净利润: 1.1 ✅
-- 判断: 利润质量高，现金流充沛
-
-### 异常排查
-- ✅ 应收账款周转天数: 稳定
-- ✅ 存货周转率: 稳定
-- ✅ 非经常性损益占比: <5%
-
-### 同行对比
-| 公司 | ROE | 毛利率 | P/E |
-|------|-----|--------|-----|
-| 茅台 | 31% | 91% | 32x |
-| 五粮液 | 25% | 75% | 25x |
-| 洋河 | 18% | 70% | 18x |
-```
-
----
-
-### 3.3 Phase 7: 估值与护城河
-
-**护城河评分体系**:
-
-| 维度 | 权重 | 评分标准 |
-|------|------|---------|
-| **定价权** | 25% | 提价历史、毛利率稳定性 |
-| **转换成本** | 20% | 客户粘性、系统依赖度 |
-| **网络效应** | 20% | 用户规模效应 |
-| **规模效应** | 15% | 成本摊薄能力 |
-| **无形资产** | 20% | 品牌、专利、牌照 |
-
-**评分结果**:
-- 0-2分: 无护城河
-- 3-4分: 弱护城河
-- 5分: 强护城河
-
-**估值方法选择**:
-
-| 行业类型 | 推荐方法 |
-|---------|---------|
-| 成长行业 | PS, PEG, 用户价值模型 |
-| 成熟行业 | PE, PB, EV/EBITDA, DDM |
-| 周期行业 | PB, EV/EBITDA(周期平均) |
-| 金融行业 | PB, PEV, P/BV |
-
----
-
-### 3.4 Phase 8: 综合报告
-
-**信号评级**:
-- 🟢🟢🟢 强烈买入: 安全边际充足 + 护城河强 + 估值吸引力
-- 🟡🟡🟡 观望: 估值合理或安全边际有限
-- 🔴🔴 卖出: 估值过高 + 基本面恶化 + 风险过大
-
-**输出结构**:
-```
-RESEARCH/STOCK_[代码]_[公司]/
-├── 00_Executive_Summary.md     # 执行摘要
-├── 01_Business_Foundation.md   # 公司事实
-├── 02_Industry_Analysis.md     # 行业分析
-├── 03_Business_Breakdown.md    # 业务拆解
-├── 04_Financial_Quality.md     # 财务质量
-├── 05_Governance_Analysis.md   # 治理分析
-├── 06_Market_Sentiment.md      # 市场分歧
-├── 07_Valuation_Moat.md        # 估值护城河
-├── Financial_Data/             # 财务数据
-├── Valuation/                  # 估值分析
-├── Risk_Monitoring/            # 风险监控
-└── sources/                    # 引用来源
-```
-
----
-
-## 四、数据来源
-
-### A级 (最权威)
-- 年报、季报
-- 招股说明书
-- 监管公告
-- 交易所数据
-
-### B级 (高可信)
-- Wind/Bloomberg 终端
-- 券商研究报告
-- 投资者关系材料
-- 行业研究报告
-
-### C级 (中等可信)
-- 财经媒体
-- 分析师观点
-- 公司发布会
-
----
-
-## 五、与共享模块集成
+### A股选股
 
 ```python
-from skills.shared.citation_validator import CitationValidator
-from skills.shared.risk_monitor import RiskMonitor
+from skills.stock_skill.screener import screen_stocks
 
-# 在分析中添加引用验证
-validator = CitationValidator()
-report.add_citation(
-    data_point='营业收入',
-    value='100亿',
-    source='年报',
-    rating='A'
+result = screen_stocks(
+    scope='hs300',
+    pe_max=15,
+    roe_min=15
 )
 
-# 生成监控清单
-monitor = RiskMonitor(asset_type='stock')
-checklist = monitor.generate_checklist(symbol)
+for stock in result['stocks'][:10]:
+    print(f"{stock['code']} - ROE: {stock['roe']:.1f}%")
+```
+
+### 财务异常检测
+
+```python
+from skills.stock_skill.financial_check import check_financial_anomaly
+
+result = check_financial_anomaly('600519')
+print(f"风险等级: {result['risk_level']}")
+print(f"异常数量: {result['anomaly_count']}")
+```
+
+## 市场检测
+
+自动识别市场类型：
+- 6位数字 → A股 (002050, 600519)
+- 纯字母 → 美股 (AAPL, MSFT)
+- 数字.HK → 港股 (00700.HK)
+
+## 输出示例
+
+### 快速分析
+
+```json
+{
+  "symbol": "AAPL",
+  "market": "us",
+  "score": 60,
+  "signals": [
+    {"type": "technical", "name": "趋势向上", "signal": "buy"},
+    {"type": "technical", "name": "MACD金叉", "signal": "buy"}
+  ],
+  "data": {
+    "technical": {
+      "ma5": 268.5,
+      "ma10": 265.2,
+      "ma20": 260.1,
+      "rsi": 62.5,
+      "trend": "强势多头"
+    },
+    "fundamentals": {
+      "pe": 28.5,
+      "pb": 45.1,
+      "roe": 152.0
+    }
+  }
+}
+```
+
+## 文件结构
+
+```
+stock-skill/
+├── SKILL.md              # 本文档
+├── analyzer.py           # 快速分析 (v2.1)
+├── screener.py           # A股选股器 (v1.0)
+├── financial_check.py    # 财务异常检测 (v1.0)
+├── deep-research/        # 深度研报
+│   ├── SKILL.md
+│   ├── analyzer.py       # 8阶段分析
+│   └── report_html.py    # HTML报告
+└── __init__.py
+```
+
+## 依赖
+
+```bash
+pip install yfinance akshare pandas numpy
 ```
 
 ---
 
-## 六、限制与免责
-
-⚠️ **重要提示**:
-- 本系统不提供投资建议
-- 不预测股价走势
-- 信号评级仅基于基本面分析
-- 所有投资存在风险
-- 请自行判断并咨询专业顾问
-
----
-
-*by Neo9527 Finance Skill v4.9 | 2026-04-17*
+*v2.1 - 恢复完整架构，支持快速分析 + 深度研报*
