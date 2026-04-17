@@ -245,33 +245,114 @@ class StockAnalyzer:
             ticker = yf.Ticker(symbol)
             info = ticker.info
             
-            # 获取财务数据
+            # 获取财务报表数据
             financials = ticker.financials
-            cashflow = ticker.cashflow
             balance_sheet = ticker.balance_sheet
+            cashflow = ticker.cashflow
+            
+            print(f'    财务报表状态: fin={not financials.empty}, bs={not balance_sheet.empty}, cf={not cashflow.empty}')
+            
+            # 从财务报表获取数据（更可靠）
+            net_income = 0
+            total_revenue = 0
+            gross_profit = 0
+            operating_income = 0
+            ebitda = 0
+            total_assets = 0
+            total_debt = 0
+            stockholders_equity = 0
+            current_assets = 0
+            current_liabilities = 0
+            cash = 0
+            operating_cf = 0
+            free_cf = 0
+            capex = 0
+            
+            try:
+                # 损益表数据
+                if not financials.empty:
+                    if 'Net Income' in financials.index:
+                        net_income = float(financials.loc['Net Income'].iloc[0])
+                    if 'Total Revenue' in financials.index:
+                        total_revenue = float(financials.loc['Total Revenue'].iloc[0])
+                    if 'Gross Profit' in financials.index:
+                        gross_profit = float(financials.loc['Gross Profit'].iloc[0])
+                    if 'Operating Income' in financials.index:
+                        operating_income = float(financials.loc['Operating Income'].iloc[0])
+                    if 'EBITDA' in financials.index:
+                        ebitda = float(financials.loc['EBITDA'].iloc[0])
+                
+                # 资产负债表数据
+                if not balance_sheet.empty:
+                    if 'Total Assets' in balance_sheet.index:
+                        total_assets = float(balance_sheet.loc['Total Assets'].iloc[0])
+                    if 'Total Debt' in balance_sheet.index:
+                        total_debt = float(balance_sheet.loc['Total Debt'].iloc[0])
+                    if 'Stockholders Equity' in balance_sheet.index:
+                        stockholders_equity = float(balance_sheet.loc['Stockholders Equity'].iloc[0])
+                    if 'Current Assets' in balance_sheet.index:
+                        current_assets = float(balance_sheet.loc['Current Assets'].iloc[0])
+                    if 'Current Liabilities' in balance_sheet.index:
+                        current_liabilities = float(balance_sheet.loc['Current Liabilities'].iloc[0])
+                    if 'Cash And Cash Equivalents' in balance_sheet.index:
+                        cash = float(balance_sheet.loc['Cash And Cash Equivalents'].iloc[0])
+                
+                # 现金流量表数据
+                if not cashflow.empty:
+                    if 'Operating Cash Flow' in cashflow.index:
+                        operating_cf = float(cashflow.loc['Operating Cash Flow'].iloc[0])
+                    if 'Free Cash Flow' in cashflow.index:
+                        free_cf = float(cashflow.loc['Free Cash Flow'].iloc[0])
+                    if 'Capital Expenditure' in cashflow.index:
+                        capex = float(cashflow.loc['Capital Expenditure'].iloc[0])
+                
+                print(f'    数据获取: NI={net_income/1e9:.1f}B, Equity={stockholders_equity/1e9:.1f}B, OCF={operating_cf/1e9:.1f}B')
+                
+            except Exception as e:
+                print(f'    财务报表获取失败: {e}')
+            
+            # 备用：从info获取
+            if net_income == 0:
+                net_income = info.get('netIncomeToCommon', 0) or info.get('netIncome', 0) or 0
+            if total_revenue == 0:
+                total_revenue = info.get('totalRevenue', 0) or 0
+            if stockholders_equity == 0:
+                stockholders_equity = info.get('totalStockholderEquity', 0) or 0
+            if operating_cf == 0:
+                operating_cf = info.get('operatingCashflow', 0) or 0
             
             # 计算关键指标
-            revenue = info.get('totalRevenue', 0)
-            net_income = info.get('netIncomeToCommon', 0)
-            operating_cf = info.get('operatingCashflow', 0)
-            total_assets = info.get('totalAssets', 0)
-            total_debt = info.get('totalDebt', 0)
-            shareholders_equity = info.get('totalStockholderEquity', 0)
-            total_cash = info.get('totalCash', 0)
+            roe = (net_income / stockholders_equity * 100) if stockholders_equity and stockholders_equity > 0 else 0
+            roa = (net_income / total_assets * 100) if total_assets and total_assets > 0 else 0
             
-            # 核心指标计算
-            roe = (net_income / shareholders_equity * 100) if shareholders_equity else 0
-            roa = (net_income / total_assets * 100) if total_assets else 0
-            ocf_to_ni = (operating_cf / net_income) if net_income else 0
-            debt_to_equity = (total_debt / shareholders_equity) if shareholders_equity else 0
-            current_ratio = info.get('currentRatio', 0)
-            quick_ratio = info.get('quickRatio', 0)
+            # 毛利率和净利率
+            if gross_profit > 0 and total_revenue > 0:
+                gross_margin = gross_profit / total_revenue
+            else:
+                gross_margin = info.get('grossMargins', 0) or 0
             
-            # 5年数据趋势 (简化版，使用可用数据)
-            trends = self._calculate_financial_trends(info)
+            if net_income > 0 and total_revenue > 0:
+                net_margin = net_income / total_revenue
+            else:
+                net_margin = info.get('profitMargins', 0) or 0
             
-            # 现金流验证
-            cashflow_check = '✅ 优秀' if ocf_to_ni > 1.0 else '✅ 良好' if ocf_to_ni > 0.8 else '⚠️ 一般' if ocf_to_ni > 0.5 else '❌ 较差'
+            ocf_to_ni = (operating_cf / net_income) if net_income and net_income != 0 else 0
+            debt_to_equity = (total_debt / stockholders_equity) if stockholders_equity and stockholders_equity > 0 else 0
+            current_ratio = (current_assets / current_liabilities) if current_liabilities and current_liabilities > 0 else 0
+            
+            # 现金流验证判断
+            if ocf_to_ni > 1.0:
+                cashflow_check = '✅ 优秀'
+                cashflow_desc = '利润质量高，现金流充沛'
+            elif ocf_to_ni > 0.8:
+                cashflow_check = '✅ 良好'
+                cashflow_desc = '现金流与利润匹配良好'
+            elif ocf_to_ni > 0.5:
+                cashflow_check = '⚠️ 一般'
+                cashflow_desc = '现金流偏弱，需关注'
+            else:
+                cashflow_check = '❌ 较差'
+                cashflow_desc = '现金流差，需警惕利润质量'
             
             # 异常排查
             warnings = self._check_financial_warnings(info, ocf_to_ni, debt_to_equity)
@@ -285,18 +366,21 @@ class StockAnalyzer:
                     '关键指标': {
                         'ROE': f'{roe:.1f}%',
                         'ROA': f'{roa:.1f}%',
-                        '毛利率': f'{info.get("grossMargins", 0)*100:.1f}%',
-                        '净利率': f'{info.get("profitMargins", 0)*100:.1f}%',
+                        '毛利率': f'{gross_margin*100:.1f}%' if gross_margin < 1 else f'{gross_margin:.1f}%',
+                        '净利率': f'{net_margin*100:.1f}%' if net_margin < 1 else f'{net_margin:.1f}%',
                         '负债率': f'{debt_to_equity:.2f}',
                         '流动比率': f'{current_ratio:.2f}' if current_ratio else 'N/A',
                     },
                     '现金流验证': {
-                        '经营现金流/净利润': f'{ocf_to_ni:.2f}',
+                        '经营现金流': f'${operating_cf/1e9:.1f}B' if operating_cf else 'N/A',
+                        '自由现金流': f'${free_cf/1e9:.1f}B' if free_cf else 'N/A',
+                        'OCF/净利润': f'{ocf_to_ni:.2f}',
                         '判断': cashflow_check,
-                        '说明': '利润质量高，现金流充沛' if ocf_to_ni > 0.8 else '现金流偏弱，需关注' if ocf_to_ni > 0.5 else '现金流差，需警惕',
+                        '说明': cashflow_desc,
                     },
                     '异常排查': warnings,
                     '同行对比': peer_comparison,
+                    '数据来源': 'yfinance财务报表',
                 },
                 'citation': self._cite('yfinance') if self.validator else None
             }
