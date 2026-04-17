@@ -9,6 +9,8 @@ description: >
   - 多因子信号叠加 (叠buff)
   - AI专业解读 (AI Commentary)
   - REST API 服务 (FastAPI)
+  - 概率分析 (Phase 4)
+  - 场景应对方案 (Phase 4)
   
   Skills 架构:
   - crypto-skill: 加密货币分析
@@ -17,7 +19,7 @@ description: >
   - onchain-skill: 链上数据
   
   触发: 加密货币分析、信号检测、投资报告、链上数据
-version: 4.3.0
+version: 4.8.0
 integration: full
 tested: 2026-04-17
 skills:
