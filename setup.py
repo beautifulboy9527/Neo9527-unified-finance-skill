@@ -12,7 +12,7 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="neo9527-finance-skill",
-    version="4.4.0",
+    version="4.4.1",
     author="beautifulboy9527",
     author_email="beautifulboy9527@gmail.com",
     description="Lightweight production-ready AI finance skill platform for multi-market analysis, signals, reports, and on-chain intelligence.",
