@@ -95,6 +95,17 @@ class ComprehensiveStockAnalyzer:
         except Exception as e:
             print(f"   情绪模块加载失败: {e}")
             self.sentiment = None
+        
+        # 监管监控
+        try:
+            self.regulation = load_module(
+                "regulation_monitor",
+                os.path.join(BASE_DIR, "skills", "stock-skill", "regulation_monitor.py")
+            )
+            print("   监管模块加载成功") if self.regulation else print("   监管模块为空")
+        except Exception as e:
+            print(f"   监管模块加载失败: {e}")
+            self.regulation = None
     
     def analyze(self, symbol: str, style: str = 'value') -> Dict:
         """
@@ -228,8 +239,25 @@ class ComprehensiveStockAnalyzer:
         else:
             print(f"   ⚠️ 情绪模块未加载")
         
-        # 7. 深度研报
-        print("\n【7/7】深度研报...")
+        # 7. 监管风险分析
+        print("\n【7/8】监管风险分析...")
+        if self.regulation:
+            try:
+                result = self.regulation.check_regulation_risk(symbol)
+                if result['success']:
+                    report['sections']['regulation'] = {
+                        'risk_score': result['risk_score'],
+                        'risk_level': result['risk_level'],
+                        'risk_description': result['risk_description'],
+                        'alerts_count': result['alerts_count']
+                    }
+                    print(f"   ✅ 风险等级: {result['risk_description']}")
+                    print(f"   ✅ 风险评分: {result['risk_score']}/100")
+            except Exception as e:
+                print(f"   ❌ 失败: {e}")
+        
+        # 8. 深度研报
+        print("\n【8/8】深度研报...")
         if self.deep_research:
             try:
                 style_enum = getattr(self.deep_research.InvestmentStyle, style.upper(), self.deep_research.InvestmentStyle.VALUE)
@@ -260,12 +288,13 @@ class ComprehensiveStockAnalyzer:
         """计算综合评分"""
         score = 0
         weights = {
-            'technical': 0.15,
-            'fundamentals': 0.25,
-            'financial_check': 0.20,
-            'valuation': 0.20,
-            'sentiment': 0.10,
-            'deep_research': 0.10
+            'technical': 0.12,
+            'fundamentals': 0.20,
+            'financial_check': 0.18,
+            'valuation': 0.18,
+            'sentiment': 0.08,
+            'regulation': 0.12,
+            'deep_research': 0.12
         }
         
         # 技术分析
@@ -306,6 +335,11 @@ class ComprehensiveStockAnalyzer:
         # 情绪
         if 'sentiment' in sections:
             score += sections['sentiment']['score'] * weights['sentiment']
+        
+        # 监管风险
+        if 'regulation' in sections:
+            reg_score = 100 - sections['regulation']['risk_score']
+            score += reg_score * weights['regulation']
         
         # 深度研报
         if 'deep_research' in sections:
