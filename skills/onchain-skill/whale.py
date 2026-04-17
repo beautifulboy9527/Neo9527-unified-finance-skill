@@ -34,6 +34,14 @@ class OnchainWhaleSkill(BaseSkill):
     name = "onchain_whale"
     description = "Analyze whale flows, protocol TVL changes, large wallet activity, and smart-money signals for crypto assets."
     
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+    
+    @property
+    def supported_markets(self) -> List[str]:
+        return ['crypto']
+    
     DEFILLAMA_PROTOCOLS_URL = "https://api.llama.fi/protocols"
     DEFILLAMA_CHAINS_URL = "https://api.llama.fi/v2/chains"
     DUNE_API_BASE = "https://api.dune.com/api/v1"
@@ -48,8 +56,9 @@ class OnchainWhaleSkill(BaseSkill):
     
     def execute(self, skill_input: SkillInput) -> SkillOutput:
         symbol = (skill_input.symbol or "").upper().strip()
-        chain = self._normalize_chain(getattr(skill_input, 'params', {}).get("chain", ""))
-        include_dune = bool(getattr(skill_input, 'params', {}).get("include_dune", False))
+        params = getattr(skill_input, 'params', {}) or {}
+        chain = self._normalize_chain(params.get("chain", ""))
+        include_dune = bool(params.get("include_dune", False))
         
         if not symbol:
             return self._error("symbol is required")
