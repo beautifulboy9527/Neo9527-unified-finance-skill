@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 多维度金融分析系统 | v4.2 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v4.3 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v4.2-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v4.3-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.8+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/badge/pypi-neo9527--finance--skill-green)]()
@@ -12,26 +12,28 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v4.2** 是一个生产级金融分析系统，整合了交互式K线图、链上数据、鲸鱼行为、信号叠加等专业能力，提供从市场数据到投资决策的完整解决方案。
+**Neo9527 Unified Finance Skill v4.3** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v4.2 核心特性
+### v4.3 核心特性
 
-- 📈 **交互式K线图**: 可缩放/拖拽 + 均线叠加 + 成交量
-- 🐋 **鲸鱼数据**: 大单流入/流出 + 链上行为分析
-- 💎 **DeFi数据**: TVL + 协议排名 + 资金流
-- 🎨 **现代报告**: 卡片式布局 + 响应式设计
-- 📊 **叠buff逻辑**: 多因子信号叠加 + 综合评分
-- 🔧 **CLI工具**: 统一命令行接口 + PyPI打包
+- 🧩 **Skills生态**: 6个独立Skills，可组合编排
+- 🤖 **Agent调用**: 标准接口 + OpenAI Function Calling
+- 🌐 **REST API**: FastAPI服务 + 自动文档
+- 📊 **多市场支持**: 加密货币 + 股票 + 外汇
+- 🎯 **信号分级**: S/A/B/C分级系统
+- 🤖 **AI解读**: 专业分析师语言生成
 
-### v4.0 → v4.2 升级亮点
+### v4.2 → v4.3 升级亮点
 
-| 功能 | v4.0 | v4.2 |
+| 功能 | v4.2 | v4.3 |
 |------|------|------|
-| K线图 | ❌ | ✅ 交互式 + 缩放 |
-| 鲸鱼数据 | ❌ | ✅ 大单追踪 |
-| DeFi数据 | ❌ | ✅ TVL + 协议 |
-| CLI | 基础 | ✅ 5个命令 |
-| PyPI | ❌ | ✅ 可安装 |
+| 架构 | 单体 | ✅ Skills生态 |
+| Agent调用 | ❌ | ✅ 标准接口 |
+| REST API | ❌ | ✅ FastAPI |
+| OpenAI Schema | ❌ | ✅ Function Calling |
+| 信号分级 | 基础 | ✅ S/A/B/C |
+| AI解读 | ❌ | ✅ 专业语言 |
+| 市场 | 加密 | ✅ 多市场 |
 
 ---
 
