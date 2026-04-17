@@ -11,6 +11,8 @@ description: >
   - REST API 服务 (FastAPI)
   - 概率分析 (Phase 4)
   - 场景应对方案 (Phase 4)
+  - 引用验证体系 (Phase 5) ✨
+  - 风险监控清单 (Phase 5) ✨
   
   Skills 架构:
   - crypto-skill: 加密货币分析
@@ -19,7 +21,7 @@ description: >
   - onchain-skill: 链上数据
   
   触发: 加密货币分析、信号检测、投资报告、链上数据
-version: 4.8.0
+version: 4.9.0
 integration: full
 tested: 2026-04-17
 skills:
