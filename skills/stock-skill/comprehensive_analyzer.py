@@ -785,7 +785,7 @@ if __name__ == '__main__':
                 "stock_html_reporter",
                 os.path.join(BASE_DIR, "scripts", "features", "stock_html_reporter.py")
             )
-            output = html_reporter.generate_professional_report(report, analyzer.report_enhancer)
+            output = html_reporter.generate_complete_report(report, analyzer.report_enhancer)
             ext = 'html'
         except Exception as e:
             print(f"HTML生成器加载失败: {e}")
