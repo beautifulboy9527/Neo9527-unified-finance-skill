@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v4.4 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.3 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v4.4-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.3-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,29 +12,29 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v4.4** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.3** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v4.4 核心特性
+### v6.3 核心特性
 
-- 🐋 **真实鲸鱼数据**: DeFiLlama + Dune Analytics，非模拟数据
-- 🔍 **数据质量保证**: 字段级provenance + 置信度评分 + 风险提示
+- 📊 **结构化报告**: 8部分逻辑递进框架，每章节独立小结
+- 🔍 **数据来源标注**: 情绪/监管/财务完整信源说明
 - 🧩 **Skills生态**: 6个独立Skills，可组合编排
 - 🤖 **Agent调用**: 标准接口 + OpenAI Function Calling
 - 🌐 **REST API**: FastAPI服务 + 自动文档
-- 📊 **多市场支持**: 加密货币 + 股票 + 外汇
-- 🎯 **信号分级**: S/A/B/C分级系统
-- 🤖 **AI解读**: 专业分析师语言生成
+- 📈 **多市场支持**: 加密货币 + 股票 + 外汇
+- 🎯 **交易周期**: 日内/短线/波段/中线/长线完整支持
+- 🏦 **打板筛选**: 涨停板/强势股/连板统计
 
-### v4.3 → v4.4 升级亮点
+### v6.3 升级亮点
 
-| 功能 | v4.3 | v4.4 |
+| 功能 | v6.2 | v6.3 |
 |------|------|------|
-| 鲸鱼数据 | ⚠️ 模拟 | ✅ 真实数据 |
-| 数据源 | DeFiLlama | ✅ + Dune预留 |
-| 置信度 | ❌ 无 | ✅ 0.45-0.95 |
-| 风险提示 | ❌ 无 | ✅ 完整 |
-| PyPI规范 | ⚠️ 不完整 | ✅ 完整 |
-| 版本管理 | ⚠️ 不一致 | ✅ 统一v4.4.0 |
+| 报告结构 | ⚠️ 混乱 | ✅ 逻辑递进 |
+| 数据来源 | ⚠️ 缺失 | ✅ 完整标注 |
+| 新闻分析 | ⚠️ 无关 | ✅ 移至选股 |
+| 情绪来源 | ❌ 无 | ✅ TextBlob/Adanos |
+| 监管来源 | ❌ 无 | ✅ CSRC/PBOC/NFRA |
+| 深度研报 | ⚠️ 不明确 | ✅ Phase验证 |
 
 ---
 
@@ -46,7 +46,7 @@
 pip install neo9527-finance-skill
 
 # 使用
-neo-finance report BTC-USD --format html
+neo-finance analyze AAPL
 ```
 
 ### 方式2: 源码安装
@@ -60,130 +60,119 @@ cd Neo9527-unified-finance-skill
 pip install -r requirements.txt
 
 # 使用
-python scripts/finance.py report BTC-USD --format html
+python finance.py analyze AAPL
 ```
 
 ---
 
 ## 💻 CLI命令
 
-### 1. 生成报告
+### 1. 综合分析
 
 ```bash
-# HTML报告 (默认)
-python scripts/finance.py report BTC-USD --format html
-
-# 指定周期
-python scripts/finance.py report ETH-USD --period long
-
-# PDF格式
-python scripts/finance.py report AAPL --format pdf
-```
-
-### 2. 快速分析
-
-```bash
-python scripts/finance.py analyze BTC-USD
+python finance.py analyze AAPL
 
 # 输出:
-# Price: $75,369
-# Score: 75/100
-# Decision: BUY
-# Confidence: 75%
+# 第一部分: 基本面分析 (ROE/PE/PB)
+# 第二部分: 估值分析 (DCF模型)
+# 第三部分: 财务健康 (异常检测)
+# 第四部分: 技术分析 (RSI/MACD/形态)
+# 第五部分: 市场情绪 (数据来源标注)
+# 第六部分: 监管风险 (CSRC/PBOC/NFRA)
+# 第七部分: 深度研报 (Phase 4/5/7)
+# 第八部分: 全局观点 (综合建议)
 ```
 
-### 3. 信号检测
+### 2. 打板筛选 (短线)
 
 ```bash
-python scripts/finance.py signals BTC-USD
+python finance.py board --type limit-up      # 涨停板
+python finance.py board --type strong        # 强势股
+python finance.py board --type continuous    # 连板统计
+python finance.py board --type market        # 市场情绪
+```
+
+### 3. 财务异常检测
+
+```bash
+python finance.py check AAPL
 
 # 输出:
-# 📈 Bullish Signals (3):
-#   [技术形态] 趋势: 强烈看涨 (+5)
-#   [趋势指标] MACD: 金叉看涨 (+3)
-#   [经典形态] 双底: 看涨 (+4)
-# 
-# 📉 Bearish Signals (1):
-#   [动量指标] RSI: 超买回调 (-2)
-# 
-# Total Strength: +10 (Bullish)
+# 风险等级: low
+# 异常数量: 0
+# 毛利率: 46.9%
+# 净利率: 26.9%
+# 数据来源: 财务报表（利润表/资产负债表）
 ```
 
-### 4. K线数据
+### 4. 估值计算
 
 ```bash
-# 获取K线数据
-python scripts/finance.py kline BTC-USD --period 3mo
-
-# 保存到JSON
-python scripts/finance.py kline ETH-USD --save
-```
-
-### 5. 链上数据
-
-```bash
-python scripts/finance.py onchain BTC
+python finance.py value AAPL
 
 # 输出:
-# Network Metrics:
-#   Hashrate: 0.00 EH/s
-#   Difficulty: 138.97 T
-#   Total Supply: 20,016,806
-# 
-# Whale Activity:
-#   Net Flow: +350 BTC
-#   Status: accumulating
-#   Signal: 看涨 (低吸信号)
+# 当前价格: $270.23
+# 公允价值: $75.81
+# 估值状态: 高估 71.9%
+```
+
+### 5. 深度研报
+
+```bash
+python finance.py research AAPL
+
+# 输出:
+# Phase 4... (财务数据获取)
+# Phase 5... (分析计算)
+# Phase 7... (评分生成)
+# 评级: 🟡🟡🟡
+# 建议: 基本面尚可，需进一步分析
 ```
 
 ---
 
-## 📊 报告结构
+## 📊 报告结构 (v6.3)
 
 ```
-一、综合评分 (75/100)
-    └─ 视觉卡片展示
+第一部分：基本面分析（投资根基）
+├── 1.1 盈利能力 (ROE评级 ⭐⭐⭐⭐⭐)
+├── 1.2 估值水平 (PE/PB行业对比)
+└── 1.3 基本面小结
 
-二、市场数据 (实时)
-    └─ 价格/涨跌/成交量/市值
+第二部分：估值分析（价格评估）
+├── 2.1 估值模型 (DCF)
+└── 2.2 估值信号
 
-三、技术分析
-    📈 K线图 (交互式) ✨
-       - 3个月历史数据
-       - MA5/MA10/MA20 均线
-       - 成交量柱状图
-       - 可缩放/拖拽
-    
-    3.1 核心指标 (RSI/MACD/ADX/布林带)
-    3.2 支撑阻力 (阻力位/支撑位)
-    3.3 形态识别 (趋势/双顶双底/头肩)
-    3.4 技术面专业解读
+第三部分：财务健康（风险检查）
+├── 3.1 异常检测 (信源标注)
+├── 3.2 盈利质量
+└── 3.3 财务小结
 
-四、链上数据 ✨
-    🐋 鲸鱼行为分析
-       - 24h 净流入: +350 BTC
-       - 状态: accumulating
-       - 信号: 看涨
-    
-    ⛏️ 网络指标 (BTC)
-       - 算力/难度/流通量
-    
-    💎 DeFi 数据 (ETH)
-       - TVL: $485.2B
-       - Top 5 协议排名
+第四部分：技术分析（择时参考）
+├── 4.1 趋势判断
+├── 4.2 技术指标 (RSI仅一次)
+├── 4.3 技术形态
+└── 4.4 技术小结
 
-五、信号汇总 (多因子共振)
-    ├─ 看涨信号卡片 (绿色)
-    └─ 看跌信号卡片 (红色)
+第五部分：市场情绪（短期风向）
+├── 5.1 情绪指标
+├── 5.2 数据来源 (本地TextBlob/Adanos API)
+└── 5.3 情绪小结
 
-六、最终结论与操作建议
-    ├─ 综合分析
-    ├─ 核心支撑因素
-    ├─ 风险提示
-    ├─ 入场策略
-    └─ 止损位/目标位
+第六部分：监管风险（政策环境）
+├── 6.1 风险评估
+├── 6.2 数据来源 (CSRC/PBOC/NFRA)
+├── 6.3 监控方法
+└── 6.4 监管小结
 
-七、风险提示
+第七部分：深度研报（综合研判）
+├── 7.1 研报评级 (Phase验证)
+└── 7.2 研报小结
+
+第八部分：全局观点（最终建议）
+├── 8.1 综合评价
+├── 8.2 各维度评分 (权重)
+└── 8.3 投资建议 (短/波/长)
 ```
 
 ---
@@ -191,233 +180,142 @@ python scripts/finance.py onchain BTC
 ## 🔧 核心模块
 
 ```
-scripts/
-├── finance.py                      # CLI入口 ✨
-├── features/
-│   ├── complete_crypto_analyzer.py # 完整分析器
-│   ├── report_generator_v4.py      # 报告生成器 v4
-│   ├── kline_chart.py              # K线数据生成 ✨
-│   ├── onchain_data.py             # 链上数据获取 ✨
-│   ├── investment_framework.py     # 投资框架
-│   ├── finance_toolkit.py          # 金融工具包
-│   ├── backtest_engine.py          # 回测引擎
-│   └── templates/
-│       ├── crypto_report_v4.html   # HTML模板
-│       └── kline_component.html    # K线组件 ✨
-├── core/
-│   ├── technical.py                # 技术分析
-│   └── quote.py                    # 行情数据
-└── agent/
-    └── smart_orchestrator.py       # 智能调度
+skills/
+├── stock-skill/
+│   ├── comprehensive_analyzer.py  # 综合分析器 ✨
+│   ├── financial_check.py         # 财务异常检测 ✨
+│   ├── regulation_monitor.py      # 监管风险监控 ✨
+│   └── analyzer.py                # 快速分析
+├── shared/
+│   ├── report_enhancer.py         # 报告增强工具 ✨
+│   ├── report_structure.py        # 报告结构优化器 ✨
+│   └── finance_toolkit.py         # 金融工具包
+└── crypto-skill/
+    └── complete_crypto_analyzer.py
+
+scripts/features/
+├── board_scanner.py               # 打板筛选器 ✨
+├── sentiment_enhanced.py          # 情绪分析 ✨
+├── news.py                        # 新闻聚合 (选股用)
+├── valuation.py                   # 估值计算
+└── deep_research.py               # 深度研报
 ```
 
 ---
 
 ## 📈 数据来源
 
-| 数据类型 | 来源 | API | 状态 |
-|---------|------|-----|------|
-| 市场数据 | CoinGecko | 免费 | ✅ |
+| 数据类型 | 来源 | 说明 | 状态 |
+|---------|------|------|------|
+| 市场数据 | yfinance | 免费 | ✅ |
 | 技术指标 | yfinance | 免费 | ✅ |
-| K线数据 | yfinance | 免费 | ✅ |
-| 链上数据 | Blockchain.com | 免费 | ✅ |
-| DeFi数据 | DeFiLlama | 免费 | ✅ |
-| 情绪指数 | alternative.me | 免费 | ✅ |
-| 鲸鱼数据 | 模拟/需API | - | ⚠️ |
-
----
-
-## 🧩 Skills 生态架构
-
-### 6个独立Skills
-
-| Skill | Emoji | 市场 | 功能 | 触发词 |
-|-------|-------|------|------|--------|
-| **crypto-analysis** | 📊 | 加密货币 | K线+技术+信号 | 分析/加密/BTC/ETH |
-| **signal-detection** | 🎯 | 多市场 | S/A/B/C分级 | 信号/检测/评级 |
-| **ai-commentary** | 🤖 | 多市场 | 专业解读 | 解读/评论/风险提示 |
-| **onchain-whale** | 🐋 | 链上 | TVL+资金流 | 链上/鲸鱼/DeFi |
-| **stock-analysis** | 📈 | 股票 | 技术面+基本面 | 股票/A股/美股 |
-| **forex-analysis** | 💱 | 外汇 | 汇率+技术 | 外汇/汇率/货币对 |
-
-### Skills 调用方式
-
-#### 1. Python API
-
-```python
-from skills.base_skill import SkillInput, SkillRegistry
-
-# 加密货币分析
-output = SkillRegistry.execute(
-    'CryptoAnalysisSkill',
-    SkillInput(symbol='BTC-USD', market='crypto')
-)
-
-print(f"Score: {output.score}/100")
-print(f"Signals: {len(output.signals)}")
-```
-
-#### 2. REST API
-
-```bash
-# 启动服务
-uvicorn api.server:app --reload
-
-# 调用分析
-curl -X POST http://localhost:8000/api/analyze \
-  -H 'Content-Type: application/json' \
-  -d '{"symbol":"BTC-USD"}'
-```
-
-#### 3. OpenAI Function Calling
-
-```python
-# 获取Schema
-import requests
-
-schema = requests.get('http://localhost:8000/api/schema/openai').json()
-
-# 用于 ChatGPT
-response = openai.ChatCompletion.create(
-    model='gpt-4',
-    messages=[...],
-    functions=schema['functions']
-)
-```
-
----
+| 财务数据 | yfinance | 利润表/资产负债表 | ✅ |
+| 情绪分析 | TextBlob | 本地模型 | ✅ |
+| 情绪分析 | Adanos API | 多数据源 | ⚠️ 需API Key |
+| 监管数据 | CSRC/PBOC/NFRA | 官方公告 | ✅ |
+| 打板数据 | 东方财富 | 实时行情 | ✅ |
 
 ---
 
 ## 🎨 特色功能
 
-### 1. 交互式K线图
+### 1. 数据来源完整标注
 
-- ✅ 轻量级 (40KB)
-- ✅ 缩放/拖拽交互
-- ✅ 均线叠加 (MA5/MA10/MA20)
-- ✅ 成交量柱状图
-- ✅ 响应式布局
+**市场情绪**:
+```
+数据来源: 本地TextBlob分析
+判断方法: 通过新闻标题关键词分析，使用TextBlob库计算情感极性
+```
 
-### 2. 鲸鱼行为分析
+**监管风险**:
+```
+数据来源: 中国证监会(CSRC)、人民银行(PBOC)、国家金融监督管理总局(NFRA)公开公告
+监控方法: 实时监控三大监管机构官方网站公告、政策文件、处罚决定
+评级说明: 近期无重大监管政策变化或处罚公告
+```
 
-- ✅ 24h 大单流入/流出
-- ✅ 净流入量计算
-- ✅ 鲸鱼状态判断
-- ✅ 信号自动生成
+### 2. 交易周期支持
 
-### 3. 叠buff信号系统
+| 周期 | 时间框架 | 模块 | CLI命令 |
+|------|---------|------|---------|
+| 日内 | 分钟级 | board_scanner | `board --type limit-up` |
+| 短线 | 小时级 | signal_tracker | 待集成 |
+| 波段 | 日级 | backtest_engine | 待集成 |
+| 中线 | 周级 | comprehensive_analyzer | `analyze AAPL` |
+| 长线 | 月级 | deep-research | `research AAPL` |
 
-| 形态 | 识别方法 | 信号强度 |
-|------|---------|---------|
-| 趋势判断 | MA排列 | ±5分 |
-| 头肩顶 | 三峰检测 | -5分 |
-| 双顶双底 | 两峰/谷相近 | ±4分 |
-| RSI超买超卖 | >70/<30 | -2/+3分 |
-| MACD金叉死叉 | 柱状图 | +3/-3分 |
-| 布林带突破 | 价格位置 | ±2分 |
-| 鲸鱼流入流出 | 链上数据 | ±4分 |
+### 3. 报告增强工具
 
-### 4. 专业文字解读
+- **数字格式化**: `34.249683` → `34.2`, `3971820552192` → `$3.97万亿`
+- **RSI解读**: 超买/超卖/中性 + 建议
+- **PE解读**: 高估/合理/低估 + 行业对比
+- **ROE评级**: ⭐⭐⭐⭐⭐ 评分系统
+- **技术形态**: MACD金叉/死叉/RSI超买超卖
 
-每个分析环节都有详细文字说明：
+### 4. 深度研报验证
 
-- ✅ 趋势分析 (多头/空头/震荡)
-- ✅ RSI区间解读 (超买/超卖/中性)
-- ✅ MACD动能判断
-- ✅ 支撑阻力建议
-- ✅ 综合操作建议
+```
+开始分析 AAPL (风格: value, 深度: quick)
+  Phase 4... (财务数据获取)
+    财务报表状态: fin=True, bs=True, cf=True
+    数据获取: NI=112.0B, Equity=73.7B, OCF=111.5B
+  Phase 5... (分析计算)
+  Phase 7... (评分生成)
+   ✅ 评级: 🟡🟡🟡
+   ✅ 建议: 基本面尚可，需进一步分析
+```
 
 ---
 
 ## 📝 更新日志
 
+### v6.3 (2026-04-18)
+
+- 📊 **报告结构优化**
+  - 8部分逻辑递进框架
+  - 每章节独立小结
+  - 全局观点综合建议
+- 🔍 **数据来源标注**
+  - 情绪: TextBlob/Adanos + 判断方法
+  - 监管: CSRC/PBOC/NFRA + 监控方法
+  - 财务: 利润表/资产负债表
+- ✨ **新增模块**
+  - report_enhancer.py (8,627字节)
+  - report_structure.py (12,612字节)
+  - board_scanner.py (18,441字节)
+  - regulation_monitor.py (5,444字节)
+- 🔧 **功能改进**
+  - 新闻分析移至选股使用
+  - 财务异常检测支持美股
+  - 估值评分逻辑修复
+  - RSI仅分析一次
+- 📈 **交易周期支持**
+  - 日内/短线/波段/中线/长线
+  - TRADING_CYCLES.md 文档
+
+### v6.2 (2026-04-18)
+
+- 📊 报告展示优化
+- 🔧 估值逻辑修复
+- 📈 打板模块恢复
+
+### v6.1 (2026-04-18)
+
+- 📊 报告全面优化
+- 🔍 数据来源标注
+- 💡 不同周期建议
+
+### v6.0 (2026-04-17)
+
+- 🧩 Skills生态架构
+- 🤖 REST API服务
+- 📈 多市场支持
+
 ### v4.4 (2026-04-17)
 
-- 🐋 **OnchainWhaleSkill真实数据** (whale.py, 400行)
-  - DeFiLlama Protocols API (协议TVL)
-  - DeFiLlama Chains API (链级数据)
-  - Dune Analytics API (可选增强)
-  - 鲸鱼偏向分析 (accumulation/distribution)
-  - 置信度评分 (0.45-0.95)
-  - 风险提示 (risk_flags)
-- 🔍 **数据质量保证**
-  - 字段级provenance追踪
-  - 置信度计算引擎
-  - 风险提示机制
-  - 专业解读生成
-- 📦 **PyPI发布规范**
-  - setup.py v4.4.0
-  - pyproject.toml (现代打包)
-  - MANIFEST.in (完整清单)
-  - extras_require (分组依赖)
-- 📝 **SKILL.md规范**
-  - 完整触发词列表
-  - 数据源说明
-  - 分析规则
-  - 失败行为
-
-### v4.3 (2026-04-17)
-
-- ✨ Skills生态架构 (6个独立Skills)
-- ✨ StockAnalysisSkill (A股/港股/美股)
-- ✨ ForexAnalysisSkill (外汇分析)
-- ✨ REST API服务 (FastAPI)
-- ✨ OpenAI Function Calling Schema
-- ✨ 信号分级系统 (S/A/B/C)
-- ✨ AI专业解读生成
-- ✨ GitHub Actions CI/CD
-- 🔧 标准化接口 (BaseSkill)
-- 📝 完整测试套件 (27+用例)
-
-### v4.2 (2026-04-16)
-
-- ✨ 交互式K线图 (lightweight-charts)
-- ✨ 鲸鱼行为数据集成
-- ✨ DeFi TVL 数据
-- ✨ CLI工具 (5个命令)
-- ✨ PyPI打包准备
-- 🔧 链上数据模块重构
-- 🗑️ 清理冗余文件
-
-### v4.0 (2026-04-16)
-
-- ✨ HTML报告重构 (卡片式 + 响应式)
-- ✨ 叠buff信号系统
-- ✨ 形态识别 (头肩/双顶双底)
-- ✨ 技术面专业解读
-- ✨ 结论详细分析
-
-### v3.2 (2026-04-15)
-
-- 🔌 插件系统重构
-- 📊 FinanceToolkit集成
-- ✅ 回测验证引擎
-- 💼 组合优化器
-
----
-
-## 📦 PyPI发布
-
-### 安装
-
-```bash
-pip install neo9527-finance-skill
-```
-
-### 使用
-
-```bash
-# 方式1: 命令行
-neo-finance report BTC-USD --format html
-
-# 方式2: Python API
-from neo9527_finance_skill import analyze_complete
-
-result = analyze_complete('BTC-USD')
-print(f"Score: {result['conclusion']['score']}/100")
-print(f"Decision: {result['conclusion']['decision']}")
-```
+- 🐋 OnchainWhaleSkill真实数据
+- 🔍 数据质量保证
+- 📦 PyPI发布规范
 
 ---
 
@@ -430,26 +328,18 @@ print(f"Decision: {result['conclusion']['decision']}")
 git clone https://github.com/beautifulboy9527/Neo9527-unified-finance-skill.git
 cd Neo9527-unified-finance-skill
 
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
 # 安装依赖
 pip install -r requirements.txt
-
-# 安装开发依赖
-pip install -r requirements.txt -e ".[dev]"
 ```
 
 ### 运行测试
 
 ```bash
-# 运行所有测试
-pytest tests/
+# 综合分析测试
+python skills/stock-skill/comprehensive_analyzer.py AAPL
 
-# 生成覆盖率报告
-pytest --cov=scripts tests/
+# 打板筛选测试
+python scripts/features/board_scanner.py --type limit-up
 ```
 
 ---
@@ -475,19 +365,18 @@ MIT License
 
 - [yfinance](https://github.com/ranaroussi/yfinance)
 - [pandas](https://pandas.pydata.org/)
-- [lightweight-charts](https://www.tradingview.com/lightweight-charts/)
+- [TextBlob](https://textblob.readthedocs.io/)
 - [DeFiLlama](https://defillama.com/)
 - [CoinGecko API](https://www.coingecko.com/en/api)
-- [Blockchain.com API](https://www.blockchain.com/api)
 
 ---
 
 ## 🗺️ 路线图
 
-- [ ] Phase 12.4: 测试覆盖 (80%+)
-- [ ] Phase 13: 多语言支持
-- [ ] Phase 14: ML增强
-- [ ] Phase 15: 移动端适配
+- [ ] v6.4: PB行业对比数据
+- [ ] v6.5: 结构化报告完全应用
+- [ ] v7.0: ML增强预测
+- [ ] v8.0: 移动端适配
 
 ---
 

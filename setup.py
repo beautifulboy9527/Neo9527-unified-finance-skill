@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Neo9527 Finance Skill - PyPI Setup
-v4.4.0 - OnchainWhaleSkill + 真实数据
+v6.3.0 - 报告结构优化 + 数据来源标注 + 打板模块
 """
 
 from setuptools import setup, find_packages
@@ -12,7 +12,7 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="neo9527-finance-skill",
-    version="4.4.2",
+    version="6.3.0",
     author="beautifulboy9527",
     author_email="beautifulboy9527@gmail.com",
     description="Lightweight production-ready AI finance skill platform for multi-market analysis, signals, reports, and on-chain intelligence.",

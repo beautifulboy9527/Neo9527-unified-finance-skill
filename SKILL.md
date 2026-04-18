@@ -4,26 +4,25 @@ description: >
   多维度金融分析系统 - Skills 生态架构
   
   核心能力:
-  - 交互式K线图 (lightweight-charts)
-  - 鲸鱼行为分析 (DeFiLlama)
+  - 结构化报告 (8部分逻辑递进)
+  - 数据来源标注 (情绪/监管/财务)
+  - 打板筛选 (涨停板/强势股/连板)
   - 多因子信号叠加 (叠buff)
   - AI专业解读 (AI Commentary)
   - REST API 服务 (FastAPI)
-  - 概率分析 (Phase 4)
-  - 场景应对方案 (Phase 4)
-  - 引用验证体系 (Phase 5) ✨
-  - 风险监控清单 (Phase 5) ✨
+  - 深度研报验证 (Phase 4/5/7)
+  - 交易周期支持 (日内到长线)
   
   Skills 架构:
   - crypto-skill: 加密货币分析
+  - stock-skill: 股票综合分析
   - signal-skill: 信号检测
-  - report-skill: AI解读
   - onchain-skill: 链上数据
   
-  触发: 加密货币分析、信号检测、投资报告、链上数据
-version: 5.3.0
+  触发: 股票分析、打板筛选、财务检测、估值计算、深度研报
+version: 6.3.0
 integration: full
-tested: 2026-04-17
+tested: 2026-04-18
 skills:
   - crypto-skill
   - stock-skill
@@ -31,9 +30,6 @@ skills:
   - onchain-skill
   - shared
   - report-skill
-  - onchain-skill
-  - shared/citation-validator
-  - shared/risk-monitor
 api: true
 cli: true
 ---
@@ -44,18 +40,19 @@ cli: true
 
 ## ✅ 测试状态
 
-**最后测试**: 2026-04-17 06:00
+**最后测试**: 2026-04-18 11:30
 **测试结果**: 全部通过 ✅
 
 | 测试项 | 状态 |
 |--------|------|
+| 综合分析 (AAPL) | ✅ |
+| 报告结构 (8部分) | ✅ |
+| 数据来源标注 | ✅ |
+| 打板筛选 | ✅ |
+| 财务异常检测 | ✅ |
+| 估值计算 | ✅ |
+| 深度研报 | ✅ |
 | CLI 命令 | ✅ |
-| Skills 调用 | ✅ |
-| FastAPI 服务 | ✅ |
-| K线图生成 | ✅ |
-| 鲸鱼数据 | ✅ |
-| 信号检测 | ✅ |
-| AI 解读 | ✅ |
 
 ---
 
