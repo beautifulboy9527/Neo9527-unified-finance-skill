@@ -1314,6 +1314,62 @@ class CompleteStockReporter:
     def _build_overall_detailed(self, sections: Dict, enhancer) -> str:
         """构建详细的全局观点"""
         
+        # 获取技术面数据
+        tech = sections.get('technical', {})
+        rsi = tech.get('rsi', 50) if tech else 50
+        trend = tech.get('trend', '') if tech else ''
+        
+        # 获取基本面数据
+        fundamental = sections.get('fundamental', {})
+        pe = fundamental.get('pe', 0) if fundamental else 0
+        roe = fundamental.get('roe', 0) if fundamental else 0
+        
+        # 获取估值数据
+        valuation = sections.get('valuation', {})
+        upside = valuation.get('upside', 0) if valuation else 0
+        
+        # 短线建议 (1-5天)
+        if rsi > 70:
+            short_action = "观望"
+            short_reason = f"RSI={rsi:.0f}超买，短线不宜追高。建议等待回调至RSI<60再考虑入场。"
+            short_button = "等待回调"
+        elif rsi < 30:
+            short_action = "轻仓试探"
+            short_reason = f"RSI={rsi:.0f}超卖，短线可能反弹。建议轻仓试探，设置止损。"
+            short_button = "轻仓入场"
+        else:
+            short_action = "观望"
+            short_reason = f"RSI={rsi:.0f}中性，短线信号不明确。建议观望等待明确信号。"
+            short_button = "观望等待"
+        
+        # 波段建议 (1-3个月)
+        if upside < -30:
+            medium_action = "减仓"
+            medium_reason = f"估值高估{abs(upside):.0f}%，中期风险较大。建议逐步减仓，控制仓位50%以下。"
+            medium_button = "逐步减仓"
+        elif upside > 20:
+            medium_action = "建仓"
+            medium_reason = f"估值低估{upside:.0f}%，中期机会较大。建议分批建仓，逢低加仓。"
+            medium_button = "分批建仓"
+        else:
+            medium_action = "持有"
+            medium_reason = "估值合理，中期持有。关注基本面变化，适时调整仓位。"
+            medium_button = "持有观察"
+        
+        # 长线建议 (1年以上)
+        if roe > 20:
+            long_action = "持有"
+            long_reason = f"ROE={roe:.0f}%优秀，优质企业。长期看好，建议定期定额投资。"
+            long_button = "定期定额"
+        elif roe > 15:
+            long_action = "持有"
+            long_reason = f"ROE={roe:.0f}%良好，稳健企业。可考虑长期持有，关注业绩增长。"
+            long_button = "长期持有"
+        else:
+            long_action = "谨慎"
+            long_reason = f"ROE={roe:.0f}%偏低，盈利能力一般。建议谨慎，寻找更优质标的。"
+            long_button = "谨慎观望"
+        
         return f'''
         <div class="section">
             <div class="section-header">
@@ -1326,22 +1382,22 @@ class CompleteStockReporter:
             
             <div class="advice-section">
                 <div class="advice-card short">
-                    <div class="advice-label">短线投资者</div>
-                    <div class="advice-action">观望</div>
-                    <div class="advice-reason">RSI超买，短线不宜追高。建议等待回调至RSI<60再考虑入场。</div>
-                    <div class="advice-button">等待回调</div>
+                    <div class="advice-label">短线投资者 (1-5天)</div>
+                    <div class="advice-action">{short_action}</div>
+                    <div class="advice-reason">{short_reason}</div>
+                    <div class="advice-button">{short_button}</div>
                 </div>
                 <div class="advice-card medium">
-                    <div class="advice-label">波段投资者</div>
-                    <div class="advice-action">减仓</div>
-                    <div class="advice-reason">估值高估，中期风险较大。建议逐步减仓，控制仓位在50%以下。</div>
-                    <div class="advice-button">逐步减仓</div>
+                    <div class="advice-label">波段投资者 (1-3个月)</div>
+                    <div class="advice-action">{medium_action}</div>
+                    <div class="advice-reason">{medium_reason}</div>
+                    <div class="advice-button">{medium_button}</div>
                 </div>
                 <div class="advice-card long">
-                    <div class="advice-label">长线投资者</div>
-                    <div class="advice-action">持有</div>
-                    <div class="advice-reason">ROE优秀，优质企业。长期看好，建议定期定额投资。</div>
-                    <div class="advice-button">定期定额</div>
+                    <div class="advice-label">长线投资者 (1年以上)</div>
+                    <div class="advice-action">{long_action}</div>
+                    <div class="advice-reason">{long_reason}</div>
+                    <div class="advice-button">{long_button}</div>
                 </div>
             </div>
         </div>
