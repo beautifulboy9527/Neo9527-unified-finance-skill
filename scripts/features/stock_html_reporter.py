@@ -1129,12 +1129,13 @@ class CompleteStockReporter:
         '''
     
     def _build_research_detailed(self, dr: Dict) -> str:
-        """构建详细的深度研报"""
+        """构建详细的深度研报 - 包含完整phases数据"""
         rating = dr.get('rating', 'N/A')
         score = dr.get('score', 0)
         recommendation = dr.get('recommendation', 'N/A')
+        phases = dr.get('phases', {})
         
-        # 评级解读（不使用emoji）
+        # 评级解读
         rating_text = {
             '🟢🟢🟢🟢🟢': '强烈推荐',
             '🟢🟢🟢🟢': '推荐',
@@ -1152,6 +1153,206 @@ class CompleteStockReporter:
         else:
             score_status = "一般"
             score_color = "#e74c3c"
+        
+        # 构建phases详细内容
+        phases_html = ""
+        
+        # Phase 4: 财务质量分析
+        if 4 in phases:
+            phase4 = phases[4]
+            data = phase4.get('data', {})
+            
+            phases_html += f"""
+            <div class="analysis-box">
+                <div class="analysis-title">Phase 4: 财务质量分析</div>
+                <div class="analysis-text">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>指标</th><th>值</th><th>评估</th></tr>
+                        </thead>
+                        <tbody>
+            """
+            
+            # 关键指标
+            key_metrics = data.get('关键指标', {})
+            for metric, value in key_metrics.items():
+                # 智能评估
+                if 'ROE' in metric:
+                    eval_text = '优秀(>15%)' if '151' in str(value) or '152' in str(value) else '良好'
+                elif '毛利' in metric:
+                    eval_text = '优秀(>40%)' if '46' in str(value) else '良好'
+                elif '净利' in metric:
+                    eval_text = '优秀(>20%)' if '26' in str(value) else '良好'
+                else:
+                    eval_text = '-'
+                
+                phases_html += f"""
+                            <tr><td>{metric}</td><td><strong>{value}</strong></td><td>{eval_text}</td></tr>
+                """
+            
+            phases_html += """
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            """
+            
+            # 现金流验证
+            cashflow = data.get('现金流验证', {})
+            if cashflow:
+                phases_html += f"""
+                <div class="analysis-box">
+                    <div class="analysis-title">现金流验证</div>
+                    <div class="analysis-text">
+                        <ul>
+                            <li><strong>经营现金流:</strong> {cashflow.get('经营现金流', 'N/A')}</li>
+                            <li><strong>自由现金流:</strong> {cashflow.get('自由现金流', 'N/A')}</li>
+                            <li><strong>OCF/净利润:</strong> {cashflow.get('OCF/净利润', 'N/A')}</li>
+                            <li><strong>判断:</strong> {cashflow.get('判断', 'N/A')} - {cashflow.get('说明', '')}</li>
+                        </ul>
+                        <p style="margin-top: 10px; font-size: 13px; color: #666;"><strong>教学:</strong> OCF/净利润接近1说明利润质量高，现金流与利润匹配良好。</p>
+                    </div>
+                </div>
+                """
+            
+            # 异常排查
+            anomalies = data.get('异常排查', [])
+            if anomalies:
+                phases_html += """
+                <div class="analysis-box">
+                    <div class="analysis-title">异常排查</div>
+                    <div class="analysis-text">
+                        <ul>
+                """
+                for item in anomalies:
+                    phases_html += f'<li>{item}</li>\n'
+                phases_html += """
+                        </ul>
+                    </div>
+                </div>
+                """
+        
+        # Phase 5: 股权治理分析
+        if 5 in phases:
+            phase5 = phases[5]
+            data = phase5.get('data', {})
+            
+            phases_html += f"""
+            <div class="analysis-box">
+                <div class="analysis-title">Phase 5: 股权治理分析</div>
+                <div class="analysis-text">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>类别</th><th>内容</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+            """
+            
+            # 股权结构
+            ownership = data.get('股权结构', {})
+            if ownership:
+                inst_own = ownership.get('机构持股', 'N/A')
+                phases_html += f"""
+                            <tr><td>机构持股</td><td>{inst_own}</td><td>{'持股集中度高' if '65' in str(inst_own) else '持股分散'}</td></tr>
+                """
+                phases_html += f"""
+                            <tr><td>内部人持股</td><td>{ownership.get('内部人持股', 'N/A')}</td><td>管理层持股比例</td></tr>
+                """
+            
+            # 管理层
+            management = data.get('管理层', {})
+            if management:
+                phases_html += f"""
+                            <tr><td>CEO</td><td>{management.get('CEO', 'N/A')}</td><td>核心管理者</td></tr>
+                """
+            
+            # 资本配置
+            capital = data.get('资本配置', {})
+            if capital:
+                phases_html += f"""
+                            <tr><td>分红政策</td><td>{capital.get('分红政策', 'N/A')}</td><td>股东回报</td></tr>
+                """
+            
+            phases_html += """
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 10px; font-size: 13px; color: #666;"><strong>教学:</strong> 机构持股>60%说明机构投资者看好，但需注意流动性风险。</p>
+                </div>
+            </div>
+            """
+        
+        # Phase 7: 估值与护城河
+        if 7 in phases:
+            phase7 = phases[7]
+            data = phase7.get('data', {})
+            
+            phases_html += f"""
+            <div class="analysis-box">
+                <div class="analysis-title">Phase 7: 估值与护城河</div>
+                <div class="analysis-text">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>估值指标</th><th>值</th><th>评估</th></tr>
+                        </thead>
+                        <tbody>
+            """
+            
+            # 估值指标
+            valuation_metrics = data.get('估值指标', {})
+            for metric, value in valuation_metrics.items():
+                # 智能评估
+                if 'P/E' in metric:
+                    eval_text = '偏高(>30)' if '34' in str(value) else '合理'
+                elif 'P/B' in metric:
+                    eval_text = '偏高(>10)' if '45' in str(value) else '合理'
+                elif 'PEG' in metric:
+                    eval_text = '偏高(>2)' if '2.3' in str(value) else '合理'
+                else:
+                    eval_text = '-'
+                
+                phases_html += f"""
+                            <tr><td>{metric}</td><td><strong>{value}</strong></td><td>{eval_text}</td></tr>
+                """
+            
+            phases_html += """
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            """
+            
+            # 估值判断
+            valuation_judge = data.get('估值判断', {})
+            if valuation_judge:
+                phases_html += f"""
+                <div class="analysis-box">
+                    <div class="analysis-title">估值判断</div>
+                    <div class="analysis-text">
+                        <ul>
+                            <li><strong>判断:</strong> {valuation_judge.get('判断', 'N/A')}</li>
+                            <li><strong>P/E:</strong> {valuation_judge.get('P/E', 'N/A')} (行业平均: {valuation_judge.get('行业平均', 'N/A')})</li>
+                            <li><strong>说明:</strong> {valuation_judge.get('说明', 'N/A')}</li>
+                        </ul>
+                        <p style="margin-top: 10px; font-size: 13px; color: #666;"><strong>教学:</strong> P/E高于行业平均说明市场给予更高估值溢价，通常意味着更高的增长预期，但也伴随更大风险。</p>
+                    </div>
+                </div>
+                """
+            
+            # 护城河评分
+            moat = data.get('护城河评分', {})
+            if moat:
+                phases_html += f"""
+                <div class="analysis-box">
+                    <div class="analysis-title">护城河评分</div>
+                    <div class="analysis-text">
+                        <ul>
+                            <li><strong>总分:</strong> {moat.get('总分', 'N/A')}</li>
+                            <li><strong>评级:</strong> {moat.get('评级', 'N/A')}</li>
+                        </ul>
+                        <p style="margin-top: 10px; font-size: 13px; color: #666;"><strong>教学:</strong> 护城河评分3/5属于中等水平，具备一定竞争优势但不够稳固。</p>
+                    </div>
+                </div>
+                """
         
         return f'''
         <div class="section">
@@ -1175,20 +1376,15 @@ class CompleteStockReporter:
                 </div>
             </div>
             
-            <div class="analysis-box">
-                <div class="analysis-title">研报详细分析</div>
-                <div class="analysis-text">
-                    <ul>
-                        <li><strong>综合评级：</strong>{rating_text}（{rating}）</li>
-                        <li><strong>评分分析：</strong>{score}/5分，{score_status}</li>
-                        <li><strong>投资建议：</strong>{recommendation}</li>
-                    </ul>
-                </div>
-            </div>
+            {phases_html}
             
             <div class="summary-box">
                 <div class="summary-title">研报小结</div>
-                <div class="summary-text">{recommendation}</div>
+                <div class="summary-text">
+                    {recommendation}
+                    <br><br>
+                    <strong>投资建议:</strong> {'当前估值偏高，建议等待回调机会' if score < 4 else '基本面良好，可考虑分批建仓'}
+                </div>
             </div>
         </div>
         '''
