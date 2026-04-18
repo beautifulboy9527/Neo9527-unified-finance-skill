@@ -63,7 +63,7 @@ class StockHTMLReporter:
             symbol=symbol,
             score=f"{score:.1f}",
             recommendation=recommendation,
-            recommendation_bg=rec_bg,
+            decision_bg=rec_bg,
             timestamp=timestamp,
             style=style,
             content=content
@@ -100,9 +100,12 @@ class StockHTMLReporter:
         if 'regulation' in sections:
             html_parts.append(self._generate_regulation_section(sections['regulation']))
         
-        # 第七部分: 深度研报
+        # 第七部分: 深度研报 (仅当有有效数据时)
         if 'deep_research' in sections:
-            html_parts.append(self._generate_research_section(sections['deep_research']))
+            dr = sections['deep_research']
+            # 检查深度研报是否有效
+            if dr.get('rating') and dr.get('score', 0) > 0:
+                html_parts.append(self._generate_research_section(dr))
         
         # 第八部分: 全局观点
         html_parts.append(self._generate_overall_section(report, enhancer))
