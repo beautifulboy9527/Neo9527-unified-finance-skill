@@ -117,6 +117,17 @@ class ComprehensiveStockAnalyzer:
         except Exception as e:
             print(f"   报告增强工具加载失败: {e}")
             self.report_enhancer = None
+        
+        # 报告结构优化器
+        try:
+            self.report_structure = load_module(
+                "report_structure",
+                os.path.join(BASE_DIR, "skills", "shared", "report_structure.py")
+            )
+            print("   报告结构优化器加载成功") if self.report_structure else print("   报告结构优化器为空")
+        except Exception as e:
+            print(f"   报告结构优化器加载失败: {e}")
+            self.report_structure = None
     
     def analyze(self, symbol: str, style: str = 'value') -> Dict:
         """
