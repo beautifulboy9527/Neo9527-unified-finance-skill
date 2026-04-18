@@ -361,12 +361,22 @@ class ComprehensiveStockAnalyzer:
                 analyzer = self.deep_research.StockAnalyzer(style=style_enum)
                 result = analyzer.analyze(symbol, depth='quick')
                 if result:
-                    report['sections']['deep_research'] = {
+                    # 获取完整的研报数据
+                    deep_research_data = {
                         'rating': result['rating']['rating'],
                         'score': result['rating']['score'],
-                        'recommendation': result['rating']['recommendation']
+                        'recommendation': result['rating']['recommendation'],
+                        'phases': {}
                     }
+                    
+                    # 提取每个phase的详细内容
+                    if 'phases' in result:
+                        for phase_num, phase_data in result['phases'].items():
+                            deep_research_data['phases'][phase_num] = phase_data
+                    
+                    report['sections']['deep_research'] = deep_research_data
                     print(f"   ✅ 评级: {result['rating']['rating']}")
+                    print(f"   ✅ 分析阶段: {list(result.get('phases', {}).keys())}")
                     print(f"   ✅ 建议: {result['rating']['recommendation']}")
             except Exception as e:
                 print(f"   ❌ 失败: {e}")
