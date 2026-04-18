@@ -516,6 +516,14 @@ class CompleteStockReporter:
         # 8. 全局观点
         parts.append(self._build_overall_detailed(sections, enhancer))
         
+        # 9. 资产配置建议
+        if 'valuation' in sections:
+            try:
+                allocation_html = self._build_allocation_advice(sections)
+                parts.append(allocation_html)
+            except Exception as e:
+                print(f"   资产配置建议生成失败: {e}")
+        
         return '\n'.join(parts)
     
     def _build_fundamentals_detailed(self, fund: Dict) -> str:
@@ -1412,6 +1420,100 @@ class CompleteStockReporter:
                 <br>2. 基本面风险：公司经营状况可能发生变化
                 <br>3. 流动性风险：市场流动性不足可能导致买卖困难
                 <br>4. 估值风险：估值模型存在假设，实际价值可能偏离
+            </div>
+        </div>
+        '''
+
+    def _build_allocation_advice(self, sections: Dict) -> str:
+        """构建资产配置建议"""
+        
+        # 获取关键数据
+        valuation = sections.get('valuation', {})
+        upside = valuation.get('upside', 0) if valuation else 0
+        
+        fundamental = sections.get('fundamental', {})
+        roe = fundamental.get('roe', 0) if fundamental else 0
+        
+        tech = sections.get('technical', {})
+        rsi = tech.get('rsi', 50) if tech else 50
+        
+        # 计算建议仓位
+        if upside > 30:
+            position_advice = "20-30%"
+            position_reason = "估值低估，可适当加仓"
+        elif upside > 0:
+            position_advice = "30-40%"
+            position_reason = "估值合理偏低，可持有"
+        elif upside > -20:
+            position_advice = "20-30%"
+            position_reason = "估值合理偏高，控制仓位"
+        else:
+            position_advice = "5-15%"
+            position_reason = "估值高估，大幅减仓"
+        
+        # 风险等级
+        if roe > 20 and upside > 0:
+            risk_level = "低风险"
+            risk_color = "#27ae60"
+        elif roe > 15 or upside > -10:
+            risk_level = "中等风险"
+            risk_color = "#f39c12"
+        else:
+            risk_level = "高风险"
+            risk_color = "#e74c3c"
+        
+        return f'''
+        <div class="section">
+            <div class="section-header">
+                <div class="section-number">13</div>
+                <div>
+                    <div class="section-title">资产配置建议</div>
+                    <span class="section-desc">仓位管理 - 风险控制</span>
+                </div>
+            </div>
+            
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-label">建议仓位</div>
+                    <div class="metric-value" style="font-size: 28px; color: {risk_color}">{position_advice}</div>
+                    <div class="metric-change">{position_reason}</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">风险等级</div>
+                    <div class="metric-value" style="color: {risk_color}">{risk_level}</div>
+                </div>
+            </div>
+            
+            <div class="analysis-box">
+                <div class="analysis-title">资产配置策略</div>
+                <div class="analysis-text">
+                    <ul>
+                        <li><strong>仓位建议：</strong>{position_advice}，{position_reason}</li>
+                        <li><strong>风险控制：</strong>单只股票仓位不超过总资产的10-15%</li>
+                        <li><strong>分散投资：</strong>建议持有5-10只不同行业股票分散风险</li>
+                        <li><strong>止损策略：</strong>设置止损位，亏损超过8-10%及时止损</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="analysis-box">
+                <div class="analysis-title">新手投资建议</div>
+                <div class="analysis-text">
+                    <ul>
+                        <li><strong>定投策略：</strong>每月固定金额投资，平滑成本，降低择时风险</li>
+                        <li><strong>止盈策略：</strong>收益超过20%可考虑部分止盈，锁定利润</li>
+                        <li><strong>心态管理：</strong>不追涨杀跌，坚持长期投资理念</li>
+                        <li><strong>学习提升：</strong>持续学习财务知识和投资技巧</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="summary-box">
+                <div class="summary-title">配置小结</div>
+                <div class="summary-text">
+                    当前股票建议仓位{position_advice}，风险等级{risk_level}。
+                    投资需谨慎，建议结合自身风险承受能力和投资目标，合理配置资产。
+                </div>
             </div>
         </div>
         '''
