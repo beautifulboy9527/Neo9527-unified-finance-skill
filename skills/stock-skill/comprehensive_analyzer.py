@@ -129,6 +129,28 @@ class ComprehensiveStockAnalyzer:
             print(f"   板块联动模块加载失败: {e}")
             self.correlation = None
         
+        # 流动性分析
+        try:
+            self.liquidity = load_module(
+                "liquidity",
+                os.path.join(BASE_DIR, "scripts", "features", "liquidity.py")
+            )
+            print("   流动性分析模块加载成功") if self.liquidity else print("   流动性分析模块为空")
+        except Exception as e:
+            print(f"   流动性分析模块加载失败: {e}")
+            self.liquidity = None
+        
+        # 风险管理
+        try:
+            self.risk_management = load_module(
+                "risk_management",
+                os.path.join(BASE_DIR, "scripts", "features", "risk_management.py")
+            )
+            print("   风险管理模块加载成功") if self.risk_management else print("   风险管理模块为空")
+        except Exception as e:
+            print(f"   风险管理模块加载失败: {e}")
+            self.risk_management = None
+        
         # 情绪分析
         try:
             self.sentiment = load_module(
@@ -454,7 +476,26 @@ class ComprehensiveStockAnalyzer:
             except Exception as e:
                 print(f"   ERROR: {str(e)[:50]}")
         
-        # 8. 新闻分析 (用于选股，不用于个股分析)
+        # 8. 流动性分析
+        print("\n【8/12】流动性分析...")
+        if self.liquidity:
+            try:
+                analyzer = self.liquidity.LiquidityAnalyzer(symbol)
+                result = analyzer.analyze(period='3mo')
+                
+                if result and not result.get('error'):
+                    report['sections']['liquidity'] = {
+                        'avg_volume': result.get('volume', {}).get('avg_volume', 0),
+                        'turnover_rate': result.get('volume', {}).get('turnover_rate', 0),
+                        'liquidity_score': result.get('summary', {}).get('liquidity_score', 0)
+                    }
+                    print(f"   OK: 流动性评分: {result.get('summary', {}).get('liquidity_score', 'N/A')}")
+                else:
+                    print("   WARN: 无流动性数据")
+            except Exception as e:
+                print(f"   ERROR: {str(e)[:50]}")
+        
+        # 9. 新闻分析 (用于选股，不用于个股分析)
         print("\n【7/12】新闻分析... (已跳过，用于选股)")
         
         # 8. 情绪分析
