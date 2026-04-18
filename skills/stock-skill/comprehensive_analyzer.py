@@ -106,6 +106,17 @@ class ComprehensiveStockAnalyzer:
         except Exception as e:
             print(f"   监管模块加载失败: {e}")
             self.regulation = None
+        
+        # 报告增强工具
+        try:
+            self.report_enhancer = load_module(
+                "report_enhancer",
+                os.path.join(BASE_DIR, "skills", "shared", "report_enhancer.py")
+            )
+            print("   报告增强工具加载成功") if self.report_enhancer else print("   报告增强工具为空")
+        except Exception as e:
+            print(f"   报告增强工具加载失败: {e}")
+            self.report_enhancer = None
     
     def analyze(self, symbol: str, style: str = 'value') -> Dict:
         """
@@ -405,33 +416,91 @@ class ComprehensiveStockAnalyzer:
         if 'technical' in report['sections']:
             tech = report['sections']['technical']
             trend = tech.get('trend') or 'N/A'
-            rsi = tech.get('rsi') or 0
+            rsi = tech.get('rsi') or 50
             macd = tech.get('macd_status') or 'N/A'
             signals = tech.get('signals') or 0
+            
+            # RSI 解读
+            rsi_interp = self.report_enhancer.interpret_rsi(rsi)
+            
+            # 趋势解读
+            trend_interp = self.report_enhancer.interpret_trend(trend, rsi)
+            
+            # 技术形态
+            patterns = self.report_enhancer.get_technical_patterns(report['sections'])
+            
             md += f"""### 1. 技术分析
 
-| 指标 | 值 |
-|------|------|
-| 趋势 | {trend} |
-| RSI | {rsi:.1f} |
-| MACD | {macd} |
-| 信号数 | {signals} |
+**趋势判断**: {trend}
+
+> {trend_interp}
+
+**关键指标**:
+
+| 指标 | 值 | 解读 |
+|------|------|------|
+| RSI | {rsi:.1f} | {rsi_interp['color']} {rsi_interp['status']} |
+| MACD | {macd} | {'看涨信号' if '金叉' in macd else '看跌信号' if '死叉' in macd else '中性'} |
+| 信号数 | {signals} | {'多头优势' if signals > 0 else '空头优势'} |
+
+**RSI分析**: {rsi_interp['description']}
 
 """
+            
+            if patterns:
+                md += "**技术形态**:\n"
+                for p in patterns:
+                    md += f"- **{p['name']}**: {p['description']} ({p['signal']})\n"
+                md += "\n"
         
         # 基本面
         if 'fundamentals' in report['sections']:
             fund = report['sections']['fundamentals']
-            md += f"""### 2. 基本面分析 💼
+            pe = fund.get('pe')
+            pb = fund.get('pb')
+            roe = fund.get('roe')
+            market_cap = fund.get('market_cap')
+            
+            # PE 解读
+            pe_interp = self.report_enhancer.interpret_pe(pe) if pe else None
+            
+            # ROE 解读
+            roe_interp = self.report_enhancer.interpret_roe(roe) if roe else None
+            
+            # 市值格式化
+            mc_str = self.report_enhancer.format_number(market_cap, 'market_cap') if market_cap else 'N/A'
+            
+            pe_str = f"{pe:.1f}" if pe else "N/A"
+            pb_str = f"{pb:.2f}" if pb else "N/A"
+            roe_str = f"{roe:.1f}%" if roe else "N/A"
+            
+            pe_vs = pe_interp['vs_industry'] if pe_interp else 'N/A'
+            pe_status = pe_interp['status'] if pe_interp else 'N/A'
+            pb_status = '低估' if pb and pb < 3 else '合理' if pb and pb < 5 else '偏高'
+            
+            roe_rating = roe_interp['rating'] if roe_interp else 'N/A'
+            roe_desc = roe_interp['description'] if roe_interp else 'N/A'
+            
+            md += f"""### 2. 基本面分析
 
-| 指标 | 值 |
-|------|------|
-| P/E | {fund.get('pe', 'N/A')} |
-| P/B | {fund.get('pb', 'N/A')} |
-| ROE | {fund.get('roe', 'N/A')}% |
-| 市值 | {fund.get('market_cap', 'N/A')} |
+**估值指标**:
+
+| 指标 | 值 | 行业对比 | 解读 |
+|------|------|---------|------|
+| P/E | {pe_str} | {pe_vs} | {pe_status} |
+| P/B | {pb_str} | - | {pb_status} |
+| 市值 | {mc_str} | - | - |
+
+**盈利能力**:
+
+| 指标 | 值 | 评级 | 解读 |
+|------|------|------|------|
+| ROE | {roe_str} | {roe_rating} | {roe_desc} |
 
 """
+            
+            if pe_interp:
+                md += f"**PE分析**: {pe_interp['description']}\n\n"
         
         # 财务异常
         if 'financial_check' in report['sections']:
@@ -517,12 +586,71 @@ class ComprehensiveStockAnalyzer:
             dr = report['sections']['deep_research']
             md += f"""### 8. 深度研报
 
-| 指标 | 值 |
-|------|------|
-| 评级 | {dr['rating']} |
-| 评分 | {dr['score']}/5 |
-| 建议 | {dr['recommendation']} |
+| 指标 | 值 | 解读 |
+|------|------|------|
+| 评级 | {dr['rating']} | {'基本面良好' if dr['score'] >= 4 else '基本面一般' if dr['score'] >= 3 else '基本面存疑'} |
+| 评分 | {dr['score']}/5 | {'优秀' if dr['score'] >= 4 else '良好' if dr['score'] >= 3 else '需谨慎'} |
+| 建议 | {dr['recommendation']} | - |
 
+"""
+        
+        # 全局观点
+        md += """---
+
+## 📌 全局观点
+
+"""
+        
+        overall = report.get('overall', {})
+        score = overall.get('score', 0)
+        recommendation = overall.get('recommendation', '')
+        
+        # 综合评价
+        if score >= 70:
+            overall_view = "基本面优秀，技术面支持，适合投资"
+        elif score >= 50:
+            overall_view = "基本面尚可，需关注风险，谨慎投资"
+        else:
+            overall_view = "基本面较弱，风险较大，建议观望"
+        
+        md += f"""**综合评价**: {overall_view}
+
+**评分**: {score}/100
+
+"""
+        
+        # 不同投资者建议
+        md += """---
+
+## 💡 不同周期投资者建议
+
+"""
+        
+        # 短线建议
+        short_advice = self.report_enhancer.get_investment_advice(score, 'short', report['sections'])
+        md += f"""### 短线投资者 (日内/隔夜)
+
+**建议**: {short_advice['advice']}\n
+**理由**: {short_advice['reason']}\n
+**操作**: {short_advice['action']}\n
+"""
+        
+        # 波段建议
+        medium_advice = self.report_enhancer.get_investment_advice(score, 'medium', report['sections'])
+        md += f"""### 波段投资者 (数天-数周)
+
+**建议**: {medium_advice['advice']}\n
+**理由**: {medium_advice['reason']}\n
+**操作**: {medium_advice['action']}\n
+"""
+        
+        # 长线建议
+        long_advice = self.report_enhancer.get_investment_advice(score, 'long', report['sections'])
+        md += f"""### 长线投资者 (数月-数年)
+
+**建议**: {long_advice['advice']}\n
+**理由**: {long_advice['reason']}\n
+**操作**: {long_advice['action']}\n
 """
         
         md += """---
@@ -533,7 +661,7 @@ class ComprehensiveStockAnalyzer:
 
 ---
 
-*报告由 Neo9527 Finance Agent v5.3 生成*
+*报告由 Neo9527 Finance Agent v6.0 生成*
 """
         
         return md
