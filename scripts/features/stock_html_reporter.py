@@ -499,7 +499,7 @@ class CompleteStockReporter:
         
         # 4. 技术分析 + 入场信号
         if 'technical' in sections:
-            parts.append(self._build_technical_detailed(sections['technical'], sections.get('entry_signals'), enhancer))
+            parts.append(self._build_technical_detailed(sections['technical'], sections.get('entry_signals'), sections.get('backtest'), enhancer))
         
         # 5. 市场情绪
         if 'sentiment' in sections:
@@ -839,7 +839,7 @@ class CompleteStockReporter:
         </div>
         '''
     
-    def _build_technical_detailed(self, tech: Dict, entry_signals: Dict, enhancer) -> str:
+    def _build_technical_detailed(self, tech: Dict, entry_signals: Dict, backtest: Dict, enhancer) -> str:
         """构建详细的技术分析"""
         trend = tech.get('trend', 'N/A')
         rsi = tech.get('rsi', 50)
