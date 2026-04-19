@@ -297,7 +297,7 @@ class AShareAnalyzer:
         market_cap = info.get('marketCap', 0)
         
         # yfinance对A股返回的市值单位是人民币元
-        # 46,890,000,384 元 = 468.90 亿元
+        # 46,890,000,384 元 = 468.90 亿元 = 46.89B (Billion)
         market_cap_display = market_cap / 1e8  # 转换为亿元
         
         pe_status = self._get_pe_status(pe)
