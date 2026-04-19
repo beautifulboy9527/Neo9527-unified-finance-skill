@@ -20,9 +20,9 @@ description: >
   - onchain-skill: 链上数据
   
   触发: 股票分析、打板筛选、财务检测、估值计算、深度研报
-version: 6.3.0
+version: 6.4.0
 integration: full
-tested: 2026-04-18
+tested: 2026-04-19
 skills:
   - crypto-skill
   - stock-skill
@@ -40,7 +40,7 @@ cli: true
 
 ## ✅ 测试状态
 
-**最后测试**: 2026-04-18 11:30
+**最后测试**: 2026-04-19 11:00
 **测试结果**: 全部通过 ✅
 
 | 测试项 | 状态 |
@@ -53,6 +53,8 @@ cli: true
 | 估值计算 | ✅ |
 | 深度研报 | ✅ |
 | CLI 命令 | ✅ |
+| 核心结论卡片 | ✅ |
+| 形态检测展示 | ✅ |
 
 ---
 

@@ -61,3 +61,9 @@ Thumbs.db
 *.tmp
 *.bak
 *.backup
+
+# 开发相关
+planning/
+references/
+reports/
+*.egg-info/

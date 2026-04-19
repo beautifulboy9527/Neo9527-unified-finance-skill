@@ -485,6 +485,9 @@ class CompleteStockReporter:
         """构建所有章节"""
         parts = []
         
+        # 0. 核心结论卡片 (新增)
+        parts.append(self._build_core_conclusion_card(sections))
+        
         # 1. 基本面分析
         if 'fundamentals' in sections:
             parts.append(self._build_fundamentals_detailed(sections['fundamentals']))
@@ -525,6 +528,96 @@ class CompleteStockReporter:
                 print(f"   资产配置建议生成失败: {e}")
         
         return '\n'.join(parts)
+    
+    def _build_core_conclusion_card(self, sections: Dict) -> str:
+        """构建核心结论卡片"""
+        
+        # 收集关键指标
+        key_points = []
+        
+        # 基本面
+        if 'fundamentals' in sections:
+            fund = sections['fundamentals']
+            roe = fund.get('roe', 0)
+            pe = fund.get('pe', 0)
+            if roe and roe > 15:
+                key_points.append({'icon': '✅', 'text': f'盈利能力强: ROE={roe:.1f}%', 'color': '#27ae60'})
+            if pe and pe < 25:
+                key_points.append({'icon': '✅', 'text': f'估值合理: PE={pe:.1f}倍', 'color': '#27ae60'})
+            elif pe and pe > 35:
+                key_points.append({'icon': '⚠️', 'text': f'估值偏高: PE={pe:.1f}倍', 'color': '#e67e22'})
+        
+        # 估值
+        if 'valuation' in sections:
+            val = sections['valuation']
+            upside = val.get('upside', 0)
+            if upside > 20:
+                key_points.append({'icon': '📉', 'text': f'低估{upside:.0f}%，有上涨空间', 'color': '#27ae60'})
+            elif upside < -30:
+                key_points.append({'icon': '📈', 'text': f'高估{abs(upside):.0f}%，风险较大', 'color': '#e74c3c'})
+        
+        # 技术
+        if 'technical' in sections:
+            tech = sections['technical']
+            trend = tech.get('trend', '')
+            rsi = tech.get('rsi', 50)
+            if '多头' in trend:
+                key_points.append({'icon': '📈', 'text': f'趋势向上: {trend}', 'color': '#27ae60'})
+            if rsi and rsi > 70:
+                key_points.append({'icon': '⚠️', 'text': f'RSI超买({rsi:.0f})，短期可能回调', 'color': '#e67e22'})
+            elif rsi and rsi < 30:
+                key_points.append({'icon': '💡', 'text': f'RSI超卖({rsi:.0f})，可能反弹', 'color': '#27ae60'})
+        
+        # 财务健康
+        if 'financial_check' in sections:
+            fc = sections['financial_check']
+            risk = fc.get('risk_level', 'unknown')
+            if risk == 'low':
+                key_points.append({'icon': '✅', 'text': '财务健康: 无明显风险', 'color': '#27ae60'})
+            elif risk == 'high':
+                key_points.append({'icon': '⚠️', 'text': '财务风险: 需关注', 'color': '#e74c3c'})
+        
+        # 深度研报
+        if 'deep_research' in sections:
+            dr = sections['deep_research']
+            dr_score = dr.get('score', 0)
+            if dr_score >= 4:
+                key_points.append({'icon': '⭐', 'text': f'深度研报评分: {dr_score}/5，基本面良好', 'color': '#27ae60'})
+            elif dr_score > 0:
+                key_points.append({'icon': '📋', 'text': f'深度研报评分: {dr_score}/5', 'color': '#f39c12'})
+        
+        # 默认提示
+        if not key_points:
+            key_points.append({'icon': '📊', 'text': '分析数据收集中，请查看详细章节', 'color': '#7f8c8d'})
+        
+        # 构建HTML
+        points_html = ''
+        for i, point in enumerate(key_points[:6], 1):
+            points_html += f'''
+            <div class="conclusion-point" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #e0e0e0;">
+                <span style="font-size: 20px; margin-right: 15px;">{point['icon']}</span>
+                <span style="font-size: 15px; color: {point['color']}; font-weight: 500;">{point['text']}</span>
+            </div>
+            '''
+        
+        return f'''
+        <div class="section" style="margin-bottom: 30px;">
+            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); 
+                        color: white; padding: 30px; border-radius: 16px; 
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <span style="font-size: 28px; margin-right: 12px;">🎯</span>
+                    <h2 style="font-size: 24px; font-weight: 700; margin: 0;">核心结论</h2>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                    {points_html}
+                </div>
+                <div style="margin-top: 20px; font-size: 13px; opacity: 0.7;">
+                    💡 本卡片汇总分析报告中的关键发现，详细信息请查看下方各章节
+                </div>
+            </div>
+        </div>
+        '''
     
     def _build_fundamentals_detailed(self, fund: Dict) -> str:
         """构建详细的基本面分析"""
@@ -878,6 +971,30 @@ class CompleteStockReporter:
         else:
             trend_status, trend_color = "震荡", "#f39c12"
 
+        # 形态检测 (新增)
+        patterns_html = ""
+        if enhancer:
+            try:
+                patterns = enhancer.get_technical_patterns({'technical': tech})
+                if patterns:
+                    patterns_html = '''
+                    <div class="analysis-box">
+                        <div class="analysis-title">技术形态检测</div>
+                        <div class="signal-grid" style="margin-top: 15px;">
+                    '''
+                    for p in patterns:
+                        sig_color = "#27ae60" if p['signal'] == '买入' else "#e74c3c" if p['signal'] == '卖出' else "#f39c12"
+                        patterns_html += f'''
+                        <div class="signal-card {'bullish' if p['signal'] == '买入' else 'bearish' if p['signal'] == '卖出' else 'neutral'}">
+                            <div class="signal-title">{p['name']}</div>
+                            <div class="signal-value" style="color: {sig_color}; font-size: 24px;">{p['signal']}</div>
+                            <div class="signal-desc">{p['description']}</div>
+                        </div>
+                        '''
+                    patterns_html += '</div></div>'
+            except Exception as e:
+                patterns_html = ''
+
         # 入场信号表格
         signals_table = ""
         if entry_signals and entry_signals.get('signals'):
@@ -912,6 +1029,7 @@ class CompleteStockReporter:
                 <div class="metric-item"><div class="metric-label">RSI</div><div class="metric-value">{rsi_str}</div><div class="metric-change" style="color:{rsi_color}">{rsi_status}</div></div>
                 <div class="metric-item"><div class="metric-label">MACD</div><div class="metric-value" style="color:{macd_color}">{macd_status}</div></div>
             </div>
+            {patterns_html}
             {signals_table}
             {backtest_table}
             <div class="summary-box"><div class="summary-title">技术面小结</div><div class="summary-text">趋势{trend_status}，RSI{rsi_str}({rsi_status})，MACD{macd_status}</div></div>

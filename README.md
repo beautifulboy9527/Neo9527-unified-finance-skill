@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v6.3 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.4 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v6.3-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.4-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,29 +12,28 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v6.3** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.4** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v6.3 核心特性
+### v6.4 核心特性
 
-- 📊 **结构化报告**: 8部分逻辑递进框架，每章节独立小结
-- 🔍 **数据来源标注**: 情绪/监管/财务完整信源说明
+- 📊 **A股综合分析**: 完整的A股分析报告，含技术形态、信号叠加、深度研报
+- 🔬 **深度研报**: 8阶段投研框架，护城河评估、市场分歧、风险评估
+- 📈 **技术分析**: 完整指标(RSI/MACD/布林带/ADX) + 形态识别 + 信号叠加
 - 🧩 **Skills生态**: 6个独立Skills，可组合编排
 - 🤖 **Agent调用**: 标准接口 + OpenAI Function Calling
 - 🌐 **REST API**: FastAPI服务 + 自动文档
 - 📈 **多市场支持**: 加密货币 + 股票 + 外汇
-- 🎯 **交易周期**: 日内/短线/波段/中线/长线完整支持
-- 🏦 **打板筛选**: 涨停板/强势股/连板统计
 
-### v6.3 升级亮点
+### v6.4 升级亮点
 
-| 功能 | v6.2 | v6.3 |
+| 功能 | v6.3 | v6.4 |
 |------|------|------|
-| 报告结构 | ⚠️ 混乱 | ✅ 逻辑递进 |
-| 数据来源 | ⚠️ 缺失 | ✅ 完整标注 |
-| 新闻分析 | ⚠️ 无关 | ✅ 移至选股 |
-| 情绪来源 | ❌ 无 | ✅ TextBlob/Adanos |
-| 监管来源 | ❌ 无 | ✅ CSRC/PBOC/NFRA |
-| 深度研报 | ⚠️ 不明确 | ✅ Phase验证 |
+| A股分析 | ⚠️ 基础 | ✅ 完整报告 |
+| 技术分析 | ⚠️ 简单 | ✅ 形态+信号+支撑阻力 |
+| 深度研报 | ⚠️ 重复估值 | ✅ 独特内容 |
+| 信号叠加 | ❌ 无 | ✅ 叠buff逻辑 |
+| 支撑阻力 | ❌ 无 | ✅ 近期/远期 |
+| 形态识别 | ❌ 无 | ✅ 双顶双底/趋势/RSI |
 
 ---
 

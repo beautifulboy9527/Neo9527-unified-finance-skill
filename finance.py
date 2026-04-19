@@ -161,7 +161,16 @@ def cmd_value(args):
 
 def cmd_research(args):
     """深度研报"""
-    from stock_skill.deep_research.analyzer import StockAnalyzer, InvestmentStyle
+    import importlib.util
+    
+    spec = importlib.util.spec_from_file_location(
+        "deep_research_analyzer",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'deep-research', 'analyzer.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    StockAnalyzer = module.StockAnalyzer
+    InvestmentStyle = module.InvestmentStyle
     
     symbol = args.symbol
     style = args.style if args.style else 'value'
