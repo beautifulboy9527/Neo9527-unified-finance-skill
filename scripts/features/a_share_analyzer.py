@@ -158,6 +158,9 @@ class AShareAnalyzer:
         # 10. 汇总分析
         result['summary'] = self._generate_summary(result)
         
+        # 11. 操作建议
+        result['trading_advice'] = self._generate_trading_advice(result)
+        
         return result
     
     def _get_market_suffix(self, symbol: str) -> str:
@@ -413,18 +416,62 @@ class AShareAnalyzer:
             patterns['trend_desc'] = '震荡整理'
             trend_text = '震荡'
         
-        # 2. 支撑阻力位
+        # 2. 支撑阻力位 (智能识别关键价位)
+        # 使用枢轴点 + 前期高低点 + 均线支撑
+        
+        # 方法1: 前期高低点
         high_20 = high.iloc[-20:].max()
         low_20 = low.iloc[-20:].min()
         high_60 = high.iloc[-60:].max() if len(high) >= 60 else high_20
         low_60 = low.iloc[-60:].min() if len(low) >= 60 else low_20
         
-        patterns['resistance_near'] = float(high_20)
-        patterns['support_near'] = float(low_20)
-        patterns['resistance_far'] = float(high_60)
-        patterns['support_far'] = float(low_60)
-        patterns['resistance_desc'] = f'阻力位: {high_20:.2f} (近20日高点), {high_60:.2f} (近60日高点)'
-        patterns['support_desc'] = f'支撑位: {low_20:.2f} (近20日低点), {low_60:.2f} (近60日低点)'
+        # 方法2: 枢轴点计算
+        pivot = (high.iloc[-1] + low.iloc[-1] + close.iloc[-1]) / 3
+        r1 = 2 * pivot - low.iloc[-1]  # 第一阻力
+        s1 = 2 * pivot - high.iloc[-1]  # 第一支撑
+        r2 = pivot + (high.iloc[-1] - low.iloc[-1])  # 第二阻力
+        s2 = pivot - (high.iloc[-1] - low.iloc[-1])  # 第二支撑
+        
+        # 方法3: 均线支撑/阻力
+        ma_support = ma20 if current > ma20 else None
+        ma_resistance = ma20 if current < ma20 else None
+        
+        # 智能选择: 结合前期高低点和枢轴点
+        # 近期支撑: 取20日低点、S1、MA20中的最高点(更保守)
+        support_levels = [low_20, s1]
+        if ma_support:
+            support_levels.append(ma_support)
+        support_near = max([x for x in support_levels if x < current]) if any(x < current for x in support_levels) else low_20
+        
+        # 远期支撑: 取60日低点、S2
+        support_far = min(low_60, s2) if s2 < current else low_60
+        
+        # 近期阻力: 取20日高点、R1、MA20中的最低点(更保守)
+        resistance_levels = [high_20, r1]
+        if ma_resistance:
+            resistance_levels.append(ma_resistance)
+        resistance_near = min([x for x in resistance_levels if x > current]) if any(x > current for x in resistance_levels) else high_20
+        
+        # 远期阻力: 取60日高点、R2
+        resistance_far = max(high_60, r2) if r2 > current else high_60
+        
+        # 计算距离当前价的百分比
+        support_near_pct = (support_near - current) / current * 100
+        support_far_pct = (support_far - current) / current * 100
+        resistance_near_pct = (resistance_near - current) / current * 100
+        resistance_far_pct = (resistance_far - current) / current * 100
+        
+        patterns['resistance_near'] = float(resistance_near)
+        patterns['support_near'] = float(support_near)
+        patterns['resistance_far'] = float(resistance_far)
+        patterns['support_far'] = float(support_far)
+        patterns['resistance_near_pct'] = float(resistance_near_pct)
+        patterns['support_near_pct'] = float(support_near_pct)
+        patterns['resistance_far_pct'] = float(resistance_far_pct)
+        patterns['support_far_pct'] = float(support_far_pct)
+        patterns['resistance_desc'] = f'阻力: {resistance_near:.2f} (+{resistance_near_pct:.1f}%) 近期, {resistance_far:.2f} (+{resistance_far_pct:.1f}%) 远期'
+        patterns['support_desc'] = f'支撑: {support_near:.2f} ({support_near_pct:.1f}%) 近期, {support_far:.2f} ({support_far_pct:.1f}%) 远期'
+        patterns['pivot'] = float(pivot)
         
         # 3. RSI形态
         if rsi > 80:
@@ -454,19 +501,33 @@ class AShareAnalyzer:
             patterns['macd_signal'] = 'bearish'
             patterns['macd_desc'] = 'MACD死叉 (看跌)'
         
-        # 5. 布林带位置
+        # 5. 布林带位置 (详细解读)
         bb_upper = result['indicators']['bb_upper']
         bb_lower = result['indicators']['bb_lower']
+        bb_mid = (bb_upper + bb_lower) / 2
+        bb_width = (bb_upper - bb_lower) / bb_mid * 100  # 布林带宽度
         
         if current > bb_upper:
             patterns['bb_signal'] = 'breakout_up'
-            patterns['bb_desc'] = '突破布林上轨 (强势或回调)'
+            patterns['bb_desc'] = f'突破布林上轨 (强势或回调): 价格突破上轨{((current-bb_upper)/bb_upper*100):.1f}%，通常意味着强势上涨或即将回调'
+            patterns['bb_action'] = '观察成交量: 放量突破可追，缩量突破谨慎'
         elif current < bb_lower:
             patterns['bb_signal'] = 'breakdown'
-            patterns['bb_desc'] = '跌破布林下轨 (超卖或加速下跌)'
+            patterns['bb_desc'] = f'跌破布林下轨 (超卖或加速): 价格跌破下轨{((bb_lower-current)/bb_lower*100):.1f}%，可能超卖反弹或加速下跌'
+            patterns['bb_action'] = '等待企稳信号: RSI背离+放量反弹可考虑抄底'
+        elif current > bb_mid:
+            patterns['bb_signal'] = 'upper_half'
+            patterns['bb_desc'] = f'布林带上半区运行: 价格在中轨上方，偏强势，上轨{bb_upper:.2f}为阻力'
+            patterns['bb_action'] = '上轨附近可减仓，中轨附近可加仓'
         else:
-            patterns['bb_signal'] = 'range'
-            patterns['bb_desc'] = '布林带区间内运行'
+            patterns['bb_signal'] = 'lower_half'
+            patterns['bb_desc'] = f'布林带下半区运行: 价格在中轨下方，偏弱势，下轨{bb_lower:.2f}为支撑'
+            patterns['bb_action'] = '下轨附近可尝试轻仓，中轨突破再加仓'
+        
+        patterns['bb_width'] = float(bb_width)
+        if bb_width < 5:
+            patterns['bb_squeeze'] = True
+            patterns['bb_squeeze_desc'] = f'布林带收窄 ({bb_width:.1f}%)，变盘在即，关注突破方向'
         
         # 6. 成交量信号
         vol_ratio = result['indicators']['volume_ratio']
@@ -572,6 +633,53 @@ class AShareAnalyzer:
         result['overall_signal'] = overall
         result['action'] = action
         
+        # ========== 详细技术分析解读 ==========
+        analysis_parts = []
+        
+        # 1. 趋势解读
+        trend_desc = patterns.get('trend_desc', '')
+        analysis_parts.append(f"【趋势】{trend_desc}")
+        if trend_text in ['强势多头', '多头']:
+            analysis_parts.append(f"当前MA5({ma5:.2f}) > MA10({ma10:.2f}) > MA20({ma20:.2f})，短期均线在上，趋势向上")
+        elif trend_text in ['强势空头', '空头']:
+            analysis_parts.append(f"当前MA5({ma5:.2f}) < MA10({ma10:.2f}) < MA20({ma20:.2f})，短期均线在下，趋势向下")
+        
+        # 2. RSI解读
+        rsi_desc = patterns.get('rsi_desc', '')
+        analysis_parts.append(f"【RSI={rsi:.1f}】{rsi_desc}")
+        if rsi < 30:
+            analysis_parts.append(f"RSI低于30表示超卖，历史上反弹概率约60-70%，但需配合成交量确认")
+        elif rsi > 70:
+            analysis_parts.append(f"RSI高于70表示超买，历史上回调概率约60-70%，注意风险控制")
+        
+        # 3. MACD解读
+        macd_desc = patterns.get('macd_desc', '')
+        analysis_parts.append(f"【MACD】{macd_desc}")
+        histogram_val = histogram
+        analysis_parts.append(f"MACD柱状图{'放大' if abs(histogram_val) > abs(macd_line.iloc[-2] - signal_line.iloc[-2] if len(macd_line) > 1 else histogram_val) else '缩小'}，动能{'增强' if histogram_val > 0 else '减弱'}")
+        
+        # 4. 布林带解读
+        bb_desc = patterns.get('bb_desc', '')
+        bb_action = patterns.get('bb_action', '')
+        analysis_parts.append(f"【布林带】{bb_desc}")
+        if bb_action:
+            analysis_parts.append(f"操作建议: {bb_action}")
+        
+        # 5. 支撑阻力解读
+        support_pct = patterns.get('support_near_pct', 0)
+        resistance_pct = patterns.get('resistance_near_pct', 0)
+        analysis_parts.append(f"【支撑阻力】最近支撑{patterns.get('support_near', 0):.2f} ({support_pct:.1f}%)，最近阻力{patterns.get('resistance_near', 0):.2f} (+{resistance_pct:.1f}%)")
+        analysis_parts.append(f"距离支撑{abs(support_pct):.1f}%，距离阻力{abs(resistance_pct):.1f}%，{'上涨空间大于下跌风险' if abs(resistance_pct) > abs(support_pct) else '下跌风险大于上涨空间'}")
+        
+        # 6. 综合判断
+        analysis_parts.append(f"【综合判断】{len(signals)}个信号，强度值{total_strength}，结论{overall}")
+        if total_strength >= 4:
+            analysis_parts.append(f"多头信号占优，建议关注突破阻力位的有效性，放量突破可加仓")
+        elif total_strength <= -4:
+            analysis_parts.append(f"空头信号占优，建议等待支撑位企稳，缩量止跌可轻仓试多")
+        else:
+            analysis_parts.append(f"多空信号均衡，建议区间操作，支撑位买入阻力位卖出")
+        
         # 兼容旧结构
         result['trend'] = trend_text
         result['rsi'] = rsi
@@ -579,9 +687,10 @@ class AShareAnalyzer:
         result['ma5'] = ma5
         result['ma10'] = ma10
         result['ma20'] = ma20
-        result['support'] = float(low_20)
-        result['resistance'] = float(high_20)
-        result['analysis'] = f"趋势{trend_text}，RSI={rsi:.1f}，MACD{result['macd_signal']}，{len(signals)}个信号，综合{overall}"
+        result['support'] = float(patterns.get('support_near', low_20))
+        result['resistance'] = float(patterns.get('resistance_near', high_20))
+        result['analysis'] = '；'.join(analysis_parts)
+        result['analysis_parts'] = analysis_parts
         
         return result
     
@@ -948,6 +1057,156 @@ class AShareAnalyzer:
             return {'available': False, 'analysis': '无法计算ATR'}
         except Exception as e:
             return {'available': False, 'analysis': f'风险管理计算失败: {str(e)[:50]}'}
+    
+    def _generate_trading_advice(self, result) -> Dict:
+        """生成操作建议 - 结合基本面和技术面"""
+        
+        technical = result.get('technical', {})
+        patterns = technical.get('patterns', {})
+        profitability = result.get('profitability', {})
+        valuation = result.get('valuation', {})
+        score = result.get('score', 50)
+        
+        # 当前价格在 indicators['price'] 中
+        indicators = technical.get('indicators', {})
+        current_price = indicators.get('price', 0)
+        support_near = patterns.get('support_near', 0)
+        resistance_near = patterns.get('resistance_near', 0)
+        support_pct = patterns.get('support_near_pct', 0)
+        resistance_pct = patterns.get('resistance_near_pct', 0)
+        total_strength = technical.get('total_strength', 0)
+        
+        # 计算风险收益比
+        if abs(support_pct) > 0:
+            risk_reward_ratio = abs(resistance_pct) / abs(support_pct)
+        else:
+            risk_reward_ratio = 1.0
+        
+        advice = {
+            'short_term': {},  # 短线 (1-5天)
+            'mid_term': {},    # 中线 (1-4周)
+            'long_term': {},   # 长线 (1-3月)
+            'risk_management': {},
+            'key_levels': {}
+        }
+        
+        # ========== 短线操作建议 ==========
+        short_actions = []
+        if total_strength >= 6:
+            short_actions.append(f"技术面强势，可尝试短线做多，目标{resistance_near:.2f}")
+            short_actions.append(f"止损设在{support_near:.2f} ({support_pct:.1f}%)")
+        elif total_strength <= -6:
+            short_actions.append(f"技术面弱势，建议观望或轻仓做空")
+            short_actions.append(f"若反弹至{resistance_near:.2f}可考虑减仓")
+        else:
+            short_actions.append(f"震荡行情，建议区间操作")
+            short_actions.append(f"支撑{support_near:.2f}附近买入，阻力{resistance_near:.2f}附近卖出")
+        
+        # RSI特殊信号
+        rsi = technical.get('rsi', 50)
+        if rsi < 30:
+            short_actions.append(f"RSI超卖({rsi:.0f})，存在反弹机会，关注成交量配合")
+        elif rsi > 70:
+            short_actions.append(f"RSI超买({rsi:.0f})，注意回调风险")
+        
+        advice['short_term'] = {
+            'direction': '偏多' if total_strength > 0 else '偏空' if total_strength < 0 else '震荡',
+            'entry_zone': f"{support_near:.2f}-{current_price:.2f}" if total_strength > 0 else f"{current_price:.2f}-{resistance_near:.2f}",
+            'target': resistance_near if total_strength > 0 else support_near,
+            'stop_loss': support_near if total_strength > 0 else resistance_near,
+            'holding_days': '1-5天',
+            'actions': short_actions,
+            'risk_reward': f"1:{risk_reward_ratio:.1f}"
+        }
+        
+        # ========== 中线操作建议 ==========
+        mid_actions = []
+        is_profitable = profitability.get('is_profitable', False)
+        pe = valuation.get('pe', 0)
+        
+        if is_profitable and pe > 0 and pe < 20:
+            mid_actions.append(f"基本面良好(PE={pe:.1f})，可考虑中线布局")
+            mid_actions.append(f"分批建仓，越跌越买")
+        elif not is_profitable:
+            mid_actions.append(f"企业亏损，中线投资需谨慎")
+            mid_actions.append(f"等待业绩改善信号")
+        else:
+            mid_actions.append(f"估值偏高(PE={pe:.1f})，等待回调")
+        
+        # 技术面配合
+        ma20 = technical.get('ma20', current_price)
+        if current_price > ma20:
+            mid_actions.append(f"站上MA20({ma20:.2f})，趋势偏多")
+        else:
+            mid_actions.append(f"跌破MA20({ma20:.2f})，趋势偏空")
+        
+        advice['mid_term'] = {
+            'direction': '看多' if is_profitable and total_strength > 0 else '看空' if not is_profitable else '中性',
+            'entry_strategy': '分批建仓' if is_profitable else '观望',
+            'holding_weeks': '1-4周',
+            'actions': mid_actions
+        }
+        
+        # ========== 长线操作建议 ==========
+        long_actions = []
+        roe = profitability.get('roe', 0)
+        
+        if is_profitable and roe and roe > 0.15:
+            long_actions.append(f"ROE={roe*100:.1f}%，盈利能力强，适合长线持有")
+            long_actions.append(f"逢低布局，长期价值投资")
+        elif is_profitable:
+            long_actions.append(f"企业盈利但ROE较低({roe*100:.1f}% if roe else 'N/A')")
+            long_actions.append(f"关注行业竞争格局和管理层能力")
+        else:
+            long_actions.append(f"企业亏损，不适合长线投资")
+        
+        advice['long_term'] = {
+            'suitable': is_profitable and roe > 0.1 if roe else False,
+            'holding_months': '1-3月',
+            'actions': long_actions
+        }
+        
+        # ========== 风险管理建议 ==========
+        risk_actions = []
+        rm = result.get('risk_management', {})
+        
+        if rm.get('available'):
+            atr_stop_std = rm.get('stop_loss_standard', support_near)
+            atr_stop_pct = rm.get('stop_loss_pct_standard', 0)
+            risk_actions.append(f"ATR止损位: {atr_stop_std:.2f} ({atr_stop_pct:.1f}%)")
+            risk_actions.append(f"建议仓位: 单笔风险不超过总资金2%")
+            
+            # 根据技术信号调整仓位建议
+            if total_strength >= 6:
+                position_advice = "技术强势可考虑半仓操作"
+            elif total_strength >= 0:
+                position_advice = "震荡行情建议轻仓试水"
+            else:
+                position_advice = "技术弱势建议空仓观望"
+            risk_actions.append(position_advice)
+        else:
+            risk_actions.append(f"技术止损: {support_near:.2f}")
+            risk_actions.append(f"建议仓位: 不超过总资金的10%")
+        
+        advice['risk_management'] = {
+            'stop_loss': rm.get('stop_loss_standard', support_near) if rm.get('available') else support_near,
+            'stop_loss_pct': rm.get('stop_loss_pct_standard', support_pct) if rm.get('available') else support_pct,
+            'position_limit': '50%' if total_strength >= 6 else '20%' if total_strength >= 0 else '0%',
+            'actions': risk_actions
+        }
+        
+        # ========== 关键价位监控 ==========
+        advice['key_levels'] = {
+            'current': current_price,
+            'support_near': support_near,
+            'support_far': patterns.get('support_far', 0),
+            'resistance_near': resistance_near,
+            'resistance_far': patterns.get('resistance_far', 0),
+            'pivot': patterns.get('pivot', 0),
+            'ma20': technical.get('ma20', 0)
+        }
+        
+        return advice
     
     def _calculate_score(self, result) -> tuple:
         score = 50
@@ -1324,6 +1583,9 @@ class AShareAnalyzer:
                 <p class="text-blue-900">{result['summary']['final']}</p>
             </div>
         </div>
+        
+        <!-- 8. 操作建议 -->
+        {self._trading_advice_html(result)}
         
         <!-- 风险提示 -->
         <div class="card p-6 mb-6 bg-yellow-50 border border-yellow-200">
@@ -1743,6 +2005,117 @@ class AShareAnalyzer:
         
         html_parts.append('</div>')
         return ''.join(html_parts)
+    
+    def _trading_advice_html(self, result: Dict) -> str:
+        """操作建议HTML"""
+        advice = result.get('trading_advice', {})
+        if not advice:
+            return ''
+        
+        html = '''
+        <div class="card p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span>💡</span> 操作建议</h2>'''
+        
+        # 短线建议
+        short = advice.get('short_term', {})
+        html += f'''
+            <div class="mb-6">
+                <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>⚡</span> 短线 (1-5天)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">方向</div>
+                        <div class="text-lg font-bold">{short.get('direction', '震荡')}</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">入场区间</div>
+                        <div class="text-lg font-bold">{short.get('entry_zone', '-')}</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">目标价</div>
+                        <div class="text-lg font-bold text-green-600">{short.get('target', 0):.2f}</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">止损价</div>
+                        <div class="text-lg font-bold text-red-600">{short.get('stop_loss', 0):.2f}</div>
+                    </div>
+                </div>
+                <div class="space-y-1">'''
+        for action in short.get('actions', []):
+            html += f'<div class="text-sm text-gray-600">• {action}</div>'
+        html += '''</div></div>'''
+        
+        # 中线建议
+        mid = advice.get('mid_term', {})
+        html += f'''
+            <div class="mb-6">
+                <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>📈</span> 中线 (1-4周)</h3>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">方向</div>
+                        <div class="text-lg font-bold">{mid.get('direction', '中性')}</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">策略</div>
+                        <div class="text-lg font-bold">{mid.get('entry_strategy', '观望')}</div>
+                    </div>
+                </div>
+                <div class="space-y-1">'''
+        for action in mid.get('actions', []):
+            html += f'<div class="text-sm text-gray-600">• {action}</div>'
+        html += '''</div></div>'''
+        
+        # 长线建议
+        long = advice.get('long_term', {})
+        html += f'''
+            <div class="mb-6">
+                <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>🎯</span> 长线 (1-3月)</h3>
+                <div class="p-3 bg-gray-50 rounded-lg mb-3">
+                    <span class="font-bold">适合长线:</span> <span class="{'text-green-600' if long.get('suitable') else 'text-red-600'}">{'是' if long.get('suitable') else '否'}</span>
+                </div>
+                <div class="space-y-1">'''
+        for action in long.get('actions', []):
+            html += f'<div class="text-sm text-gray-600">• {action}</div>'
+        html += '''</div></div>'''
+        
+        # 风险管理
+        risk = advice.get('risk_management', {})
+        html += f'''
+            <div class="mb-6">
+                <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>🛡️</span> 风险管理</h3>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="p-3 bg-red-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">止损位</div>
+                        <div class="text-lg font-bold text-red-600">{risk.get('stop_loss', 0):.2f}</div>
+                        <div class="text-sm text-red-500">{risk.get('stop_loss_pct', 0):.1f}%</div>
+                    </div>
+                    <div class="p-3 bg-yellow-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">建议仓位</div>
+                        <div class="text-lg font-bold text-yellow-600">{risk.get('position_limit', '10%')}</div>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-lg text-center">
+                        <div class="text-gray-500 text-sm">风险收益比</div>
+                        <div class="text-lg font-bold text-blue-600">{short.get('risk_reward', '1:1')}</div>
+                    </div>
+                </div>
+                <div class="space-y-1">'''
+        for action in risk.get('actions', []):
+            html += f'<div class="text-sm text-gray-600">• {action}</div>'
+        html += '''</div></div>'''
+        
+        # 关键价位
+        key = advice.get('key_levels', {})
+        html += f'''
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-bold text-gray-700 mb-2">📍 关键价位监控</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>当前: <span class="font-bold">{key.get('current', 0):.2f}</span></div>
+                    <div>支撑: <span class="font-bold text-green-600">{key.get('support_near', 0):.2f}</span></div>
+                    <div>阻力: <span class="font-bold text-red-600">{key.get('resistance_near', 0):.2f}</span></div>
+                    <div>MA20: <span class="font-bold">{key.get('ma20', 0):.2f}</span></div>
+                </div>
+            </div>
+        </div>'''
+        return html
     
     def _summary_points_html(self, points: list) -> str:
         html = ''
