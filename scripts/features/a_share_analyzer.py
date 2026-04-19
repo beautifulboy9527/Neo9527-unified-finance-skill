@@ -82,12 +82,21 @@ class AShareAnalyzer:
         'Healthcare': '医疗健康', 'Industrials': '工业',
         'Basic Materials': '基础材料', 'Real Estate': '房地产',
         'Utilities': '公用事业', 'Communication Services': '通信服务',
+        'Specialty Chemicals': '特种化工', 'Chemicals': '化工',
+        'Aerospace & Defense': '航天国防', 'Automobiles': '汽车',
+        'Banks': '银行', 'Insurance': '保险',
+        'Software': '软件', 'Hardware': '硬件',
+        'Biotechnology': '生物技术', 'Medical Devices': '医疗器械',
+        'Oil & Gas': '石油天然气', 'Metals & Mining': '金属采矿',
     }
     
     SECTOR_CN = {
         'Technology': '科技板块', 'Financial Services': '金融板块',
         'Healthcare': '医疗板块', 'Consumer Cyclical': '消费板块',
         'Energy': '能源板块', 'Industrials': '工业板块',
+        'Basic Materials': '基础材料板块', 'Real Estate': '房地产板块',
+        'Utilities': '公用事业板块', 'Communication Services': '通信板块',
+        'Consumer Defensive': '消费防御板块',
     }
     
     STOCK_INDUSTRY_OVERRIDE = {
@@ -1252,10 +1261,10 @@ class AShareAnalyzer:
             short_actions.append(f"RSI超买({rsi:.0f})，注意回调风险")
         
         advice['short_term'] = {
-            'direction': '偏多' if total_strength > 0 else '偏空' if total_strength < 0 else '震荡',
+            'strategy': '买入机会' if total_strength >= 6 else '观望等待' if total_strength <= -6 else '区间操作',
             'entry_zone': f"{support_near:.2f}-{current_price:.2f}" if total_strength > 0 else f"{current_price:.2f}-{resistance_near:.2f}",
-            'target': resistance_near if total_strength > 0 else support_near,
-            'stop_loss': support_near if total_strength > 0 else resistance_near,
+            'target': resistance_near,
+            'stop_loss': support_near,
             'holding_days': '1-5天',
             'actions': short_actions,
             'risk_reward': f"1:{risk_reward_ratio:.1f}"
@@ -1280,11 +1289,10 @@ class AShareAnalyzer:
         if current_price > ma20:
             mid_actions.append(f"站上MA20({ma20:.2f})，趋势偏多")
         else:
-            mid_actions.append(f"跌破MA20({ma20:.2f})，趋势偏空")
+            mid_actions.append(f"跌破MA20({ma20:.2f})，建议观望")
         
         advice['mid_term'] = {
-            'direction': '偏多' if is_profitable and total_strength > 0 else '谨慎' if not is_profitable else '中性',
-            'entry_strategy': '分批建仓' if is_profitable else '观望回避',
+            'strategy': '分批建仓' if is_profitable and pe and pe < 20 else '观望回避',
             'holding_weeks': '1-4周',
             'actions': mid_actions
         }
@@ -1297,7 +1305,8 @@ class AShareAnalyzer:
             long_actions.append(f"ROE={roe*100:.1f}%，盈利能力强，适合长线持有")
             long_actions.append(f"逢低布局，长期价值投资")
         elif is_profitable:
-            long_actions.append(f"企业盈利但ROE较低({roe*100:.1f}% if roe else 'N/A')")
+            roe_str = f"{roe*100:.1f}%" if roe else "N/A"
+            long_actions.append(f"企业盈利但ROE较低({roe_str})")
             long_actions.append(f"关注行业竞争格局和管理层能力")
         else:
             long_actions.append(f"企业亏损，不适合长线投资")
@@ -2095,7 +2104,10 @@ class AShareAnalyzer:
         # 1. 护城河评估 (独特内容)
         moat = phase7.get('moat_assessment', {})
         moat_score = moat.get('score', 0)
+        moat_max = moat.get('max_score', 4)
         moat_level = moat.get('level', '未知')
+        moat_explanation = moat.get('explanation', '')
+        moat_factors = moat.get('factor_analysis', [])
         moat_color = '#27ae60' if moat_score >= 4 else ('#f39c12' if moat_score >= 2 else '#e74c3c')
         
         html_parts.append(f'''
@@ -2103,14 +2115,18 @@ class AShareAnalyzer:
                 <h3 class="font-bold text-gray-700 mb-3">🏰 护城河评估</h3>
                 <div class="p-4 bg-gray-50 rounded-lg">
                     <div class="flex items-center gap-4">
-                        <div class="text-3xl font-bold" style="color: {moat_color}">{moat_score}/4</div>
+                        <div class="text-3xl font-bold" style="color: {moat_color}">{moat_score}/{moat_max}</div>
                         <div>
                             <div class="font-bold">{moat_level}</div>
-                            <div class="text-gray-500 text-sm">基于毛利率+ROE综合评估</div>
+                            <div class="text-gray-500 text-sm">基于毛利率+ROE+净利率+市值综合评估</div>
                         </div>
                     </div>
-                </div>
-            </div>''')
+                </div>''')
+        if moat_factors:
+            html_parts.append(f'''<div class="mt-2 text-sm text-gray-600">{' | '.join(moat_factors)}</div>''')
+        if moat_explanation:
+            html_parts.append(f'''<div class="mt-2 text-xs text-gray-500">{moat_explanation}</div>''')
+        html_parts.append('</div>')
         
         # 2. 业务模式分析 (Phase 3 独特内容)
         biz_model = phase3.get('business_model', {})
@@ -2222,14 +2238,15 @@ class AShareAnalyzer:
         
         # 短线建议
         short = advice.get('short_term', {})
+        strategy = short.get('strategy', '观望')
+        strategy_color = '#27ae60' if '买入' in strategy else ('#e74c3c' if '观望' in strategy else '#3498db')
         html += f'''
             <div class="mb-6">
                 <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>⚡</span> 短线 (1-5天)</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                    <div class="p-3 bg-gray-50 rounded-lg text-center">
-                        <div class="text-gray-500 text-sm">方向</div>
-                        <div class="text-lg font-bold">{short.get('direction', '震荡')}</div>
-                    </div>
+                <div class="p-3 bg-gray-50 rounded-lg mb-3">
+                    <span class="font-bold">操作策略: </span><span style="color: {strategy_color}">{strategy}</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
                     <div class="p-3 bg-gray-50 rounded-lg text-center">
                         <div class="text-gray-500 text-sm">入场区间</div>
                         <div class="text-lg font-bold">{short.get('entry_zone', '-')}</div>
@@ -2250,18 +2267,13 @@ class AShareAnalyzer:
         
         # 中线建议
         mid = advice.get('mid_term', {})
+        mid_strategy = mid.get('strategy', '观望')
+        mid_color = '#27ae60' if '建仓' in mid_strategy else '#e74c3c'
         html += f'''
             <div class="mb-6">
                 <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><span>📈</span> 中线 (1-4周)</h3>
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div class="p-3 bg-gray-50 rounded-lg text-center">
-                        <div class="text-gray-500 text-sm">方向</div>
-                        <div class="text-lg font-bold">{mid.get('direction', '中性')}</div>
-                    </div>
-                    <div class="p-3 bg-gray-50 rounded-lg text-center">
-                        <div class="text-gray-500 text-sm">策略</div>
-                        <div class="text-lg font-bold">{mid.get('entry_strategy', '观望')}</div>
-                    </div>
+                <div class="p-3 bg-gray-50 rounded-lg mb-3">
+                    <span class="font-bold">操作策略: </span><span style="color: {mid_color}">{mid_strategy}</span>
                 </div>
                 <div class="space-y-1">'''
         for action in mid.get('actions', []):

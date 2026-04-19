@@ -451,30 +451,66 @@ class ResearchFramework:
                 'peg_ratio': info.get('pegRatio')
             }
             
-            # 护城河评估 (简化版)
+            # 护城河评估 (扩展版)
             gross_margin = info.get('grossMargins', 0)
             roe = info.get('returnOnEquity', 0)
+            operating_margin = info.get('operatingMargins', 0)
+            net_margin = info.get('profitMargins', 0)
             
             moat_score = 0
-            if gross_margin > 0.4:
-                moat_score += 2
-            elif gross_margin > 0.25:
-                moat_score += 1
+            moat_factors = []
             
+            # 1. 毛利率 (盈利能力)
+            if gross_margin and gross_margin > 0.4:
+                moat_score += 2
+                moat_factors.append(f"高毛利率({gross_margin*100:.1f}%)")
+            elif gross_margin and gross_margin > 0.25:
+                moat_score += 1
+                moat_factors.append(f"中等毛利率({gross_margin*100:.1f}%)")
+            else:
+                gm_str = f"{gross_margin*100:.1f}%" if gross_margin else "N/A"
+                moat_factors.append(f"低毛利率({gm_str})")
+            
+            # 2. ROE (资本回报率)
             if roe and roe > 0.2:
                 moat_score += 2
+                moat_factors.append(f"高ROE({roe*100:.1f}%)")
             elif roe and roe > 0.1:
                 moat_score += 1
+                moat_factors.append(f"中等ROE({roe*100:.1f}%)")
+            else:
+                roe_str = f"{roe*100:.1f}%" if roe else "N/A"
+                moat_factors.append(f"低ROE({roe_str})")
+            
+            # 3. 净利率 (盈利质量)
+            if net_margin and net_margin > 0.15:
+                moat_score += 1
+                moat_factors.append(f"高净利率({net_margin*100:.1f}%)")
+            elif net_margin and net_margin > 0.05:
+                moat_factors.append(f"中等净利率({net_margin*100:.1f}%)")
+            
+            # 4. 行业地位 (市值)
+            market_cap = info.get('marketCap', 0)
+            if market_cap and market_cap > 100e9:  # 1000亿以上
+                moat_score += 1
+                moat_factors.append("行业龙头(市值>1000亿)")
+            elif market_cap and market_cap > 50e9:  # 500亿以上
+                moat_factors.append("行业重要玩家(市值>500亿)")
             
             moat_level = '宽护城河' if moat_score >= 4 else ('窄护城河' if moat_score >= 2 else '无明显护城河')
             
             result['moat_assessment'] = {
                 'score': moat_score,
+                'max_score': 6,
                 'level': moat_level,
                 'factors': {
                     'gross_margin': gross_margin,
-                    'roe': roe
-                }
+                    'roe': roe,
+                    'net_margin': net_margin,
+                    'market_cap': market_cap
+                },
+                'factor_analysis': moat_factors,
+                'explanation': f"护城河评分基于毛利率、ROE、净利率、市值四个维度。当前得分{moat_score}/6分，{moat_level}。"
             }
             
             # 风险评估
