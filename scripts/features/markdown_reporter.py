@@ -15,6 +15,8 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 
+from report_validator import calculate_stop_loss_levels
+
 def generate_markdown_report(result: Dict) -> str:
     """生成完整的Markdown报告"""
     
