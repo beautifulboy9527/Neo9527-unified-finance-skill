@@ -28,14 +28,25 @@ class MultiSourceManager:
             'eastmoney': self._fetch_eastmoney,
             'sina': self._fetch_sina,
         }
-        self.timeout = 10
-        self.retry_count = 2
+        self.timeout = 5  # 减少超时时间
+        self.retry_count = 1  # 减少重试次数
+        self.cache = {}  # 简单缓存
+        self.cache_time = {}  # 缓存时间
     
     def fetch_stock_data(self, symbol: str) -> Dict:
         """
         从多个数据源获取股票数据
         自动降级：yfinance → 东方财富 → 新浪
         """
+        # 检查缓存（5分钟有效期）
+        import time
+        cache_key = f"stock_{symbol}"
+        if cache_key in self.cache:
+            cache_age = time.time() - self.cache_time.get(cache_key, 0)
+            if cache_age < 300:  # 5分钟缓存
+                print(f"✅ 使用缓存数据（{int(cache_age)}秒前）")
+                return self.cache[cache_key]
+        
         result = {
             'success': False,
             'source': None,
@@ -50,6 +61,9 @@ class MultiSourceManager:
             try:
                 print(f"尝试数据源: {source_name}")
                 
+                # 设置超时
+                import signal
+                
                 data = fetch_func(symbol)
                 
                 if data and self._validate_data(data):
@@ -59,6 +73,10 @@ class MultiSourceManager:
                     result['hist'] = data.get('hist')
                     result['info'] = data.get('info', {})
                     print(f"✅ 数据源 {source_name} 成功")
+                    
+                    # 缓存结果
+                    self.cache[cache_key] = result
+                    self.cache_time[cache_key] = time.time()
                     break
                 else:
                     result['errors'].append(f"{source_name}: 数据验证失败")

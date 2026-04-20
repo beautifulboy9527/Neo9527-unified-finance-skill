@@ -55,9 +55,9 @@ def generate_markdown_report(result: Dict) -> str:
 | 股票代码 | {symbol} |
 | 所属市场 | {result.get('market', 'N/A')} |
 | 所属行业 | {result.get('industry', {}).get('name_cn', 'N/A')} |
-| 所属板块 | {result.get('industry', {}).get('sector', 'N/A')} |
-| 当前价格 | **{current_price:.2f}元** |
-| 今日涨跌 | **{price.get('change_pct', 0):+.2f}%** |
+| 所属板块 | {result.get('industry', {}).get('sector_cn', result.get('industry', {}).get('sector', 'N/A'))} |
+| 当前价格 | **{'N/A' if pd.isna(current_price) or current_price <= 0 else f'{current_price:.2f}元'}** |
+| 今日涨跌 | **{'N/A' if pd.isna(price.get('change_pct', 0)) else f"{price.get('change_pct', 0):+.2f}%"}** |
 | 总市值 | {valuation.get('market_cap_str', 'N/A')} |
 
 ---
@@ -69,7 +69,7 @@ def generate_markdown_report(result: Dict) -> str:
 | 指标 | 数值 |
 |------|------|
 | 所属行业 | {result.get('industry', {}).get('name_cn', 'N/A')} |
-| 所属板块 | {result.get('industry', {}).get('sector', 'N/A')} |
+| 所属板块 | {result.get('industry', {}).get('sector_cn', result.get('industry', {}).get('sector', 'N/A'))} |
 | 行业周期 | {result.get('industry', {}).get('cycle', '未知')} |
 | 行业风险 | {result.get('industry', {}).get('risk', '未知')} |
 
