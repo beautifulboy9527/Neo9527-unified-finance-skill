@@ -232,7 +232,7 @@ class AShareAnalyzer:
         result['profitability'] = self._analyze_profitability(info)
         
         # 5. 财务健康
-        result['financial'] = self._analyze_financial(info, result['profitability'])
+        result['financial'] = self._analyze_financial(info, result['profitability'], ticker)
         
         # 6. 技术分析
         result['technical'] = self._analyze_technical(hist)
@@ -439,7 +439,7 @@ class AShareAnalyzer:
             'roe_status': '优秀' if roe and roe > 0.15 else ('良好' if roe and roe > 0.10 else '亏损')
         }
     
-    def _analyze_financial(self, info, profitability) -> Dict:
+    def _analyze_financial(self, info, profitability, ticker=None) -> Dict:
         # 正确获取资产负债率 (Debt to Assets Ratio)
         # 优先从balance sheet直接计算
         
@@ -449,17 +449,46 @@ class AShareAnalyzer:
         
         # 方法1: 直接从balance sheet获取 (最准确)
         try:
-            total_assets = info.get('totalAssets')
-            total_liab = info.get('totalLiab')
-            
-            if total_assets and total_liab and total_assets > 0:
-                debt_ratio = (total_liab / total_assets) * 100
-                debt_ratio_source = '财报计算'
-                confidence = 0.95
+            if ticker:
+                balance_sheet = ticker.balance_sheet
+                if not balance_sheet.empty:
+                    # 尝试不同的列名
+                    total_assets = None
+                    total_liab = None
+                    
+                    # 尝试获取总资产
+                    for key in ['Total Assets', 'Total Assets Gross PPE', 'totalAssets']:
+                        if key in balance_sheet.index:
+                            total_assets = balance_sheet.loc[key].iloc[0]
+                            break
+                    
+                    # 尝试获取总负债
+                    for key in ['Total Liab', 'Total Liabilities Net Minority Interest', 'totalLiab']:
+                        if key in balance_sheet.index:
+                            total_liab = balance_sheet.loc[key].iloc[0]
+                            break
+                    
+                    if total_assets and total_liab and total_assets > 0:
+                        debt_ratio = (total_liab / total_assets) * 100
+                        debt_ratio_source = '财报计算'
+                        confidence = 0.95
         except Exception as e:
             pass
         
-        # 方法2: 从债务权益比推算 (fallback)
+        # 方法2: 从info获取 (次优)
+        if debt_ratio is None:
+            try:
+                total_assets = info.get('totalAssets')
+                total_liab = info.get('totalLiab')
+                
+                if total_assets and total_liab and total_assets > 0:
+                    debt_ratio = (total_liab / total_assets) * 100
+                    debt_ratio_source = '财报计算'
+                    confidence = 0.95
+            except:
+                pass
+        
+        # 方法3: 从债务权益比推算 (fallback)
         if debt_ratio is None:
             try:
                 debt_to_equity = info.get('debtToEquity')
@@ -469,15 +498,6 @@ class AShareAnalyzer:
                     debt_ratio = (de_ratio / (1 + de_ratio)) * 100
                     debt_ratio_source = '债务权益比推算'
                     confidence = 0.70
-            except:
-                pass
-        
-        # 方法3: 尝试从ticker.balance_sheet获取 (最可靠)
-        if debt_ratio is None or confidence < 0.95:
-            try:
-                # 这个需要ticker对象，暂时跳过
-                # balance_sheet = ticker.balance_sheet
-                pass
             except:
                 pass
         
