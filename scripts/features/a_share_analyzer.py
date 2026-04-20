@@ -146,6 +146,7 @@ class AShareAnalyzer:
         'Household Durables': '耐用消费品',
         'Farm & Heavy Construction Machinery': '工程机械',
         'Construction Machinery': '工程机械',
+        'Electrical Equipment & Parts': '电气设备',
         'Leisure Products': '休闲用品',
         'Auto Components': '汽车零部件',
     }
@@ -168,6 +169,7 @@ class AShareAnalyzer:
         'Kweichow Moutai Co., Ltd.': '贵州茅台',
         'Contemporary Amperex Technology Co. Limited': '宁德时代',
         'SANY Heavy Industry Co., Ltd.': '三一重工',
+        'Shenzhen Inovance Technology Co., Ltd.': '汇川技术',
     }
     
     STOCK_INDUSTRY_OVERRIDE = {
@@ -184,6 +186,8 @@ class AShareAnalyzer:
                  'desc': '白电行业格局稳定，龙头企业现金流好，分红稳定'},
         'SANY': {'industry': '工程机械', 'sector': '工业', 'cycle': '周期波动', 'risk': '中',
                  'desc': '工程机械行业受基建投资影响，周期性明显，龙头企业市场份额高'},
+        'Inovance': {'industry': '电气设备', 'sector': '工业', 'cycle': '成长期', 'risk': '中',
+                     'desc': '工业自动化龙头，受益于智能制造和新能源发展，成长性好'},
     }
     
     # 行业周期和风险知识库
@@ -344,7 +348,7 @@ class AShareAnalyzer:
             '688295': '中复神鹰', '300750': '宁德时代', '002594': '比亚迪',
             '000651': '格力电器', '000333': '美的集团', '002475': '立讯精密',
             '601398': '工商银行', '601288': '农业银行', '600030': '中信证券',
-            '600031': '三一重工',
+            '600031': '三一重工', '300124': '汇川技术',
         }
         return names.get(symbol, symbol)
     
