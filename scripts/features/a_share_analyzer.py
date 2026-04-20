@@ -3001,6 +3001,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A股综合分析 v3.0')
     parser.add_argument('symbol', help='股票代码')
     parser.add_argument('--html', action='store_true', help='生成HTML报告')
+    parser.add_argument('--apple', action='store_true', help='生成Apple风格HTML报告')
     args = parser.parse_args()
     
     analyzer = AShareAnalyzer()
@@ -3011,10 +3012,19 @@ if __name__ == '__main__':
     print(f" 📋 投资建议: {result['recommendation']}")
     print(f"{'='*70}")
     
-    if args.html:
+    if args.html or args.apple:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        html = analyzer.generate_html_report(result)
-        filename = f"{OUTPUT_DIR}/a_share_{args.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        
+        if args.apple:
+            # Apple风格报告
+            from apple_reporter import generate_apple_report
+            html = generate_apple_report(result)
+            filename = f"{OUTPUT_DIR}/apple_{args.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        else:
+            # 标准HTML报告
+            html = analyzer.generate_html_report(result)
+            filename = f"{OUTPUT_DIR}/a_share_{args.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(html)
         print(f"\n✅ HTML报告已保存: {filename}")
