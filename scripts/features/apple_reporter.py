@@ -408,11 +408,11 @@ class AppleStyleReporter:
                     </div>
                     <div class="mini-card rounded-lg p-4">
                         <div class="text-gray-400 text-xs mb-1">成交量状态</div>
-                        <div class="text-xl font-bold gradient-text">{volume_val.get('status', 'N/A')}</div>
+                        <div class="text-xl font-bold gradient-text">{volume_val.get('vp_signal', volume_val.get('status', 'N/A'))}</div>
                     </div>
                     <div class="mini-card rounded-lg p-4">
-                        <div class="text-gray-400 text-xs mb-1">趋势确认</div>
-                        <div class="text-xl font-bold text-white">{volume_val.get('trend_confirmation', 'N/A')}</div>
+                        <div class="text-gray-400 text-xs mb-1">量价关系</div>
+                        <div class="text-xl font-bold text-white">{volume_val.get('vp_pattern', 'N/A')}</div>
                     </div>
                 </div>
                 <div class="analysis-box">
@@ -443,12 +443,12 @@ class AppleStyleReporter:
                         <div class="big-number text-white">{risk_mgmt.get('current_price', 0):.2f}</div>
                     </div>
                     <div class="mini-card rounded-lg p-4">
-                        <div class="text-gray-400 text-xs mb-1">止损价位</div>
-                        <div class="big-number text-red-400">{risk_mgmt.get('stop_loss_price', 0):.2f}</div>
+                        <div class="text-gray-400 text-xs mb-1">标准止损</div>
+                        <div class="big-number text-red-400">{risk_mgmt.get('stop_loss_standard', risk_mgmt.get('stop_loss_price', 0)):.2f}</div>
                     </div>
                     <div class="mini-card rounded-lg p-4">
-                        <div class="text-gray-400 text-xs mb-1">止损幅度</div>
-                        <div class="big-number text-white">{risk_mgmt.get('risk_pct', 0):.1f}%</div>
+                        <div class="text-gray-400 text-xs mb-1">保守止损</div>
+                        <div class="big-number text-orange-400">{risk_mgmt.get('stop_loss_conservative', 0):.2f}</div>
                     </div>
                     <div class="mini-card rounded-lg p-4">
                         <div class="text-gray-400 text-xs mb-1">ATR值</div>
