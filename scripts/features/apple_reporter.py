@@ -192,7 +192,7 @@ class AppleStyleReporter:
                     </div>
                     <div class="mini-card rounded-lg p-4">
                         <div class="text-gray-400 text-xs mb-1">所属板块</div>
-                        <div class="text-lg font-bold">{result.get('industry', {}).get('sector', '未知')}</div>
+                        <div class="text-lg font-bold">{result.get('industry', {}).get('sector_cn', result.get('industry', {}).get('sector', '未知'))}</div>
                     </div>
                     <div class="mini-card rounded-lg p-4">
                         <div class="text-gray-400 text-xs mb-1">行业周期</div>

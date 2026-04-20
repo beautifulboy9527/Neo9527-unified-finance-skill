@@ -3083,8 +3083,9 @@ if __name__ == '__main__':
         # HTML报告
         if args.html or args.apple:
             if args.apple:
-                from apple_reporter_v4 import generate_apple_report
-                html = generate_apple_report(result)
+                from apple_reporter import AppleStyleReporter
+                reporter = AppleStyleReporter()
+                html = reporter.generate(result)
                 filename = f"{OUTPUT_DIR}/apple_{args.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
             else:
                 html = analyzer.generate_html_report(result)
