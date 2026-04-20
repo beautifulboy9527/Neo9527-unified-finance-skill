@@ -30,6 +30,25 @@ try:
 except ImportError:
     RESEARCH_AVAILABLE = False
 
+# 导入专业支撑阻力位模块
+try:
+    from support_resistance import (
+        find_swing_points, calculate_pivot_points, find_round_levels,
+        calculate_fibonacci_levels, select_support_resistance,
+        analyze_trading_opportunity
+    )
+    SUPPORT_RESISTANCE_AVAILABLE = True
+except ImportError:
+    SUPPORT_RESISTANCE_AVAILABLE = False
+
+# 导入形态检测模块
+try:
+    from pattern_detector import detect_patterns_by_timeframe
+    PATTERN_DETECTOR_AVAILABLE = True
+except ImportError:
+    PATTERN_DETECTOR_AVAILABLE = False
+    RESEARCH_AVAILABLE = False
+
 # 导入财报分析模块
 try:
     from earnings import EarningsAnalyzer
@@ -451,8 +470,10 @@ class AShareAnalyzer:
         # Bollinger Bands
         bb_mid = close.rolling(20).mean()
         bb_std = close.rolling(20).std()
-        result['indicators']['bb_upper'] = float((bb_mid + 2*bb_std).iloc[-1])
-        result['indicators']['bb_lower'] = float((bb_mid - 2*bb_std).iloc[-1])
+        bb_upper = float((bb_mid + 2*bb_std).iloc[-1])
+        bb_lower = float((bb_mid - 2*bb_std).iloc[-1])
+        result['indicators']['bb_upper'] = bb_upper
+        result['indicators']['bb_lower'] = bb_lower
         
         # ADX (趋势强度)
         try:
@@ -513,70 +534,98 @@ class AShareAnalyzer:
             patterns['trend_desc'] = '震荡整理'
             trend_text = '震荡'
         
-        # 2. 支撑阻力位 (智能识别关键价位)
-        # 使用枢轴点 + 前期高低点 + 均线支撑
+        # 2. 支撑阻力位 - 使用专业算法
         
-        # 方法1: 前期高低点
-        high_20 = high.iloc[-20:].max()
-        low_20 = low.iloc[-20:].min()
-        high_60 = high.iloc[-60:].max() if len(high) >= 60 else high_20
-        low_60 = low.iloc[-60:].min() if len(low) >= 60 else low_20
-        
-        # 方法2: 枢轴点计算
-        pivot = (high.iloc[-1] + low.iloc[-1] + close.iloc[-1]) / 3
-        r1 = 2 * pivot - low.iloc[-1]  # 第一阻力
-        s1 = 2 * pivot - high.iloc[-1]  # 第一支撑
-        r2 = pivot + (high.iloc[-1] - low.iloc[-1])  # 第二阻力
-        s2 = pivot - (high.iloc[-1] - low.iloc[-1])  # 第二支撑
-        
-        # 方法3: 均线支撑/阻力
-        ma_support = ma20 if current > ma20 else None
-        ma_resistance = ma20 if current < ma20 else None
-        
-        # 方法4: 布林带支撑/阻力
-        bb_lower = result['indicators']['bb_lower']
-        bb_upper = result['indicators']['bb_upper']
-        
-        # 智能选择: 结合前期高低点、枢轴点、均线、布林带
-        # 近期支撑: 取20日低点、S1、MA20、布林下轨中最接近当前价且在下方的高点(更保守)
-        support_candidates = [low_20, s1, bb_lower]
-        if ma_support and ma_support < current:
-            support_candidates.append(ma_support)
-        valid_supports = [x for x in support_candidates if x < current]
-        support_near = max(valid_supports) if valid_supports else low_20
-        
-        # 远期支撑: 取60日低点、S2
-        support_far = min(low_60, s2) if s2 < current else low_60
-        
-        # 近期阻力: 取20日高点、R1、MA20、布林上轨中最接近当前价且在上方的高点(更保守)
-        resistance_candidates = [high_20, r1, bb_upper]
-        if ma_resistance and ma_resistance > current:
-            resistance_candidates.append(ma_resistance)
-        valid_resistances = [x for x in resistance_candidates if x > current]
-        resistance_near = min(valid_resistances) if valid_resistances else high_20
-        
-        # 远期阻力: 取60日高点、R2
-        resistance_far = max(high_60, r2) if r2 > current else high_60
-        
-        # 识别支撑来源
-        if abs(support_near - bb_lower) < 0.05:
-            support_source = '布林下轨'
-        elif abs(support_near - low_20) < 0.05:
-            support_source = '20日低点'
-        elif abs(support_near - s1) < 0.05:
-            support_source = '枢轴点S1'
+        if SUPPORT_RESISTANCE_AVAILABLE:
+            # 使用专业支撑阻力位模块
+            swing_highs, swing_lows = find_swing_points(high, low, lookback=60)
+            pivot_points = calculate_pivot_points(high.iloc[-1], low.iloc[-1], close.iloc[-1])
+            round_levels = find_round_levels(current)
+            fib_levels = calculate_fibonacci_levels(
+                high.iloc[-60:].max() if len(high) >= 60 else high.iloc[-20:].max(),
+                low.iloc[-60:].min() if len(low) >= 60 else low.iloc[-20:].min()
+            )
+            
+            ma_levels = [ma20]
+            if result['indicators'].get('ma60'):
+                ma_levels.append(result['indicators']['ma60'])
+            
+            sr_result = select_support_resistance(
+                current_price=current,
+                swing_highs=swing_highs,
+                swing_lows=swing_lows,
+                pivot_points=pivot_points,
+                ma_levels=ma_levels,
+                bb_upper=bb_upper,
+                bb_lower=bb_lower,
+                round_levels=round_levels,
+                fib_levels=fib_levels
+            )
+            
+            support_near = sr_result['support_near']
+            support_source = sr_result['support_source']
+            resistance_near = sr_result['resistance_near']
+            resistance_source = sr_result['resistance_source']
+            
+            # 保留远期支撑阻力位
+            high_20 = high.iloc[-20:].max()
+            low_20 = low.iloc[-20:].min()
+            high_60 = high.iloc[-60:].max() if len(high) >= 60 else high_20
+            low_60 = low.iloc[-60:].min() if len(low) >= 60 else low_20
+            support_far = low_60
+            resistance_far = high_60
+            
+            # 使用新的盈亏比
+            risk_reward_ratio = sr_result['risk_reward']
         else:
-            support_source = '技术支撑'
+            # 回退到旧算法
+            high_20 = high.iloc[-20:].max()
+            low_20 = low.iloc[-20:].min()
+            high_60 = high.iloc[-60:].max() if len(high) >= 60 else high_20
+            low_60 = low.iloc[-60:].min() if len(low) >= 60 else low_20
+            
+            pivot = (high.iloc[-1] + low.iloc[-1] + close.iloc[-1]) / 3
+            r1 = 2 * pivot - low.iloc[-1]
+            s1 = 2 * pivot - high.iloc[-1]
+            r2 = pivot + (high.iloc[-1] - low.iloc[-1])
+            s2 = pivot - (high.iloc[-1] - low.iloc[-1])
+            
+            ma_support = ma20 if current > ma20 else None
+            ma_resistance = ma20 if current < ma20 else None
+            
+            support_candidates = [low_20, s1, bb_lower]
+            if ma_support and ma_support < current:
+                support_candidates.append(ma_support)
+            valid_supports = [x for x in support_candidates if x < current]
+            support_near = max(valid_supports) if valid_supports else low_20
+            
+            support_far = min(low_60, s2) if s2 < current else low_60
+            
+            resistance_candidates = [high_20, r1, bb_upper]
+            if ma_resistance and ma_resistance > current:
+                resistance_candidates.append(ma_resistance)
+            valid_resistances = [x for x in resistance_candidates if x > current]
+            resistance_near = min(valid_resistances) if valid_resistances else high_20
+            
+            resistance_far = max(high_60, r2) if r2 > current else high_60
         
-        # 识别阻力来源
-        if abs(resistance_near - bb_upper) < 0.05:
-            resistance_source = '布林上轨'
-        elif abs(resistance_near - high_20) < 0.05:
-            resistance_source = '20日高点'
-        elif abs(resistance_near - r1) < 0.05:
-            resistance_source = '枢轴点R1'
-        else:
-            resistance_source = '技术阻力'
+        
+        # 识别支撑来源 (如果新模块已设置则跳过)
+        if not SUPPORT_RESISTANCE_AVAILABLE or 'support_source' not in dir():
+            if abs(support_near - bb_lower) < 0.05:
+                support_source = '布林下轨'
+            elif abs(support_near - low_20) < 0.05:
+                support_source = '20日低点'
+            else:
+                support_source = '技术支撑'
+        
+        if not SUPPORT_RESISTANCE_AVAILABLE or 'resistance_source' not in dir():
+            if abs(resistance_near - bb_upper) < 0.05:
+                resistance_source = '布林上轨'
+            elif abs(resistance_near - high_20) < 0.05:
+                resistance_source = '20日高点'
+            else:
+                resistance_source = '技术阻力'
         
         # 计算距离当前价的百分比
         support_near_pct = (support_near - current) / current * 100
@@ -594,7 +643,14 @@ class AShareAnalyzer:
         patterns['support_far_pct'] = float(support_far_pct)
         patterns['resistance_desc'] = f'阻力: {resistance_near:.2f} (+{resistance_near_pct:.1f}%) {resistance_source}, {resistance_far:.2f} (+{resistance_far_pct:.1f}%) 远期'
         patterns['support_desc'] = f'支撑: {support_near:.2f} ({support_near_pct:.1f}%) {support_source}, {support_far:.2f} ({support_far_pct:.1f}%) 远期'
-        patterns['pivot'] = float(pivot)
+        
+        # 枢轴点
+        if SUPPORT_RESISTANCE_AVAILABLE:
+            patterns['pivot'] = float(pivot_points['pivot'])
+        else:
+            pivot = (high.iloc[-1] + low.iloc[-1] + close.iloc[-1]) / 3
+            patterns['pivot'] = float(pivot)
+        
         patterns['support_source'] = support_source
         patterns['resistance_source'] = resistance_source
         
