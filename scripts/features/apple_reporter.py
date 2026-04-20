@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Apple风格HTML报告生成器 v2.0
-- 纯黑背景 + 卡片式布局
-- 完整保留所有分析内容
-- 迷你卡片网格 + 详细解读
-- 滚动动画 + Chart.js图表
+Apple风格HTML报告生成器 v3.0
+- 修复数据加载问题
+- 优化中文显示
+- 完善操作建议
+- 深度数据分析
 """
 
 import sys
@@ -17,9 +17,8 @@ if sys.platform == 'win32':
 
 
 class AppleStyleReporter:
-    """Apple风格报告生成器 v2.0"""
+    """Apple风格报告生成器 v3.0"""
     
-    # 品牌颜色映射
     BRAND_COLORS = {
         '美的': '#0066CC',
         '格力': '#E60012',
@@ -29,43 +28,44 @@ class AppleStyleReporter:
         '比亚迪': '#00A0E9',
         '宁德时代': '#E60012',
         '茅台': '#B8860B',
-        '平安': '#FF8800',
-        '招商银行': '#E60012',
     }
     
     def __init__(self):
         self.brand_color = '#00AEEF'
     
     def detect_brand_color(self, stock_name: str) -> str:
-        """检测品牌颜色"""
         for brand, color in self.BRAND_COLORS.items():
             if brand in stock_name:
                 return color
         return '#00AEEF'
     
     def generate(self, result: Dict) -> str:
-        """生成Apple风格HTML报告"""
-        
         stock_name = result.get('name_cn', result.get('symbol', ''))
         self.brand_color = self.detect_brand_color(stock_name)
         
         english_names = {
-            '美的集团': 'Midea Group Co., Ltd.',
-            '格力电器': 'Gree Electric Appliances',
-            '立讯精密': 'Luxshare Precision Industry',
-            '比亚迪': 'BYD Company Limited',
-            '宁德时代': 'Contemporary Amperex Technology',
-            '贵州茅台': 'Kweichow Moutai Co., Ltd.',
+            '美的集团': 'Midea Group',
+            '格力电器': 'Gree Electric',
+            '立讯精密': 'Luxshare Precision',
+            '比亚迪': 'BYD',
+            '宁德时代': 'CATL',
+            '贵州茅台': 'Kweichow Moutai',
         }
         english_name = english_names.get(stock_name, stock_name)
         
         return self._build_html(result, stock_name, english_name)
     
     def _build_html(self, result: Dict, stock_name: str, english_name: str) -> str:
-        """构建完整HTML"""
-        
         score = result.get('score', 0)
         recommendation = result.get('recommendation', 'N/A')
+        
+        # 安全获取数据
+        tech = result.get('technical', {})
+        financial = result.get('financial', {})
+        valuation = result.get('valuation', {})
+        profitability = result.get('profitability', {})
+        risk_mgmt = result.get('risk_management', {})
+        volume_val = result.get('volume_validation', {})
         
         return f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -78,71 +78,50 @@ class AppleStyleReporter:
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        
         body {{
             background: #000000;
             color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
             overflow-x: hidden;
         }}
-        
-        .gradient-bg {{
-            background: linear-gradient(135deg, {self.brand_color}B3 0%, {self.brand_color}4D 100%);
-        }}
-        
         .gradient-text {{
             background: linear-gradient(135deg, {self.brand_color} 0%, {self.brand_color}CC 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }}
-        
         .card {{
             background: #1a1a1a;
             border: 1px solid #333;
             transition: all 0.3s ease;
         }}
-        
         .card:hover {{
             border-color: {self.brand_color}66;
             box-shadow: 0 8px 32px {self.brand_color}33;
         }}
-        
         .mini-card {{
             background: #222222;
             border: 1px solid #333;
             transition: all 0.3s ease;
-            min-height: 120px;
+            min-height: 100px;
         }}
-        
         .mini-card:hover {{
             border-color: {self.brand_color}4D;
-            transform: translateY(-4px);
+            transform: translateY(-2px);
         }}
-        
         .fade-in {{
             opacity: 0;
-            transform: translateY(30px);
+            transform: translateY(20px);
             transition: opacity 0.6s ease, transform 0.6s ease;
         }}
-        
         .fade-in.visible {{
             opacity: 1;
             transform: translateY(0);
         }}
-        
-        .grid-item:nth-child(1) {{ transition-delay: 0.05s; }}
-        .grid-item:nth-child(2) {{ transition-delay: 0.07s; }}
-        .grid-item:nth-child(3) {{ transition-delay: 0.09s; }}
-        .grid-item:nth-child(4) {{ transition-delay: 0.11s; }}
-        .grid-item:nth-child(5) {{ transition-delay: 0.13s; }}
-        .grid-item:nth-child(6) {{ transition-delay: 0.15s; }}
-        
         .big-number {{
-            font-size: 2.25rem;
+            font-size: 2rem;
             font-weight: 700;
             line-height: 1.1;
         }}
-        
         .analysis-box {{
             background: linear-gradient(135deg, {self.brand_color}15 0%, {self.brand_color}08 100%);
             border-left: 3px solid {self.brand_color};
@@ -150,32 +129,37 @@ class AppleStyleReporter:
             margin-top: 16px;
             border-radius: 0 8px 8px 0;
         }}
-        
+        .action-box {{
+            background: linear-gradient(135deg, #fbbf2420 0%, #fbbf2410 100%);
+            border-left: 3px solid #fbbf24;
+            padding: 16px;
+            margin-top: 16px;
+            border-radius: 0 8px 8px 0;
+        }}
         ::-webkit-scrollbar {{ width: 8px; }}
         ::-webkit-scrollbar-track {{ background: #1a1a1a; }}
         ::-webkit-scrollbar-thumb {{ background: #333; border-radius: 4px; }}
     </style>
 </head>
-<body class="antialiased">
+<body>
     
-    <!-- Hero Section -->
+    <!-- Hero -->
     <section class="min-h-screen flex items-center justify-center px-4 py-16">
         <div class="text-center max-w-4xl fade-in">
-            <div class="text-sm text-gray-500 mb-3 tracking-widest">{result.get('symbol', '')}</div>
-            
+            <div class="text-sm text-gray-500 mb-3">{result.get('symbol', '')}</div>
             <h1 class="text-5xl md:text-6xl font-bold mb-3 gradient-text">{stock_name}</h1>
-            <div class="text-lg md:text-xl text-gray-400 mb-8 font-medium">{english_name}</div>
+            <div class="text-base text-gray-400 mb-8">{english_name}</div>
             
             <div class="inline-block bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-3xl p-6 mb-6">
                 <div class="flex items-center justify-center gap-6">
                     <div class="text-center">
                         <div class="text-4xl font-bold gradient-text">{score}</div>
-                        <div class="text-xs text-gray-500 mt-1">/ 100</div>
+                        <div class="text-xs text-gray-500 mt-1">综合评分</div>
                     </div>
                     <div class="w-px h-16 bg-gray-700"></div>
                     <div class="text-left">
                         <div class="text-xl font-bold mb-1">{recommendation}</div>
-                        <div class="text-xs text-gray-400">综合投资建议</div>
+                        <div class="text-xs text-gray-400">投资建议</div>
                     </div>
                 </div>
             </div>
@@ -183,356 +167,346 @@ class AppleStyleReporter:
             <div class="flex justify-center gap-6 text-sm text-gray-400">
                 <div><span class="text-white font-semibold">{result.get('price', {}).get('current', 0):.2f}</span> 元</div>
                 <div class="w-px h-4 bg-gray-700"></div>
-                <div><span class="text-white font-semibold">{result.get('valuation', {}).get('market_cap_str', 'N/A')}</span></div>
+                <div><span class="text-white font-semibold">{valuation.get('market_cap_str', 'N/A')}</span></div>
                 <div class="w-px h-4 bg-gray-700"></div>
-                <div>PE <span class="text-white font-semibold">{result.get('valuation', {}).get('pe', 0):.1f}</span></div>
+                <div>市盈率 <span class="text-white font-semibold">{valuation.get('pe', 0):.1f}</span></div>
             </div>
             
-            <div class="mt-12 animate-bounce">
-                <i class="fas fa-chevron-down text-xl text-gray-600"></i>
-            </div>
+            <div class="mt-12 animate-bounce"><i class="fas fa-chevron-down text-xl text-gray-600"></i></div>
         </div>
     </section>
     
-    <!-- 1. 行业分析 -->
-    <section class="px-4 py-12">
+    <!-- 行业分析 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">行业分析</h2>
-                <p class="text-gray-400 text-sm">Industry Analysis</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">行业分析</h2>
+                <p class="text-gray-500 text-xs">行业定位与周期分析</p>
             </div>
             
             <div class="card rounded-2xl p-6 fade-in">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">所属行业</div>
-                        <div class="text-xl font-bold">{result.get('industry', {}).get('name_cn', 'N/A')}</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">所属行业</div>
+                        <div class="text-lg font-bold">{result.get('industry', {}).get('name_cn', '未知')}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">所属板块</div>
-                        <div class="text-xl font-bold">{result.get('industry', {}).get('sector', 'N/A')}</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">所属板块</div>
+                        <div class="text-lg font-bold">{result.get('industry', {}).get('sector', '未知')}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">行业周期</div>
-                        <div class="text-xl font-bold">{result.get('industry', {}).get('cycle', '未知')}</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">行业周期</div>
+                        <div class="text-lg font-bold">{result.get('industry', {}).get('cycle', '未知')}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">行业风险</div>
-                        <div class="text-xl font-bold">{result.get('industry', {}).get('risk', '未知')}</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">行业风险</div>
+                        <div class="text-lg font-bold">{result.get('industry', {}).get('risk', '未知')}</div>
                     </div>
                 </div>
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('industry', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>深度解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{result.get('industry', {}).get('analysis', '暂无分析')}</div>
                 </div>
             </div>
         </div>
     </section>
     
-    <!-- 2. 估值分析 -->
-    <section class="px-4 py-12">
+    <!-- 估值分析 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">估值分析</h2>
-                <p class="text-gray-400 text-sm">Valuation Analysis</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">估值分析</h2>
+                <p class="text-gray-500 text-xs">估值水平与投资价值</p>
             </div>
             
             <div class="card rounded-2xl p-6 fade-in">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">市盈率 PE</div>
-                        <div class="big-number gradient-text">{result.get('valuation', {}).get('pe', 0):.1f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Price to Earnings</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">市盈率 PE</div>
+                        <div class="big-number gradient-text">{valuation.get('pe', 0):.1f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_pe_evaluation(valuation.get('pe', 0))}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">市净率 PB</div>
-                        <div class="big-number text-white">{result.get('valuation', {}).get('pb', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Price to Book</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">市净率 PB</div>
+                        <div class="big-number text-white">{valuation.get('pb', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_pb_evaluation(valuation.get('pb', 0))}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">市销率 PS</div>
-                        <div class="big-number text-white">{result.get('valuation', {}).get('ps', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Price to Sales</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">市销率 PS</div>
+                        <div class="big-number text-white">{valuation.get('ps', 0):.2f}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">总市值</div>
-                        <div class="text-xl font-bold text-white">{result.get('valuation', {}).get('market_cap_str', 'N/A')}</div>
-                        <div class="text-xs mt-2 text-gray-500">Market Cap</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">总市值</div>
+                        <div class="text-lg font-bold">{valuation.get('market_cap_str', 'N/A')}</div>
                     </div>
                 </div>
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('valuation', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>深度解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{valuation.get('analysis', '暂无分析')}</div>
                 </div>
             </div>
         </div>
     </section>
     
-    <!-- 3. 盈利能力 -->
-    <section class="px-4 py-12">
+    <!-- 盈利能力 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">盈利能力</h2>
-                <p class="text-gray-400 text-sm">Profitability</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">盈利能力</h2>
+                <p class="text-gray-500 text-xs">企业竞争力与盈利质量</p>
             </div>
             
             <div class="card rounded-2xl p-6 fade-in">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">ROE 净资产收益率</div>
-                        <div class="big-number gradient-text">{result.get('profitability', {}).get('roe', 0)*100:.1f}%</div>
-                        <div class="text-xs mt-2 text-gray-500">Return on Equity</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">净资产收益率</div>
+                        <div class="big-number gradient-text">{profitability.get('roe', 0)*100:.1f}%</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_roe_evaluation(profitability.get('roe', 0))}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">毛利率</div>
-                        <div class="big-number text-white">{result.get('profitability', {}).get('gross_margin', 0)*100:.1f}%</div>
-                        <div class="text-xs mt-2 text-gray-500">Gross Margin</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">毛利率</div>
+                        <div class="big-number text-white">{profitability.get('gross_margin', 0)*100:.1f}%</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">净利率</div>
-                        <div class="big-number text-white">{result.get('profitability', {}).get('net_margin', 0)*100:.1f}%</div>
-                        <div class="text-xs mt-2 text-gray-500">Net Margin</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">净利率</div>
+                        <div class="big-number text-white">{profitability.get('net_margin', 0)*100:.1f}%</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">盈利状态</div>
-                        <div class="text-2xl font-bold" style="color: {'#22c55e' if result.get('profitability', {}).get('is_profitable') else '#ef4444'}">
-                            {'盈利' if result.get('profitability', {}).get('is_profitable') else '亏损'}
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">盈利状态</div>
+                        <div class="text-2xl font-bold" style="color: {'#22c55e' if profitability.get('is_profitable') else '#ef4444'}">
+                            {'盈利' if profitability.get('is_profitable') else '亏损'}
                         </div>
-                        <div class="text-xs mt-2 text-gray-500">Profit Status</div>
                     </div>
                 </div>
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('profitability', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>深度解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{profitability.get('analysis', '暂无分析')}</div>
                 </div>
             </div>
         </div>
     </section>
     
-    <!-- 4. 财务健康 -->
-    <section class="px-4 py-12">
+    <!-- 财务健康 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">财务健康</h2>
-                <p class="text-gray-400 text-sm">Financial Health</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">财务健康</h2>
+                <p class="text-gray-500 text-xs">财务风险与偿债能力</p>
             </div>
             
             <div class="card rounded-2xl p-6 fade-in">
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">资产负债率</div>
-                        <div class="big-number text-white">{result.get('financial', {}).get('debt_ratio', 0):.1f}%</div>
-                        <div class="text-xs mt-2 text-gray-500">Debt to Assets</div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">资产负债率</div>
+                        <div class="big-number text-white">{financial.get('debt_ratio', 0):.1f}%</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_debt_evaluation(financial.get('debt_ratio', 0))}</div>
                         <div class="mt-2 px-2 py-1 rounded text-xs inline-block" style="background: {self.brand_color}20; color: {self.brand_color}">
-                            {result.get('financial', {}).get('data_source', 'N/A')} ({result.get('financial', {}).get('confidence', 0)*100:.0f}%)
+                            {financial.get('data_source', '财报')} ({financial.get('confidence', 0)*100:.0f}%置信度)
                         </div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">流动比率</div>
-                        <div class="big-number text-white">{result.get('financial', {}).get('current_ratio', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Current Ratio</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">流动比率</div>
+                        <div class="big-number text-white">{financial.get('current_ratio', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_liquidity_evaluation(financial.get('current_ratio', 0))}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">财务状态</div>
-                        <div class="text-2xl font-bold gradient-text">{result.get('financial', {}).get('status', 'N/A')}</div>
-                        <div class="text-xs mt-2 text-gray-500">Financial Status</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">财务状态</div>
+                        <div class="text-2xl font-bold gradient-text">{financial.get('status', '未知')}</div>
                     </div>
                 </div>
-                {self._generate_risk_cards_html(result.get('financial', {}).get('risks', []))}
+                {self._generate_risk_alerts(financial.get('risks', []))}
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('financial', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>深度解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{financial.get('analysis', '暂无分析')}</div>
                 </div>
             </div>
         </div>
     </section>
     
-    <!-- 5. 技术分析 -->
-    <section class="px-4 py-12">
+    <!-- 技术分析 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">技术分析</h2>
-                <p class="text-gray-400 text-sm">Technical Analysis</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">技术分析</h2>
+                <p class="text-gray-500 text-xs">趋势形态与交易信号</p>
             </div>
             
-            <div class="card rounded-2xl p-6 fade-in mb-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-chart-line" style="color: {self.brand_color}"></i>核心指标
-                </h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">RSI 相对强弱</div>
-                        <div class="big-number text-white">{result.get('technical', {}).get('indicators', {}).get('rsi', 50):.1f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Relative Strength Index</div>
+            <!-- 核心指标 -->
+            <div class="card rounded-2xl p-6 fade-in mb-4">
+                <h3 class="text-base font-bold mb-3"><i class="fas fa-chart-line mr-2" style="color: {self.brand_color}"></i>核心指标</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">RSI 相对强弱</div>
+                        <div class="big-number text-white">{tech.get('indicators', {}).get('rsi', 50):.1f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{tech.get('patterns', {}).get('rsi_desc', 'N/A')}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">MACD 状态</div>
-                        <div class="text-xl font-bold" style="color: {'#22c55e' if '金叉' in str(result.get('technical', {}).get('patterns', {}).get('macd_desc', '')) else '#ef4444'}">
-                            {str(result.get('technical', {}).get('patterns', {}).get('macd_desc', 'N/A')).split('(')[0].strip()}
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">MACD 状态</div>
+                        <div class="text-xl font-bold" style="color: {'#22c55e' if '金叉' in str(tech.get('patterns', {}).get('macd_desc', '')) else '#ef4444'}">
+                            {str(tech.get('patterns', {}).get('macd_desc', 'N/A')).split('(')[0].strip()}
                         </div>
-                        <div class="text-xs mt-2 text-gray-500">Moving Average Convergence</div>
+                        <div class="text-xs mt-1 text-gray-500">动能指标</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">趋势判断</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">趋势判断</div>
                         <div class="text-xl font-bold gradient-text">
-                            {str(result.get('technical', {}).get('patterns', {}).get('trend_desc', 'N/A')).split('(')[0].strip()}
+                            {str(tech.get('patterns', {}).get('trend_desc', 'N/A')).split('(')[0].strip()}
                         </div>
-                        <div class="text-xs mt-2 text-gray-500">Trend Analysis</div>
+                        <div class="text-xs mt-1 text-gray-500">均线系统</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">成交量比</div>
-                        <div class="big-number text-white">{result.get('volume_validation', {}).get('volume_ratio', 1):.2f}x</div>
-                        <div class="text-xs mt-2 text-gray-500">Volume Ratio</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">信号强度</div>
+                        <div class="big-number text-white">{tech.get('signal_strength', 0)}</div>
+                        <div class="text-xs mt-1 text-gray-500">综合评分</div>
                     </div>
                 </div>
             </div>
             
             <!-- 支撑阻力位 -->
-            <div class="card rounded-2xl p-6 fade-in mb-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-layer-group" style="color: {self.brand_color}"></i>支撑阻力位
-                </h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">近期支撑</div>
-                        <div class="text-2xl font-bold text-green-400">{result.get('technical', {}).get('support_near', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Near Support</div>
+            <div class="card rounded-2xl p-6 fade-in mb-4">
+                <h3 class="text-base font-bold mb-3"><i class="fas fa-layer-group mr-2" style="color: {self.brand_color}"></i>支撑阻力位分析</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">近期支撑</div>
+                        <div class="text-2xl font-bold text-green-400">{tech.get('support_near', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{tech.get('support_near_pct', 0):.1f}% 距离</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">远期支撑</div>
-                        <div class="text-2xl font-bold text-green-600">{result.get('technical', {}).get('support_far', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Far Support</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">远期支撑</div>
+                        <div class="text-2xl font-bold text-green-600">{tech.get('support_far', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{tech.get('support_far_pct', 0):.1f}% 距离</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">近期阻力</div>
-                        <div class="text-2xl font-bold text-red-400">{result.get('technical', {}).get('resistance_near', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Near Resistance</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">近期阻力</div>
+                        <div class="text-2xl font-bold text-red-400">{tech.get('resistance_near', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{tech.get('resistance_near_pct', 0):.1f}% 距离</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">远期阻力</div>
-                        <div class="text-2xl font-bold text-red-600">{result.get('technical', {}).get('resistance_far', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Far Resistance</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">远期阻力</div>
+                        <div class="text-2xl font-bold text-red-600">{tech.get('resistance_far', 0):.2f}</div>
+                        <div class="text-xs mt-1 text-gray-500">{tech.get('resistance_far_pct', 0):.1f}% 距离</div>
                     </div>
                 </div>
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('technical', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>支撑阻力解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">
+                        【支撑分析】{tech.get('patterns', {}).get('support_desc', '暂无数据')}
+                        <br><br>
+                        【阻力分析】{tech.get('patterns', {}).get('resistance_desc', '暂无数据')}
+                    </div>
                 </div>
             </div>
             
             <!-- 成交量验证 -->
-            <div class="card rounded-2xl p-6 fade-in mb-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-chart-bar" style="color: {self.brand_color}"></i>成交量验证
-                </h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">成交量状态</div>
-                        <div class="text-xl font-bold gradient-text">{result.get('volume_validation', {}).get('status', 'N/A')}</div>
+            <div class="card rounded-2xl p-6 fade-in mb-4">
+                <h3 class="text-base font-bold mb-3"><i class="fas fa-chart-bar mr-2" style="color: {self.brand_color}"></i>成交量验证</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">成交量比率</div>
+                        <div class="big-number text-white">{volume_val.get('volume_ratio', 1):.2f}x</div>
+                        <div class="text-xs mt-1 text-gray-500">{self._get_volume_evaluation(volume_val.get('volume_ratio', 1))}</div>
                     </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">信号强度</div>
-                        <div class="text-xl font-bold text-white">{result.get('technical', {}).get('signal_strength', 0)}</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">成交量状态</div>
+                        <div class="text-xl font-bold gradient-text">{volume_val.get('status', 'N/A')}</div>
                     </div>
-                </div>
-                <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('volume_validation', {}).get('analysis', '暂无分析')}</div>
-                </div>
-            </div>
-            
-        </div>
-    </section>
-    
-    <!-- 6. 风险管理 -->
-    <section class="px-4 py-12">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">风险管理</h2>
-                <p class="text-gray-400 text-sm">Risk Management</p>
-            </div>
-            
-            <div class="card rounded-2xl p-6 fade-in mb-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-shield-alt" style="color: {self.brand_color}"></i>ATR止损建议
-                </h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">当前价格</div>
-                        <div class="text-xl font-bold text-white">{result.get('risk_management', {}).get('current_price', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Current Price</div>
-                    </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">止损价位</div>
-                        <div class="text-xl font-bold text-red-400">{result.get('risk_management', {}).get('stop_loss_price', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">Stop Loss</div>
-                    </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">风险比例</div>
-                        <div class="text-xl font-bold text-white">{result.get('risk_management', {}).get('risk_pct', 0):.1f}%</div>
-                        <div class="text-xs mt-2 text-gray-500">Risk %</div>
-                    </div>
-                    <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                        <div class="text-gray-400 text-xs mb-2">ATR值</div>
-                        <div class="text-xl font-bold text-white">{result.get('risk_management', {}).get('atr', 0):.2f}</div>
-                        <div class="text-xs mt-2 text-gray-500">ATR Value</div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">趋势确认</div>
+                        <div class="text-xl font-bold text-white">{volume_val.get('trend_confirmation', 'N/A')}</div>
                     </div>
                 </div>
                 <div class="analysis-box">
-                    <div class="font-semibold text-sm mb-1"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>分析解读</div>
-                    <div class="text-sm text-gray-300">{result.get('risk_management', {}).get('analysis', '暂无分析')}</div>
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>成交量解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{volume_val.get('analysis', '暂无分析')}</div>
                 </div>
             </div>
+            
+            <!-- 操作建议 -->
+            {self._generate_action_advice(result)}
             
         </div>
     </section>
     
-    <!-- 7. Buff叠加分析 -->
-    {self._generate_buff_section_html(result)}
-    
-    <!-- 8. 汇总分析 -->
-    <section class="px-4 py-12">
+    <!-- 风险管理 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-10 fade-in">
-                <h2 class="text-3xl md:text-4xl font-bold mb-2">汇总分析</h2>
-                <p class="text-gray-400 text-sm">Summary Analysis</p>
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">风险管理</h2>
+                <p class="text-gray-500 text-xs">止损策略与仓位建议</p>
             </div>
             
             <div class="card rounded-2xl p-6 fade-in">
-                <div class="space-y-4">
+                <h3 class="text-base font-bold mb-3"><i class="fas fa-shield-alt mr-2" style="color: {self.brand_color}"></i>ATR止损建议</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">当前价格</div>
+                        <div class="big-number text-white">{risk_mgmt.get('current_price', 0):.2f}</div>
+                    </div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">止损价位</div>
+                        <div class="big-number text-red-400">{risk_mgmt.get('stop_loss_price', 0):.2f}</div>
+                    </div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">止损幅度</div>
+                        <div class="big-number text-white">{risk_mgmt.get('risk_pct', 0):.1f}%</div>
+                    </div>
+                    <div class="mini-card rounded-lg p-4">
+                        <div class="text-gray-400 text-xs mb-1">ATR值</div>
+                        <div class="big-number text-white">{risk_mgmt.get('atr', 0):.2f}</div>
+                    </div>
+                </div>
+                <div class="analysis-box">
+                    <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>止损策略解读</div>
+                    <div class="text-sm text-gray-300 leading-relaxed">{risk_mgmt.get('analysis', '暂无分析')}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Buff叠加 -->
+    {self._generate_buff_section(result)}
+    
+    <!-- 汇总分析 -->
+    <section class="px-4 py-10">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-8 fade-in">
+                <h2 class="text-3xl font-bold mb-1">汇总分析</h2>
+                <p class="text-gray-500 text-xs">多维度综合评估</p>
+            </div>
+            
+            <div class="card rounded-2xl p-6 fade-in">
+                <div class="space-y-3">
                     <div class="analysis-box">
-                        <div class="font-semibold text-sm mb-1"><i class="fas fa-industry mr-2" style="color: {self.brand_color}"></i>行业周期分析</div>
-                        <div class="text-sm text-gray-300">{result.get('summary', {}).get('industry_analysis', '暂无分析')}</div>
+                        <div class="font-semibold text-sm mb-2"><i class="fas fa-industry mr-2" style="color: {self.brand_color}"></i>行业周期分析</div>
+                        <div class="text-sm text-gray-300 leading-relaxed">{result.get('summary', {}).get('industry_analysis', '暂无分析')}</div>
                     </div>
                     <div class="analysis-box">
-                        <div class="font-semibold text-sm mb-1"><i class="fas fa-chart-line mr-2" style="color: {self.brand_color}"></i>盈利能力推演</div>
-                        <div class="text-sm text-gray-300">{result.get('summary', {}).get('profit_analysis', '暂无分析')}</div>
+                        <div class="font-semibold text-sm mb-2"><i class="fas fa-chart-line mr-2" style="color: {self.brand_color}"></i>盈利能力推演</div>
+                        <div class="text-sm text-gray-300 leading-relaxed">{result.get('summary', {}).get('profit_analysis', '暂无分析')}</div>
                     </div>
                     <div class="analysis-box">
-                        <div class="font-semibold text-sm mb-1"><i class="fas fa-coins mr-2" style="color: {self.brand_color}"></i>估值水平分析</div>
-                        <div class="text-sm text-gray-300">{result.get('summary', {}).get('valuation_analysis', '暂无分析')}</div>
+                        <div class="font-semibold text-sm mb-2"><i class="fas fa-coins mr-2" style="color: {self.brand_color}"></i>估值水平分析</div>
+                        <div class="text-sm text-gray-300 leading-relaxed">{result.get('summary', {}).get('valuation_analysis', '暂无分析')}</div>
                     </div>
                     <div class="analysis-box">
-                        <div class="font-semibold text-sm mb-1"><i class="fas fa-heartbeat mr-2" style="color: {self.brand_color}"></i>财务健康评估</div>
-                        <div class="text-sm text-gray-300">{result.get('summary', {}).get('financial_analysis', '暂无分析')}</div>
+                        <div class="font-semibold text-sm mb-2"><i class="fas fa-heartbeat mr-2" style="color: {self.brand_color}"></i>财务健康评估</div>
+                        <div class="text-sm text-gray-300 leading-relaxed">{result.get('summary', {}).get('financial_analysis', '暂无分析')}</div>
                     </div>
                     <div class="analysis-box">
-                        <div class="font-semibold text-sm mb-1"><i class="fas fa-globe mr-2" style="color: {self.brand_color}"></i>综合投资建议</div>
-                        <div class="text-sm text-gray-300">{result.get('summary', {}).get('recommendation', '暂无分析')}</div>
+                        <div class="font-semibold text-sm mb-2"><i class="fas fa-globe mr-2" style="color: {self.brand_color}"></i>综合投资建议</div>
+                        <div class="text-sm text-gray-300 leading-relaxed">{result.get('summary', {}).get('recommendation', '暂无分析')}</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
     
-    <!-- 9. Chart.js雷达图 -->
-    <section class="px-4 py-12">
+    <!-- 雷达图 -->
+    <section class="px-4 py-10">
         <div class="max-w-7xl mx-auto">
             <div class="card rounded-2xl p-6 fade-in">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-chart-pie" style="color: {self.brand_color}"></i>综合评分雷达图
-                </h3>
-                <div style="height: 350px;">
+                <h3 class="text-base font-bold mb-4"><i class="fas fa-chart-pie mr-2" style="color: {self.brand_color}"></i>综合评分雷达图</h3>
+                <div style="height: 300px;">
                     <canvas id="radarChart"></canvas>
                 </div>
             </div>
@@ -540,39 +514,33 @@ class AppleStyleReporter:
     </section>
     
     <!-- Footer -->
-    <footer class="px-4 py-8 border-t border-gray-800">
+    <footer class="px-4 py-6 border-t border-gray-800">
         <div class="max-w-7xl mx-auto text-center text-gray-500 text-xs">
-            <div class="mb-1">{stock_name} 投资分析报告</div>
-            <div>生成时间: {result.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}</div>
-            <div class="mt-1">数据来源: yfinance + 专业分析模块 | 报告仅供参考，不构成投资建议</div>
+            <div>{stock_name} 投资分析报告 · {result.get('timestamp', '')}</div>
+            <div class="mt-1">数据来源: yfinance + 专业分析模块 · 报告仅供参考</div>
         </div>
     </footer>
     
     <script>
-        // Intersection Observer
         const observer = new IntersectionObserver((entries) => {{
             entries.forEach(entry => {{
-                if (entry.isIntersecting) {{
-                    entry.target.classList.add('visible');
-                }}
+                if (entry.isIntersecting) entry.target.classList.add('visible');
             }});
-        }}, {{ threshold: 0.1, rootMargin: '0px 0px -30px 0px' }});
+        }}, {{ threshold: 0.1 }});
         
         document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
         
-        // Radar Chart
         const ctx = document.getElementById('radarChart').getContext('2d');
         new Chart(ctx, {{
             type: 'radar',
             data: {{
                 labels: ['盈利能力', '估值水平', '财务健康', '技术面', '成长性'],
                 datasets: [{{
-                    label: '综合评分',
                     data: [
-                        {min(result.get('profitability', {}).get('roe', 0) * 500, 100)},
-                        {max(100 - result.get('valuation', {}).get('pe', 50), 0)},
-                        {100 - result.get('financial', {}).get('debt_ratio', 50)},
-                        {result.get('technical', {}).get('signal_strength', 0) * 10 + 50},
+                        {min(profitability.get('roe', 0) * 500, 100)},
+                        {max(100 - valuation.get('pe', 50), 0)},
+                        {100 - financial.get('debt_ratio', 50)},
+                        {tech.get('signal_strength', 0) * 10 + 50},
                         60
                     ],
                     backgroundColor: '{self.brand_color}33',
@@ -591,7 +559,7 @@ class AppleStyleReporter:
                         ticks: {{ stepSize: 20, color: '#666', backdropColor: 'transparent' }},
                         grid: {{ color: '#333' }},
                         angleLines: {{ color: '#333' }},
-                        pointLabels: {{ color: '#fff', font: {{ size: 13, weight: 'bold' }} }}
+                        pointLabels: {{ color: '#fff', font: {{ size: 12 }} }}
                     }}
                 }},
                 plugins: {{ legend: {{ display: false }} }}
@@ -602,87 +570,199 @@ class AppleStyleReporter:
 </body>
 </html>'''
     
-    def _generate_risk_cards_html(self, risks: list) -> str:
-        """生成风险卡片HTML"""
+    def _get_pe_evaluation(self, pe: float) -> str:
+        if pe < 15: return '低估'
+        elif pe < 25: return '合理'
+        elif pe < 40: return '偏高'
+        return '高估'
+    
+    def _get_pb_evaluation(self, pb: float) -> str:
+        if pb < 2: return '低估'
+        elif pb < 4: return '合理'
+        elif pb < 6: return '偏高'
+        return '高估'
+    
+    def _get_roe_evaluation(self, roe: float) -> str:
+        if roe > 0.20: return '优秀'
+        elif roe > 0.15: return '良好'
+        elif roe > 0.10: return '一般'
+        return '较差'
+    
+    def _get_debt_evaluation(self, debt: float) -> str:
+        if debt < 40: return '低风险'
+        elif debt < 60: return '适中'
+        elif debt < 70: return '需关注'
+        return '高风险'
+    
+    def _get_liquidity_evaluation(self, ratio: float) -> str:
+        if ratio > 2: return '流动性好'
+        elif ratio > 1: return '流动性正常'
+        elif ratio > 0.5: return '流动性不足'
+        return '流动性风险'
+    
+    def _get_volume_evaluation(self, ratio: float) -> str:
+        if ratio > 2: return '放量'
+        elif ratio > 1.5: return '温和放量'
+        elif ratio > 0.8: return '正常'
+        return '缩量'
+    
+    def _generate_risk_alerts(self, risks: list) -> str:
         if not risks:
             return ''
         
-        cards = ''
+        alerts = ''
         for risk in risks:
-            cards += f'''
-                <div class="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg fade-in">
+            alerts += f'''
+                <div class="mt-3 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-exclamation-triangle text-yellow-500 text-sm"></i>
                         <span class="text-sm text-gray-300">{risk}</span>
                     </div>
                 </div>'''
-        
-        return cards
+        return alerts
     
-    def _generate_buff_section_html(self, result: Dict) -> str:
-        """生成Buff叠加分析区域HTML"""
+    def _generate_action_advice(self, result: Dict) -> str:
+        """生成基于实际数据的操作建议"""
+        tech = result.get('technical', {})
+        volume = result.get('volume_validation', {})
+        price = result.get('price', {})
         
+        current = price.get('current', 0)
+        support_near = tech.get('support_near', 0)
+        resistance_near = tech.get('resistance_near', 0)
+        rsi = tech.get('indicators', {}).get('rsi', 50)
+        volume_ratio = volume.get('volume_ratio', 1)
+        trend = str(tech.get('patterns', {}).get('trend_desc', '')).split('(')[0].strip()
+        
+        # 基于实际数据生成建议
+        advice = []
+        
+        # 趋势建议
+        if '多头' in trend:
+            advice.append(f"当前处于{trend}，趋势向上，可考虑持股或逢低加仓")
+        elif '空头' in trend:
+            advice.append(f"当前处于{trend}，趋势向下，建议观望或减仓")
+        else:
+            advice.append(f"当前趋势{trend}，建议观望等待方向明确")
+        
+        # RSI建议
+        if rsi > 80:
+            advice.append(f"RSI={rsi:.1f}极度超买，短期回调风险大，不建议追高")
+        elif rsi > 70:
+            advice.append(f"RSI={rsi:.1f}超买，注意回调风险，可考虑逢高减仓")
+        elif rsi < 30:
+            advice.append(f"RSI={rsi:.1f}超卖，可能存在反弹机会，可关注")
+        
+        # 支撑阻力建议
+        if current and support_near:
+            support_pct = (current - support_near) / current * 100
+            advice.append(f"近期支撑位{support_near:.2f}元(距离{support_pct:.1f}%)，跌破支撑需警惕")
+        
+        if current and resistance_near:
+            resistance_pct = (resistance_near - current) / current * 100
+            advice.append(f"近期阻力位{resistance_near:.2f}元(距离{resistance_pct:.1f}%)，突破阻力可加仓")
+        
+        # 成交量建议
+        if volume_ratio > 1.5:
+            advice.append(f"成交量放大{volume_ratio:.2f}倍，市场活跃度高，趋势可信")
+        elif volume_ratio < 0.8:
+            advice.append(f"成交量萎缩至{volume_ratio:.2f}倍，市场观望情绪浓，注意风险")
+        
+        advice_text = '<br><br>'.join(advice)
+        
+        return f'''
+            <div class="card rounded-2xl p-6 fade-in">
+                <h3 class="text-base font-bold mb-3"><i class="fas fa-lightbulb mr-2" style="color: #fbbf24"></i>操作建议</h3>
+                <div class="action-box">
+                    <div class="text-sm text-gray-300 leading-relaxed">{advice_text}</div>
+                </div>
+            </div>'''
+    
+    def _generate_buff_section(self, result: Dict) -> str:
+        """生成详细的Buff分析"""
         buffs = []
         
         # 基本面buff
         roe = result.get('profitability', {}).get('roe', 0)
-        if roe > 0.15:
-            buffs.append(('基本面', '+3', f'ROE强劲 ({roe*100:.1f}%)', '#22c55e'))
+        if roe > 0.20:
+            buffs.append(('基本面', '+3', f'ROE优秀({roe*100:.1f}%)，盈利能力强', '#22c55e'))
+        elif roe > 0.15:
+            buffs.append(('基本面', '+2', f'ROE良好({roe*100:.1f}%)，盈利稳健', '#22c55e'))
         elif roe > 0.10:
-            buffs.append(('基本面', '+2', f'ROE良好 ({roe*100:.1f}%)', '#22c55e'))
+            buffs.append(('基本面', '+1', f'ROE一般({roe*100:.1f}%)', '#f59e0b'))
+        else:
+            buffs.append(('基本面', '-1', f'ROE较差({roe*100:.1f}%)', '#ef4444'))
         
         # 估值buff
         pe = result.get('valuation', {}).get('pe', 0)
         if pe and pe < 15:
-            buffs.append(('估值', '+2', f'PE低估 ({pe:.1f})', '#22c55e'))
+            buffs.append(('估值', '+2', f'PE低估({pe:.1f})，安全边际高', '#22c55e'))
         elif pe and pe < 25:
-            buffs.append(('估值', '+1', f'PE合理 ({pe:.1f})', '#f59e0b'))
+            buffs.append(('估值', '+1', f'PE合理({pe:.1f})', '#f59e0b'))
         elif pe and pe > 40:
-            buffs.append(('估值', '-2', f'PE高估 ({pe:.1f})', '#ef4444'))
+            buffs.append(('估值', '-2', f'PE高估({pe:.1f})，估值偏高', '#ef4444'))
         
         # 财务健康buff
         status = result.get('financial', {}).get('status', '')
+        debt_ratio = result.get('financial', {}).get('debt_ratio', 0)
         if status == '健康':
-            buffs.append(('财务健康', '+1', '财务状态良好', '#22c55e'))
+            buffs.append(('财务', '+1', f'财务健康，资产负债率{debt_ratio:.1f}%', '#22c55e'))
         elif status == '需关注':
-            buffs.append(('财务健康', '-1', '财务需关注', '#f59e0b'))
+            buffs.append(('财务', '-1', f'财务需关注，资产负债率{debt_ratio:.1f}%', '#f59e0b'))
         elif status == '高风险':
-            buffs.append(('财务健康', '-2', '财务风险高', '#ef4444'))
+            buffs.append(('财务', '-2', f'财务风险高，资产负债率{debt_ratio:.1f}%', '#ef4444'))
         
-        # 计算总buff
+        # 技术面buff
+        signal = result.get('technical', {}).get('signal_strength', 0)
+        if signal > 3:
+            buffs.append(('技术面', '+2', f'技术面强势，信号强度{signal}', '#22c55e'))
+        elif signal > 0:
+            buffs.append(('技术面', '+1', f'技术面偏多，信号强度{signal}', '#22c55e'))
+        elif signal < -3:
+            buffs.append(('技术面', '-2', f'技术面弱势，信号强度{signal}', '#ef4444'))
+        elif signal < 0:
+            buffs.append(('技术面', '-1', f'技术面偏空，信号强度{signal}', '#ef4444'))
+        
         total = sum([int(b[1]) for b in buffs])
+        total_color = '#22c55e' if total > 0 else ('#ef4444' if total < 0 else '#f59e0b')
+        total_text = '偏多' if total > 0 else ('偏空' if total < 0 else '中性')
         
         cards = ''
         for buff_type, score, desc, color in buffs:
             cards += f'''
-                <div class="mini-card rounded-xl p-4 grid-item fade-in">
-                    <div class="text-xl font-bold mb-1" style="color: {color}">{score}</div>
-                    <div class="text-sm text-gray-400">{buff_type}</div>
-                    <div class="text-xs text-gray-500 mt-1">{desc}</div>
+                <div class="mini-card rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-bold">{buff_type}</span>
+                        <span class="text-lg font-bold" style="color: {color}">{score}</span>
+                    </div>
+                    <div class="text-xs text-gray-400">{desc}</div>
                 </div>'''
         
-        total_color = '#22c55e' if total > 0 else ('#ef4444' if total < 0 else '#f59e0b')
-        total_text = '偏多' if total > 0 else ('偏空' if total < 0 else '中性')
-        
         return f'''
-            <section class="px-4 py-12">
+            <section class="px-4 py-10">
                 <div class="max-w-7xl mx-auto">
-                    <div class="text-center mb-10 fade-in">
-                        <h2 class="text-3xl md:text-4xl font-bold mb-2">Buff叠加分析</h2>
-                        <p class="text-gray-400 text-sm">Multi-Dimensional Analysis</p>
+                    <div class="text-center mb-8 fade-in">
+                        <h2 class="text-3xl font-bold mb-1">Buff叠加分析</h2>
+                        <p class="text-gray-500 text-xs">多维度综合评估</p>
                     </div>
                     
                     <div class="card rounded-2xl p-6 fade-in">
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                             {cards}
-                            
-                            <!-- Total Buff -->
-                            <div class="mini-card rounded-xl p-4 grid-item fade-in" style="background: linear-gradient(135deg, {self.brand_color}20 0%, {self.brand_color}10 100%);">
-                                <div class="text-2xl font-bold mb-1" style="color: {total_color}">{total:+d}</div>
-                                <div class="text-sm text-gray-400">总Buff</div>
-                                <div class="text-xs text-gray-500 mt-1">{total_text} (评分 {result.get('score', 0)}/100)</div>
+                        </div>
+                        
+                        <div class="p-4 rounded-lg" style="background: linear-gradient(135deg, {self.brand_color}20 0%, {self.brand_color}10 100%);">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm text-gray-400">总Buff评分</div>
+                                    <div class="text-2xl font-bold" style="color: {total_color}">{total:+d}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-400">综合判断</div>
+                                    <div class="text-xl font-bold">{total_text}</div>
+                                    <div class="text-xs text-gray-500">综合评分 {result.get('score', 0)}/100</div>
+                                </div>
                             </div>
-                            
                         </div>
                     </div>
                 </div>
@@ -690,10 +770,8 @@ class AppleStyleReporter:
 
 
 def generate_apple_report(result: Dict) -> str:
-    """生成Apple风格报告"""
-    reporter = AppleStyleReporter()
-    return reporter.generate(result)
+    return AppleStyleReporter().generate(result)
 
 
 if __name__ == '__main__':
-    print("Apple风格报告生成器 v2.0 已加载")
+    print("Apple风格报告生成器 v3.0")
