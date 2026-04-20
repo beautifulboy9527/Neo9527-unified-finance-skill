@@ -109,22 +109,29 @@ def detect_patterns_by_timeframe(
                             }
                             patterns['signals'].append(('双顶', -3, '看跌'))
     
-    # 双底检测 - 需要明确的下降趋势
-    if timeframe == 'daily' and len(close) >= 30:
+    # 双底检测 - 需要明确的下降趋势，且未检测到双顶
+    # 排除逻辑：如果已检测到双顶，则不再检测双底
+    if 'double_top' not in patterns['reversal'] and timeframe == 'daily' and len(close) >= 30:
         # 只有在下降趋势中才检测双底
-        if close.iloc[-30:-10].mean() < close.iloc[-60:-30].mean() if len(close) >= 60 else True:
-            recent_lows = low.iloc[-20:]
+        ma_short = close.iloc[-20:].mean()
+        ma_long = close.iloc[-60:].mean() if len(close) >= 60 else close.iloc[-30:].mean()
+        
+        # 明确的下降趋势：短期均线 < 长期均线
+        if ma_short < ma_long:
+            recent_lows = low.iloc[-30:]
             min_val = recent_lows.min()
             
-            # 找出所有低点 (低于最低价105%的)
-            troughs = recent_lows[recent_lows < min_val * 1.02]
+            # 找出所有低点 (低于最低价102%的)
+            troughs = recent_lows[recent_lows < min_val * 1.015]
             
             if len(troughs) >= 2:
                 trough_values = troughs.values
-                if abs(trough_values[0] - trough_values[-1]) / trough_values[0] < 0.02:
+                # 两个低点接近 (差异<1.5%)
+                if abs(trough_values[0] - trough_values[-1]) / trough_values[0] < 0.015:
                     trough_indices = troughs.index
                     if len(trough_indices) >= 2:
                         between = high.loc[trough_indices[0]:trough_indices[-1]]
+                        # 中间高点明显高于低点 (至少3%)
                         if between.max() > trough_values.mean() * 1.03:
                             patterns['reversal']['double_bottom'] = {
                                 'name': '双底',

@@ -307,7 +307,8 @@ class AShareAnalyzer:
             '601012': '隆基绿能', '600519': '贵州茅台', '000001': '平安银行',
             '000002': '万科A', '601318': '中国平安', '600036': '招商银行',
             '688295': '中复神鹰', '300750': '宁德时代', '002594': '比亚迪',
-            '000651': '格力电器',
+            '000651': '格力电器', '000333': '美的集团', '002475': '立讯精密',
+            '601398': '工商银行', '601288': '农业银行', '600030': '中信证券',
         }
         return names.get(symbol, symbol)
     
@@ -439,12 +440,39 @@ class AShareAnalyzer:
         }
     
     def _analyze_financial(self, info, profitability) -> Dict:
-        debt_ratio = info.get('debtToEquity')
+        # 正确获取资产负债率 (Debt to Assets Ratio)
+        # yfinance没有直接的debtToAssets，需要从balance sheet计算
+        # debtToEquity是债务权益比，不是资产负债率
+        
+        debt_to_equity = info.get('debtToEquity')
         current_ratio = info.get('currentRatio')
+        
+        # 尝试从财务报表计算资产负债率
+        try:
+            total_assets = info.get('totalAssets')
+            total_liab = info.get('totalLiab')
+            
+            if total_assets and total_liab and total_assets > 0:
+                debt_ratio = (total_liab / total_assets) * 100  # 资产负债率
+                debt_ratio_source = 'calculated'
+            elif debt_to_equity:
+                # fallback: 从debtToEquity推算
+                # D/E = D/E → D/A = D/(D+E) = (D/E) / (1 + D/E)
+                de_ratio = debt_to_equity / 100
+                debt_ratio = (de_ratio / (1 + de_ratio)) * 100
+                debt_ratio_source = 'estimated_from_de'
+            else:
+                debt_ratio = None
+                debt_ratio_source = 'unavailable'
+        except:
+            debt_ratio = None
+            debt_ratio_source = 'error'
         
         risks = []
         if debt_ratio and debt_ratio > 70:
-            risks.append('资产负债率偏高')
+            risks.append(f'资产负债率偏高({debt_ratio:.1f}%)')
+        elif debt_ratio and debt_ratio > 60:
+            risks.append(f'资产负债率需关注({debt_ratio:.1f}%)')
         if current_ratio and current_ratio < 1:
             risks.append('流动比率过低')
         if not profitability['is_profitable']:
@@ -453,9 +481,21 @@ class AShareAnalyzer:
         status = '高风险' if len(risks) >= 2 else ('需关注' if risks else '健康')
         analysis = f"财务状态{status}。" + ('存在风险：' + '、'.join(risks) if risks else '各项指标正常。')
         
+        # 数据来源说明
+        source_desc = {
+            'calculated': '从财报计算',
+            'estimated_from_de': '从债务权益比推算',
+            'unavailable': '数据不可用',
+            'error': '获取失败'
+        }
+        
         return {
-            'debt_ratio': debt_ratio, 'current_ratio': current_ratio,
-            'risks': risks, 'status': status, 'analysis': analysis
+            'debt_ratio': debt_ratio,
+            'debt_to_equity': debt_to_equity,
+            'current_ratio': current_ratio,
+            'risks': risks, 'status': status, 'analysis': analysis,
+            'data_source': source_desc.get(debt_ratio_source, '未知'),
+            'confidence': 0.95 if debt_ratio_source == 'calculated' else (0.7 if debt_ratio_source == 'estimated_from_de' else 0.3)
         }
     
     def _analyze_technical(self, hist) -> Dict:
@@ -1820,6 +1860,7 @@ class AShareAnalyzer:
                 <div class="metric-card p-4 rounded-lg">
                     <div class="text-gray-500 text-sm">资产负债率</div>
                     <div class="text-xl font-bold">{f"{result['financial']['debt_ratio']:.2f}%" if result['financial']['debt_ratio'] else 'N/A'}</div>
+                    <div class="text-xs text-gray-400 mt-1">数据来源: {result['financial'].get('data_source', 'yfinance')} (置信度: {result['financial'].get('confidence', 0.5)*100:.0f}%)</div>
                 </div>
                 <div class="metric-card p-4 rounded-lg">
                     <div class="text-gray-500 text-sm">流动比率</div>
