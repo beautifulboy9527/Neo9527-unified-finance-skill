@@ -6,6 +6,7 @@ Apple风格HTML报告生成器 v3.0
 - 优化中文显示
 - 完善操作建议
 - 深度数据分析
+- 集成胜率模型和深度分析
 """
 
 import sys
@@ -14,6 +15,13 @@ from datetime import datetime
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+# 导入胜率模型和深度分析
+try:
+    from win_rate_model import WinRateModel, DepthAnalyzer
+    WIN_RATE_AVAILABLE = True
+except ImportError:
+    WIN_RATE_AVAILABLE = False
 
 
 class AppleStyleReporter:
@@ -617,6 +625,9 @@ class AppleStyleReporter:
         </div>
     </section>
     
+    <!-- 综合评估 -->
+    {self._generate_summary_section(result)}
+    
     <!-- Footer -->
     <footer class="px-4 py-6 border-t border-gray-800">
         <div class="max-w-7xl mx-auto text-center text-gray-500 text-xs">
@@ -782,8 +793,84 @@ class AppleStyleReporter:
                 </div>
             </div>'''
     
+    def _generate_buff_from_win_rate(self, result: Dict) -> str:
+        """基于胜率模型生成Buff"""
+        buff_data = result.get('buff_enhanced', {})
+        buffs = buff_data.get('buffs', [])
+        total_score = buff_data.get('total_score', 0)
+        direction = buff_data.get('direction', '中性')
+        icon = buff_data.get('icon', '⚖️')
+        win_rate = buff_data.get('win_rate', 0.5)
+        
+        # 生成HTML卡片
+        cards = ''
+        for buff in buffs:
+            score = buff['score']
+            color = '#22c55e' if score > 0 else ('#ef4444' if score < 0 else '#f59e0b')
+            cards += f'''
+            <div class="mini-card rounded-lg p-4">
+                <div class="text-gray-400 text-xs mb-1">{buff['type']}</div>
+                <div class="text-2xl font-bold" style="color: {color}">{score:+.1f}</div>
+                <div class="text-xs mt-1 text-gray-500">{buff['description']}</div>
+            </div>
+            '''
+        
+        total_color = '#22c55e' if total_score > 0 else ('#ef4444' if total_score < 0 else '#f59e0b')
+        
+        return f'''
+        <div class="card rounded-2xl p-6 fade-in mb-4">
+            <h3 class="text-base font-bold mb-3"><i class="fas fa-layer-group mr-2" style="color: {self.brand_color}"></i>Buff叠加分析</h3>
+            <div class="mb-4 text-sm text-gray-400">
+                <i class="fas fa-percentage mr-1"></i>技术面胜率：<span class="font-bold" style="color: {total_color}">{win_rate*100:.1f}%</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {cards}
+            </div>
+            <div class="analysis-box">
+                <div class="font-semibold text-sm mb-2"><i class="fas fa-info-circle mr-2" style="color: {self.brand_color}"></i>综合Buff</div>
+                <div class="text-2xl font-bold mb-2" style="color: {total_color}">{icon} {direction} ({total_score:+.1f})</div>
+                <div class="text-sm text-gray-400">基于胜率模型的综合评估</div>
+            </div>
+        </div>
+        '''
+
+    def _generate_summary_section(self, result: Dict) -> str:
+        """生成综合评估部分"""
+        summary_text = result.get('summary_text', '')
+        
+        if not summary_text:
+            return ''
+        
+        # 将Markdown转换为简单HTML
+        summary_html = summary_text.replace('**', '<strong>').replace('**', '</strong>')
+        summary_html = summary_html.replace('\n\n', '</p><p class="mb-3">')
+        summary_html = summary_html.replace('\n', '<br>')
+        
+        return f'''
+        <section class="px-4 py-10">
+            <div class="max-w-7xl mx-auto">
+                <div class="text-center mb-8 fade-in">
+                    <h2 class="text-3xl font-bold mb-1">综合评估</h2>
+                    <p class="text-gray-500 text-xs">投资决策参考</p>
+                </div>
+                
+                <div class="card rounded-2xl p-6 fade-in">
+                    <div class="prose prose-invert max-w-none">
+                        <p class="mb-3 text-gray-300 leading-relaxed">{summary_html}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        '''
+
     def _generate_buff_section(self, result: Dict) -> str:
         """生成详细的Buff分析"""
+        
+        # 如果有增强的buff数据，使用它
+        if result.get('buff_enhanced', {}).get('win_rate_based'):
+            return self._generate_buff_from_win_rate(result)
+        
+        # 否则使用原有逻辑
         buffs = []
         
         # 基本面buff
