@@ -109,28 +109,18 @@ class OnchainDataFetcher:
             # 模拟鲸鱼交易数据 (实际需要 API key)
             # 生产环境应替换为真实 API 调用
             
-            # 模拟数据结构
-            mock_data = {
-                'BTC': {
-                    'large_inflow_24h': 1240,  # BTC
-                    'large_outflow_24h': 890,
-                    'whale_activity': 'accumulating',  # accumulating/distributing/neutral
-                    'top_whales': [
-                        {'address': '0x1234...5678', 'balance_change': 500, 'action': 'buy'},
-                        {'address': '0xabcd...efgh', 'balance_change': -300, 'action': 'sell'},
-                    ]
-                },
-                'ETH': {
-                    'large_inflow_24h': 15420,
-                    'large_outflow_24h': 12350,
-                    'whale_activity': 'accumulating',
-                    'top_whales': [
-                        {'address': '0x9876...5432', 'balance_change': 5000, 'action': 'buy'},
-                    ]
-                }
+            # 无真实数据时返回空数据
+            return {
+                'symbol': symbol,
+                'large_inflow_24h': 0,
+                'large_outflow_24h': 0,
+                'net_flow': 0,
+                'whale_activity': 'unknown',
+                'signal': 'no_data',
+                'signal_desc': '暂无数据 - 需配置 Dune/Etherscan API key',
+                'data_source': '无',
+                'available': False
             }
-            
-            data = mock_data.get(symbol.upper(), mock_data['BTC'])
             
             net_flow = data['large_inflow_24h'] - data['large_outflow_24h']
             

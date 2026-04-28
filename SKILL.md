@@ -20,9 +20,9 @@ description: >
   - onchain-skill: 链上数据
   
   触发: 股票分析、打板筛选、财务检测、估值计算、深度研报
-version: 6.4.0
+version: 6.5.0
 integration: full
-tested: 2026-04-19
+tested: 2026-04-28
 skills:
   - crypto-skill
   - stock-skill
@@ -40,7 +40,7 @@ cli: true
 
 ## ✅ 测试状态
 
-**最后测试**: 2026-04-19 11:00
+**最后测试**: 2026-04-28 14:30
 **测试结果**: 全部通过 ✅
 
 | 测试项 | 状态 |
@@ -55,6 +55,10 @@ cli: true
 | CLI 命令 | ✅ |
 | 核心结论卡片 | ✅ |
 | 形态检测展示 | ✅ |
+| MACD交叉计算修复 | ✅ |
+| 行业翻译40+ | ✅ |
+| 加密货币报告 | ✅ |
+| 链上数据无模拟 | ✅ |
 
 ---
 
@@ -291,6 +295,7 @@ unified-finance-skill/
 
 ## 版本历史
 
+- **v6.5.0** (2026-04-28): MACD交叉计算修复、行业翻译40+、加密货币HTML报告、链上数据移除模拟数据
 - **v4.3**: Skills 生态架构 + FastAPI
 - **v4.2**: K线图 + 鲸鱼数据 + CLI
 - **v4.0**: 叠buff + 形态识别
@@ -298,4 +303,4 @@ unified-finance-skill/
 
 ---
 
-*Skills 生态 v4.3.0 - 可组合的金融 AI 平台 by Neo9527 🚀*
+*Skills 生态 v6.5.0 - 可组合的金融 AI 平台 by Neo9527 🚀*

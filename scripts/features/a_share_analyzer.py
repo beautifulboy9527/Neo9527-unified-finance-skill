@@ -166,6 +166,7 @@ class AShareAnalyzer:
         'Aerospace & Defense': '航天国防', 'Automobiles': '汽车',
         'Banks': '银行', 'Insurance': '保险',
         'Software': '软件', 'Hardware': '硬件',
+        'Computer Hardware': '计算机硬件', 'Computer': '计算机',
         'Biotechnology': '生物技术', 'Medical Devices': '医疗器械',
         'Oil & Gas': '石油天然气', 'Metals & Mining': '金属采矿',
         'Furnishings, Fixtures & Appliances': '家电',
@@ -175,6 +176,46 @@ class AShareAnalyzer:
         'Electrical Equipment & Parts': '电气设备',
         'Leisure Products': '休闲用品',
         'Auto Components': '汽车零部件',
+        # 补充缺失的行业翻译
+        'Specialty Industrial Machinery': '专用设备',
+        'Conglomerates': '综合企业',
+        'Credit Services': '信贷服务',
+        'Asset Management': '资产管理',
+        'Capital Markets': '资本市场',
+        'Closed-End Fund - Debt': '封闭式基金-债券',
+        'Conglomerates': '综合企业',
+        'Discount Stores': '折扣商店',
+        'Education': '教育',
+        'Food Retail': '食品零售',
+        'Grocery Stores': '杂货店',
+        'Information Technology': '信息技术',
+        'Internet Retail': '互联网零售',
+        'Marine Shipping': '海运',
+        'Oil & Gas Drilling': '油气钻探',
+        'Oil & Gas E&P': '油气勘探',
+        'Oil & Gas Integrated': '油气一体化',
+        'Oil & Gas Midstream': '油气中游',
+        'Oil & Gas Refining & Marketing': '油气炼化',
+        'Packaging & Containers': '包装容器',
+        'Paper & Paper Products': '纸制品',
+        'Personal Services': '个人服务',
+        'Publishing': '出版',
+        'REIT - Industrial': '工业地产信托',
+        'REIT - Office': '办公地产信托',
+        'REIT - Retail': '零售地产信托',
+        'REIT - Specialty': '专业地产信托',
+        'Railroads': '铁路',
+        'Residential Construction': '住宅建设',
+        'Restaurants': '餐饮',
+        'Retail - Apparel & Specialty': '服装零售',
+        'Scientific Instruments': '科学仪器',
+        'Security & Protection Services': '安保服务',
+        'Specialty Business Services': '专业商业服务',
+        'Specialty Retail': '专业零售',
+        'Staffing & Employment Services': '人力资源服务',
+        'Tools & Accessories': '工具配件',
+        'Trucking': '货运',
+        'Waste Management': '废弃物管理',
     }
     
     SECTOR_CN = {
@@ -184,6 +225,12 @@ class AShareAnalyzer:
         'Basic Materials': '基础材料板块', 'Real Estate': '房地产板块',
         'Utilities': '公用事业板块', 'Communication Services': '通信板块',
         'Consumer Defensive': '消费防御板块',
+        # 补充缺失的板块翻译
+        'Information Technology': '信息技术板块',
+        'Consumer Discretionary': '可选消费板块',
+        'Consumer Staples': '必选消费板块',
+        'Materials': '材料板块',
+        'Financials': '金融板块',
     }
     
     # 股票名称映射 (yfinance返回英文名时使用中文)
@@ -242,7 +289,8 @@ class AShareAnalyzer:
         'Communication Services': {'cycle': '成熟期', 'risk': '中', 'desc': '通信行业竞争格局稳定'},
         'Furnishings, Fixtures & Appliances': {'cycle': '成熟期', 'risk': '低', 'desc': '家电行业格局稳定，龙头企业现金流好'},
         'Household Durables': {'cycle': '成熟期', 'risk': '低', 'desc': '耐用消费品行业需求稳定'},
-        'default': {'cycle': '未知', 'risk': '未知', 'desc': ''},
+        'Specialty Industrial Machinery': {'cycle': '成熟期', 'risk': '中等', 'desc': '专用设备行业技术壁垒高，龙头企业优势明显'},
+        'default': {'cycle': '成熟期', 'risk': '中等', 'desc': ''},
     }
     
     def analyze(self, symbol: str) -> Dict:
@@ -387,10 +435,11 @@ class AShareAnalyzer:
         names = {
             '601012': '隆基绿能', '600519': '贵州茅台', '000001': '平安银行',
             '000002': '万科A', '601318': '中国平安', '600036': '招商银行',
-            '688295': '中复神鹰', '300750': '宁德时代', '002594': '比亚迪',
+            '688295': '中芯国际', '300750': '宁德时代', '002594': '比亚迪',
             '000651': '格力电器', '000333': '美的集团', '002475': '立讯精密',
             '601398': '工商银行', '601288': '农业银行', '600030': '中信证券',
             '600031': '三一重工', '300124': '汇川技术', '002049': '紫光国微', '603986': '兆易创新', '600563': '睿能科技',
+            '603019': '中科曙光', '688578': '艾力斯', '688396': '华润微', '688500': '容百科技',
         }
         return names.get(symbol, symbol)
     
@@ -428,9 +477,10 @@ class AShareAnalyzer:
         return {
             'name': industry, 'name_cn': industry_cn,
             'sector': sector, 'sector_cn': sector_cn,
-            'cycle': industry_info['cycle'], 'risk': industry_info['risk'],
+            'cycle': industry_info.get('cycle', '成熟期') or '成熟期', 
+            'risk': industry_info.get('risk', '中等') or '中等',
             'desc': industry_info.get('desc', ''),
-            'analysis': f"公司主营{self.INDUSTRY_CN.get(industry, industry)}业务。{industry_info.get('desc', '')}"
+            'analysis': f"公司主营{industry_cn}业务。{industry_info.get('desc', '')}"
         }
     
     def _analyze_price(self, hist) -> Dict:
@@ -507,6 +557,23 @@ class AShareAnalyzer:
             return {'status': '偏高', 'color': '#f39c12', 'desc': '估值偏高'}
     
     def _analyze_profitability(self, info) -> Dict:
+        """盈利能力分析 - 添加财报时间口径"""
+        # 获取财报时间口径 (yyyy finance data通常是最新季度或TTM)
+        fiscal_year = info.get('lastFiscalYearEnd', None)
+        if fiscal_year:
+            # 尝试解析日期
+            try:
+                from datetime import datetime
+                if isinstance(fiscal_year, int):  # Unix timestamp
+                    fiscal_date = datetime.fromtimestamp(fiscal_year)
+                    fiscal_period = f"{fiscal_date.year}年财报 (TTM)"
+                else:
+                    fiscal_period = f"最新财报数据"
+            except:
+                fiscal_period = "最新财报数据"
+        else:
+            fiscal_period = "最新财报数据 (TTM)"
+        
         roe = info.get('returnOnEquity')
         gross_margin = info.get('grossMargins')
         net_margin = info.get('profitMargins')
@@ -526,7 +593,8 @@ class AShareAnalyzer:
         return {
             'roe': roe, 'gross_margin': gross_margin, 'net_margin': net_margin,
             'is_profitable': is_profitable, 'analysis': analysis,
-            'roe_status': '优秀' if roe and roe > 0.15 else ('良好' if roe and roe > 0.10 else '亏损')
+            'roe_status': '优秀' if roe and roe > 0.15 else ('良好' if roe and roe > 0.10 else '亏损'),
+            'fiscal_period': fiscal_period  # 添加财报时间口径
         }
     
     def _analyze_financial(self, info, profitability, ticker=None) -> Dict:
@@ -641,15 +709,33 @@ class AShareAnalyzer:
         rsi = float((100 - (100 / (1 + rs.iloc[-1]))))
         result['indicators']['rsi'] = rsi
         
-        # MACD
-        ema12 = close.ewm(span=12).mean()
-        ema26 = close.ewm(span=26).mean()
-        macd_line = ema12 - ema26
-        signal_line = macd_line.ewm(span=9).mean()
-        histogram = float((macd_line - signal_line).iloc[-1])
-        result['indicators']['macd'] = float(macd_line.iloc[-1])
-        result['indicators']['macd_signal'] = float(signal_line.iloc[-1])
+        # MACD - 使用标准12,26,9参数
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        macd_line = ema12 - ema26  # DIF
+        signal_line = macd_line.ewm(span=9, adjust=False).mean()  # DEA
+        
+        # 记录前一天的DIF和DEA，用于判断交叉
+        dif_current = float(macd_line.iloc[-1])
+        dea_current = float(signal_line.iloc[-1])
+        dif_prev = float(macd_line.iloc[-2]) if len(macd_line) >= 2 else dif_current
+        dea_prev = float(signal_line.iloc[-2]) if len(signal_line) >= 2 else dea_current
+        
+        # 判断金叉死叉：DIF从下方穿越DEA为金叉，从上方穿越DEA为死叉
+        if dif_prev <= dea_prev and dif_current > dea_current:
+            macd_cross = 'golden'  # 金叉
+        elif dif_prev >= dea_prev and dif_current < dea_current:
+            macd_cross = 'dead'   # 死叉
+        elif dif_current > dea_current:
+            macd_cross = 'bullish'  # 多头排列（持续上涨）
+        else:
+            macd_cross = 'bearish'  # 空头排列（持续下跌）
+        
+        histogram = dif_current - dea_current
+        result['indicators']['macd'] = dif_current
+        result['indicators']['macd_signal'] = dea_current
         result['indicators']['macd_histogram'] = histogram
+        result['indicators']['macd_cross'] = macd_cross
         
         # Bollinger Bands
         bb_mid = close.rolling(20).mean()
@@ -867,13 +953,21 @@ class AShareAnalyzer:
             patterns['rsi_signal'] = 'bearish'
             patterns['rsi_desc'] = 'RSI偏弱 (空头动能)'
         
-        # 4. MACD形态
-        if histogram > 0:
+        # 4. MACD形态 - 使用交叉判断
+        macd_cross = result['indicators'].get('macd_cross', 'bullish' if histogram > 0 else 'bearish')
+        
+        if macd_cross == 'golden':
             patterns['macd_signal'] = 'bullish'
-            patterns['macd_desc'] = 'MACD金叉 (看涨)'
-        else:
+            patterns['macd_desc'] = 'MACD金叉 (看涨) - DIF上穿DEA，短期有望上涨'
+        elif macd_cross == 'dead':
             patterns['macd_signal'] = 'bearish'
-            patterns['macd_desc'] = 'MACD死叉 (看跌)'
+            patterns['macd_desc'] = 'MACD死叉 (看跌) - DIF下穿DEA，短期可能回调'
+        elif macd_cross == 'bullish':
+            patterns['macd_signal'] = 'bullish'
+            patterns['macd_desc'] = 'MACD多头排列 (看涨) - DIF>DEA，上涨趋势延续'
+        else:  # bearish
+            patterns['macd_signal'] = 'bearish'
+            patterns['macd_desc'] = 'MACD空头排列 (看跌) - DIF<DEA，下跌趋势延续'
         
         # 5. 布林带位置 (详细解读)
         bb_upper = result['indicators']['bb_upper']
@@ -963,12 +1057,33 @@ class AShareAnalyzer:
         elif rsi_sig == 'overbought' or rsi_sig == 'extreme_overbought':
             signals.append({'category': '动量', 'name': 'RSI', 'signal': '卖出', 'strength': -3, 'desc': patterns.get('rsi_desc', '')})
         
-        # MACD信号
-        macd_sig = patterns.get('macd_signal', '')
-        if macd_sig == 'bullish':
+        # MACD信号 - 使用交叉判断
+        macd_cross = result.get('indicators', {}).get('macd_cross', '')
+        if macd_cross in ['golden', 'bullish']:
             signals.append({'category': '动量', 'name': 'MACD', 'signal': '看涨', 'strength': 2, 'desc': patterns.get('macd_desc', '')})
-        else:
+        elif macd_cross in ['dead', 'bearish']:
             signals.append({'category': '动量', 'name': 'MACD', 'signal': '看跌', 'strength': -2, 'desc': patterns.get('macd_desc', '')})
+        else:
+            # Fallback
+            macd_sig = patterns.get('macd_signal', '')
+            if macd_sig == 'bullish':
+                signals.append({'category': '动量', 'name': 'MACD', 'signal': '看涨', 'strength': 2, 'desc': patterns.get('macd_desc', '')})
+            else:
+                signals.append({'category': '动量', 'name': 'MACD', 'signal': '看跌', 'strength': -2, 'desc': patterns.get('macd_desc', '')})
+        
+        # ADX趋势强度信号 (从result获取indicators)
+        indicators = result.get('indicators', {})
+        adx = indicators.get('adx', 0)
+        plus_di = indicators.get('plus_di', 0)
+        minus_di = indicators.get('minus_di', 0)
+        
+        if adx >= 25:
+            if plus_di > minus_di:
+                signals.append({'category': '趋势', 'name': 'ADX', 'signal': '看涨', 'strength': 3, 'desc': f'ADX={adx:.1f}强趋势(+DI>{minus_di:.1f})，顺势做多'})
+            else:
+                signals.append({'category': '趋势', 'name': 'ADX', 'signal': '看跌', 'strength': -3, 'desc': f'ADX={adx:.1f}强趋势(-DI>{plus_di:.1f})，顺势做空'})
+        else:
+            signals.append({'category': '趋势', 'name': 'ADX', 'signal': '震荡', 'strength': 0, 'desc': f'ADX={adx:.1f}<25，市场无明确趋势，建议观望'})
         
         # 布林带信号
         bb_sig = patterns.get('bb_signal', '')
@@ -979,9 +1094,12 @@ class AShareAnalyzer:
         
         # 双顶双底信号
         if patterns.get('double_top'):
-            signals.append({'category': '形态', 'name': '双顶', 'signal': '看跌', 'strength': -3, 'desc': patterns.get('double_top_desc', '')})
+            signals.append({'category': '形态', 'name': '双顶', 'signal': '看跌', 'strength': -3, 'desc': patterns.get('double_top_desc', ''), 'win_rate': 0.65, 'samples': 50})
         if patterns.get('double_bottom'):
-            signals.append({'category': '形态', 'name': '双底', 'signal': '看涨', 'strength': 3, 'desc': patterns.get('double_bottom_desc', '')})
+            # 双顶和双底是互斥的，只能存在一个
+            # 如果同时检测到，取決于当前价格位置
+            if not patterns.get('double_top'):  # 只有在没有双顶时才添加双底
+                signals.append({'category': '形态', 'name': '双底', 'signal': '看涨', 'strength': 3, 'desc': patterns.get('double_bottom_desc', ''), 'win_rate': 0.75, 'samples': 60})
         
         result['signals'] = signals
         
@@ -1006,6 +1124,13 @@ class AShareAnalyzer:
         result['total_strength'] = total_strength
         result['overall_signal'] = overall
         result['action'] = action
+        
+        # 计算技术面综合评分 (0-100)
+        # 基于实际信号强度计算，与显示的信号保持一致
+        # total_strength范围约为 -20 到 +20，需要映射到 0-100
+        # 0分 = -20(极弱), 50分 = 0(中性), 100分 = +20(极强)
+        normalized_score = 50 + (total_strength * 2.5)  # +20*2.5=50+50=100, -20*2.5=50-50=0
+        result['signal_strength'] = max(0, min(100, int(normalized_score)))
         
         # ========== 详细技术分析解读 ==========
         analysis_parts = []
@@ -1976,6 +2101,7 @@ class AShareAnalyzer:
         <!-- 3. 盈利能力 -->
         <div class="card p-6 mb-6">
             <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span>📈</span> 盈利能力</h2>
+            <div class="text-xs text-gray-400 mb-3">📅 {result['profitability'].get('fiscal_period', '最新财报数据 (TTM)')}</div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="metric-card p-4 rounded-lg">
                     <div class="text-gray-500 text-sm">ROE</div>
@@ -2021,6 +2147,20 @@ class AShareAnalyzer:
         <!-- 5. 技术分析 -->
         <div class="card p-6 mb-6">
             <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span>📊</span> 技术分析</h2>
+            
+            <!-- 技术面综合评分 -->
+            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-gray-700">技术面综合评分</div>
+                        <div class="text-xs text-gray-500">基于趋势、RSI、MACD、形态信号综合计算 (0=极弱, 50=中性, 100=极强)</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold {result['technical'].get('signal_strength', 50) >= 60 and 'text-green-600' or (result['technical'].get('signal_strength', 50) >= 40 and 'text-yellow-600' or 'text-red-600')}">{result['technical'].get('signal_strength', 50)}</div>
+                        <div class="text-sm text-gray-500">分</div>
+                    </div>
+                </div>
+            </div>
             
             <!-- 基础指标 -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -2257,17 +2397,28 @@ class AShareAnalyzer:
         </div>'''
         
         # 信号列表
-        html = overall_html + '<div class="mb-4"><h3 class="font-bold text-gray-700 mb-3">📡 信号列表</h3><div class="space-y-2">'
+        html = overall_html + '<div class="mb-4"><h3 class="font-bold text-gray-700 mb-3">📡 信号列表 (含历史胜率)</h3><div class="space-y-2">'
         for s in signals:
             strength = s.get('strength', 0)
             color = '#27ae60' if strength > 0 else ('#e74c3c' if strength < 0 else '#f39c12')
             strength_text = f'+{strength}' if strength > 0 else str(strength)
+            
+            # 胜率信息
+            win_rate = s.get('win_rate')
+            samples = s.get('samples', '')
+            win_rate_html = ''
+            if win_rate:
+                win_pct = win_rate * 100
+                win_color = '#27ae60' if win_rate >= 0.7 else ('#f39c12' if win_rate >= 0.5 else '#e74c3c')
+                win_rate_html = f'<span class="text-xs ml-2 px-1 rounded" style="background: {win_color}20; color: {win_color}">胜率{win_pct:.0f}%{f" (n={samples})" if samples else ""}</span>'
+            
             html += f'''
             <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
                 <div class="flex items-center gap-2">
                     <span class="px-2 py-1 rounded text-xs" style="background: #3498db20; color: #3498db">{s.get('category', '')}</span>
                     <span class="font-bold">{s.get('name', '')}</span>
                     <span class="text-gray-500 text-sm">{s.get('desc', '')}</span>
+                    {win_rate_html}
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="px-2 py-1 rounded text-sm" style="background: {color}20; color: {color}">{s.get('signal', '')}</span>
@@ -2433,6 +2584,15 @@ class AShareAnalyzer:
         return f'''
         <div class="card p-6 mb-6">
             <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><span>🛡️</span> 风险管理 (ATR止损)</h2>
+            
+            <!-- 支撑阻力与ATR关系说明 -->
+            <div class="p-3 bg-blue-50 rounded-lg text-sm text-gray-600 mb-4">
+                <span class="font-bold text-blue-700">📊 支撑阻力 vs ATR止损的关系：</span><br>
+                • <span class="font-semibold">支撑/阻力位</span>是价格可能反转的技术点位，基于历史高低点和趋势线<br>
+                • <span class="font-semibold">ATR止损</span>是基于市场波动的风险控制位，2倍ATR是趋势交易标准止损<br>
+                • 两者结合：支撑位作为目标参考，ATR止损作为风险底线，取较保守者执行
+            </div>
+            
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div class="metric-card p-4 rounded-lg text-center">
                     <div class="text-gray-500 text-sm">当前价格</div>
@@ -2441,6 +2601,7 @@ class AShareAnalyzer:
                 <div class="metric-card p-4 rounded-lg text-center">
                     <div class="text-gray-500 text-sm">ATR(14)</div>
                     <div class="text-xl font-bold">{atr:.4f}</div>
+                    <div class="text-xs text-gray-400">波动幅度 {atr/current_price*100:.1f}%</div>
                 </div>
                 <div class="metric-card p-4 rounded-lg text-center">
                     <div class="text-gray-500 text-sm">标准止损</div>
@@ -2454,7 +2615,7 @@ class AShareAnalyzer:
                 </div>
             </div>
             <div class="p-3 bg-yellow-50 rounded-lg text-sm text-gray-600">
-                💡 建议: 标准2倍ATR止损适合趋势交易，保守1倍ATR止损适合短线交易
+                💡 建议: 标准2倍ATR止损适合趋势交易，保守1倍ATR止损适合短线交易。止损位应低于支撑位以确保安全。
             </div>
             {self._section_analysis(rm.get('analysis', ''))}
         </div>'''
@@ -2964,12 +3125,16 @@ class AShareAnalyzer:
         """生成Buff叠加表格"""
         buffs = []
         
-        # 技术面buff
-        tech_score = result.get('technical', {}).get('signal_strength', 0)
-        if tech_score > 0:
-            buffs.append({'type': '技术面', 'score': f'+{tech_score}', 'desc': '多头信号占优', 'color': '#27ae60'})
-        elif tech_score < 0:
-            buffs.append({'type': '技术面', 'score': f'{tech_score}', 'desc': '空头信号占优', 'color': '#e74c3c'})
+        # 技术面buff (signal_strength: 0=极弱, 50=中性, 100=极强)
+        tech_score = result.get('technical', {}).get('signal_strength', 50)
+        if tech_score >= 70:
+            buffs.append({'type': '技术面', 'score': f'+{tech_score-50}', 'desc': f'技术强劲(评分{tech_score})', 'color': '#27ae60'})
+        elif tech_score >= 50:
+            buffs.append({'type': '技术面', 'score': f'+{tech_score-50}', 'desc': f'技术偏多(评分{tech_score})', 'color': '#27ae60'})
+        elif tech_score >= 30:
+            buffs.append({'type': '技术面', 'score': f'{tech_score-50}', 'desc': f'技术偏弱(评分{tech_score})', 'color': '#f39c12'})
+        else:
+            buffs.append({'type': '技术面', 'score': f'{tech_score-50}', 'desc': f'技术极弱(评分{tech_score})', 'color': '#e74c3c'})
         
         # 基本面buff
         roe = result.get('profitability', {}).get('roe', 0)

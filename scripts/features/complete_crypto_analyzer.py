@@ -230,32 +230,35 @@ class CompleteCryptoAnalyzer:
                         patterns['head_shoulders'] = 'potential_top'
                         patterns['head_shoulders_desc'] = '潜在顶部形态'
             
-            # 4. 双顶双底检测
+            # 4. 双顶双底检测 (基于日线，检测最近20个交易日)
+            # 时间周期: 日线级别
             if len(closes) >= 20:
                 recent_highs = highs.iloc[-20:]
                 recent_lows = lows.iloc[-20:]
                 
-                # 双顶
+                # 查找峰值和谷值
                 peaks = []
                 for i in range(1, len(recent_highs)-1):
                     if recent_highs.iloc[i] > recent_highs.iloc[i-1] and recent_highs.iloc[i] > recent_highs.iloc[i+1]:
                         peaks.append((i, recent_highs.iloc[i]))
                 
-                if len(peaks) >= 2:
-                    if abs(peaks[-1][1] - peaks[-2][1]) / peaks[-1][1] < 0.02:  # 两顶相近
-                        patterns['double_top'] = True
-                        patterns['double_top_desc'] = '双顶形态 (看跌)'
-                
-                # 双底
                 troughs = []
                 for i in range(1, len(recent_lows)-1):
                     if recent_lows.iloc[i] < recent_lows.iloc[i-1] and recent_lows.iloc[i] < recent_lows.iloc[i+1]:
                         troughs.append((i, recent_lows.iloc[i]))
                 
-                if len(troughs) >= 2:
+                # 双顶检测 - 日线级别，最近20个交易日内
+                if len(peaks) >= 2:
+                    if abs(peaks[-1][1] - peaks[-2][1]) / peaks[-1][1] < 0.02:  # 两顶相差<2%
+                        patterns['double_top'] = True
+                        patterns['double_top_desc'] = '双顶形态 (日线, 看跌) - 过去20个交易日内两次冲击高点失败'
+                
+                # 双底检测 - 日线级别，最近20个交易日内
+                # 双顶和双底是互斥的，只能存在一个
+                if len(troughs) >= 2 and not patterns.get('double_top'):
                     if abs(troughs[-1][1] - troughs[-2][1]) / troughs[-1][1] < 0.02:
                         patterns['double_bottom'] = True
-                        patterns['double_bottom_desc'] = '双底形态 (看涨)'
+                        patterns['double_bottom_desc'] = '双底形态 (日线, 看涨) - 过去20个交易日内两次下探低点获得支撑'
             
             # 5. RSI形态
             rsi = result['indicators']['rsi']
@@ -584,10 +587,15 @@ def analyze_complete(symbol: str) -> Dict:
 
 
 if __name__ == '__main__':
-    print("测试完整分析...")
+    import argparse
+    parser = argparse.ArgumentParser(description='加密货币分析')
+    parser.add_argument('--symbol', default='BTC-USD', help='交易对，如 ETH-USD')
+    args = parser.parse_args()
+    
+    print(f"分析 {args.symbol}...")
     print("=" * 60)
     
-    result = analyze_complete('BTC-USD')
+    result = analyze_complete(args.symbol)
     
     print(f"Symbol: {result['symbol']}")
     print(f"Price: ${result['market'].get('price', 0):,.2f}")

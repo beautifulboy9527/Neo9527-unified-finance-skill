@@ -366,7 +366,8 @@ def generate_crypto_report_v4(symbol: str, output_dir: str = "D:\\OpenClaw\\outp
 
 
 if __name__ == '__main__':
-    symbol = 'BTC-USD'
+    import sys
+    symbol = sys.argv[1] if len(sys.argv) > 1 else 'BTC-USD'
     
     print("=" * 60)
     print(f"生成 {symbol} 报告 (v4.0)")
