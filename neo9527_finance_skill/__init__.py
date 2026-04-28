@@ -3,7 +3,7 @@
 Neo9527 Finance Skill - CLI入口
 """
 
-__version__ = "4.4.1"
+__version__ = "6.6.4"
 
 
 def main():
@@ -13,7 +13,8 @@ def main():
 
     # 添加路径
     package_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, package_dir)
+    project_dir = os.path.dirname(package_dir)
+    sys.path.insert(0, project_dir)
 
     # 导入并运行
     from scripts.finance import main as cli_main

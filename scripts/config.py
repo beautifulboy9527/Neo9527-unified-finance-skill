@@ -8,8 +8,14 @@ Unified Finance Skill - 配置管理
 import os
 from pathlib import Path
 
-# 输出目录配置
-OUTPUT_BASE = Path(r'D:\OpenClaw\outputs')
+# 输出目录配置；默认写到项目内，允许用环境变量覆盖。
+OUTPUT_BASE = Path(
+    os.getenv(
+        'NEO_FINANCE_OUTPUT_DIR',
+        Path(__file__).resolve().parents[1] / 'outputs'
+    )
+)
+OUTPUT_DIR = OUTPUT_BASE
 
 # 子目录
 OUTPUT_DIRS = {

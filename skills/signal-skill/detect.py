@@ -16,7 +16,7 @@ from enum import Enum
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from skills.base_skill import BaseSkill, SkillInput, SkillOutput, register_skill
+from skills.base_skill import BaseSkill, SkillInput, SkillOutput, SkillRegistry, register_skill
 
 
 class SignalGrade(Enum):
@@ -54,32 +54,31 @@ class SignalDetectionSkill(BaseSkill):
         """执行信号检测"""
         
         try:
-            # 导入分析器
-            from scripts.features.complete_crypto_analyzer import analyze_complete
-            
-            # 执行分析
-            result = analyze_complete(input_data.symbol)
-            
+            result = self._run_analysis(input_data)
             signals = result.get('signals', [])
-            conclusion = result.get('conclusion', {})
+            score = result.get('score', 50)
+            confidence_pct = result.get('confidence_pct', 50)
+            technical = result.get('technical', {})
+            patterns = result.get('patterns', {})
             
             # 计算总强度
-            total_strength = sum(s['strength'] for s in signals)
-            bullish_count = len([s for s in signals if s['strength'] > 0])
-            bearish_count = len([s for s in signals if s['strength'] < 0])
+            normalized_strengths = [self._normalize_strength(s) for s in signals]
+            total_strength = sum(normalized_strengths)
+            bullish_count = len([s for s in normalized_strengths if s > 0])
+            bearish_count = len([s for s in normalized_strengths if s < 0])
             
             # 信号分级
             grade, bias = self._calculate_grade(
                 total_strength,
                 bullish_count,
                 bearish_count,
-                conclusion.get('confidence', 50)
+                confidence_pct
             )
             
             # 时间维度分析
             timeframe_analysis = self._analyze_timeframe(
-                result.get('technical', {}),
-                result.get('patterns', {})
+                technical,
+                patterns
             )
             
             return SkillOutput(
@@ -94,14 +93,66 @@ class SignalDetectionSkill(BaseSkill):
                     'timeframe': timeframe_analysis
                 },
                 signals=signals,
-                score=conclusion.get('score', 50),
-                confidence=conclusion.get('confidence', 0) / 100,
+                score=score,
+                confidence=confidence_pct / 100,
                 timestamp=result.get('timestamp', ''),
-                data_source=['Multi-factor Analysis']
+                data_source=result.get('data_source', ['Multi-factor Analysis'])
             )
             
         except Exception as e:
             return self.create_error_output(str(e))
+    
+    def _run_analysis(self, input_data: SkillInput) -> Dict:
+        """按市场调用对应分析器，避免股票/外汇误走加密逻辑。"""
+        market = input_data.market
+        
+        if market == 'crypto':
+            from scripts.features.complete_crypto_analyzer import analyze_complete
+            
+            result = analyze_complete(input_data.symbol)
+            conclusion = result.get('conclusion', {})
+            return {
+                'signals': result.get('signals', []),
+                'score': conclusion.get('score', 50),
+                'confidence_pct': conclusion.get('confidence', 50),
+                'technical': result.get('technical', {}),
+                'patterns': result.get('patterns', {}),
+                'timestamp': result.get('timestamp', ''),
+                'data_source': ['CoinGecko', 'yfinance', 'Blockchain.com']
+            }
+        
+        skill_map = {
+            'stock': 'StockAnalysisSkill',
+            'forex': 'ForexAnalysisSkill',
+        }
+        skill_name = skill_map.get(market)
+        if not skill_name:
+            raise ValueError(f'Unsupported market for signal detection: {market}')
+        
+        output = SkillRegistry.execute(skill_name, input_data)
+        if not output.success:
+            raise ValueError(output.error or f'{skill_name} failed')
+        
+        return {
+            'signals': output.signals,
+            'score': output.score,
+            'confidence_pct': output.confidence * 100,
+            'technical': output.data.get('technical', {}),
+            'patterns': output.data.get('patterns', {}),
+            'timestamp': output.timestamp,
+            'data_source': output.data_source
+        }
+    
+    def _normalize_strength(self, signal: Dict) -> int:
+        """统一不同模块的多空强度符号。"""
+        strength = signal.get('strength', 0)
+        label = str(signal.get('signal', '')).lower()
+        bearish_labels = ['sell', 'bearish', '看跌', '强烈看跌', '死叉', '规避']
+        
+        if any(item in label for item in bearish_labels) and strength > 0:
+            return -strength
+        
+        return strength
     
     def _calculate_grade(
         self,
@@ -165,7 +216,10 @@ class SignalDetectionSkill(BaseSkill):
         }
         
         # 短线 (1-7天)
-        rsi = technical.get('indicators', {}).get('rsi', 50)
+        indicators = technical.get('indicators', technical)
+        pattern_data = patterns or technical.get('patterns', {})
+        
+        rsi = indicators.get('rsi', 50)
         if rsi:
             timeframe_signals['short']['signals'].append({
                 'indicator': 'RSI',
@@ -175,7 +229,7 @@ class SignalDetectionSkill(BaseSkill):
             timeframe_signals['short']['strength'] = (70 - rsi) / 40 if 30 <= rsi <= 70 else 0
         
         # 中线 (1-3个月)
-        trend = patterns.get('trend', 'unknown')
+        trend = pattern_data.get('trend', indicators.get('trend', 'unknown'))
         if trend == 'uptrend':
             timeframe_signals['medium']['trend'] = 'bullish'
             timeframe_signals['medium']['strength'] = 2
@@ -185,8 +239,8 @@ class SignalDetectionSkill(BaseSkill):
         
         # 长线 (3个月+)
         # 基于 MA20 判断
-        ma20 = technical.get('indicators', {}).get('ma20', 0)
-        price = technical.get('indicators', {}).get('price', 0)
+        ma20 = indicators.get('ma20', 0)
+        price = indicators.get('price', indicators.get('current', 0))
         
         if ma20 and price:
             if price > ma20 * 1.1:

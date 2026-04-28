@@ -21,9 +21,10 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from skills.base_skill import BaseSkill, SkillInput, SkillOutput
+from skills.base_skill import BaseSkill, SkillInput, SkillOutput, register_skill
 
 
+@register_skill
 class OnchainWhaleSkill(BaseSkill):
     """
     On-chain whale activity analysis skill.
@@ -31,8 +32,9 @@ class OnchainWhaleSkill(BaseSkill):
     Optional source: Dune Analytics
     """
     
-    name = "onchain_whale"
-    description = "Analyze whale flows, protocol TVL changes, large wallet activity, and smart-money signals for crypto assets."
+    @property
+    def description(self) -> str:
+        return "Analyze whale flows, protocol TVL changes, large wallet activity, and smart-money signals for crypto assets."
     
     @property
     def version(self) -> str:
@@ -47,6 +49,7 @@ class OnchainWhaleSkill(BaseSkill):
     DUNE_API_BASE = "https://api.dune.com/api/v1"
     
     def __init__(self, timeout: int = 15):
+        super().__init__()
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({

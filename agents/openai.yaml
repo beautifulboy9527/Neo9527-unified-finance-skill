@@ -1,0 +1,7 @@
+interface:
+  display_name: "Unified Finance Skill"
+  short_description: "Auditable multi-market financial analysis"
+  default_prompt: "Use $unified-finance-skill to produce an auditable stock valuation report with sources, assumptions, and risk caveats."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v6.4 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.6.4 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v6.4-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.6.4-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,9 +12,9 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v6.4** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.6.4** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v6.4 核心特性
+### v6.6.4 核心特性
 
 - 📊 **A股综合分析**: 完整的A股分析报告，含技术形态、信号叠加、深度研报
 - 🔬 **深度研报**: 8阶段投研框架，护城河评估、市场分歧、风险评估
@@ -23,10 +23,17 @@
 - 🤖 **Agent调用**: 标准接口 + OpenAI Function Calling
 - 🌐 **REST API**: FastAPI服务 + 自动文档
 - 📈 **多市场支持**: 加密货币 + 股票 + 外汇
+- ✅ **P0可靠性修复**: Skill自动注册、API按市场路由、监管占位不再输出“无风险/低风险”确定性结论
+- ✅ **P1估值审计**: 估值输出包含证据账本、模型假设、数据质量、敏感性和警告
+- ✅ **财务审计链**: 财务异常检测输出证据质量、不可验证项和未验证状态
+- ✅ **中文研报质量控制**: 股票名称、行业板块、评级动作、本地化缺失值和HTML综合结论统一中文化
+- ✅ **形态一致性**: 双顶/双底互斥处理，并标注形态时间级别和观察窗口
+- ✅ **报告质量门禁**: 提供 `scripts/quality_gate.py` 校验中文研报禁用英文评级、英文行业、形态冲突和弱结论结构
+- ✅ **财报体检**: 新增财务健康分、五维度体检、风险旗标、数据完整度和证据摘要
 
-### v6.4 升级亮点
+### v6.6.4 升级亮点
 
-| 功能 | v6.3 | v6.4 |
+| 功能 | 之前 | v6.6.4 |
 |------|------|------|
 | A股分析 | ⚠️ 基础 | ✅ 完整报告 |
 | 技术分析 | ⚠️ 简单 | ✅ 形态+信号+支撑阻力 |
@@ -34,6 +41,16 @@
 | 信号叠加 | ❌ 无 | ✅ 叠buff逻辑 |
 | 支撑阻力 | ❌ 无 | ✅ 近期/远期 |
 | 形态识别 | ❌ 无 | ✅ 双顶双底/趋势/RSI |
+| Skill注册 | ⚠️ 手动/易漏 | ✅ 启动自动加载 |
+| API市场路由 | ⚠️ 默认加密 | ✅ crypto/stock/forex 分流 |
+| 监管数据 | ⚠️ 占位低风险 | ✅ 未验证中性占位 |
+| Skill规范 | ⚠️ 文档偏重 | ✅ 根SKILL精简 + references |
+| 估值证据链 | ⚠️ 隐含假设 | ✅ evidence/assumptions/warnings |
+| 财务异常 | ⚠️ 缺字段仍低风险 | ✅ 缺关键字段标记 unknown |
+| 中文报告 | ⚠️ 可能透传英文名称/行业/评级 | ✅ 中文名称、行业、评级和缺失值清洗 |
+| 技术形态 | ⚠️ 展示层可能双顶双底并存 | ✅ 互斥输出 + 时间级别标注 |
+| 报告质检 | ❌ 无自动检查 | ✅ CLI + 共享模块质量门禁 |
+| 财报体检 | ❌ 只有异常检测 | ✅ 健康分 + 五维度评分 + API/CLI |
 
 ---
 
@@ -130,7 +147,7 @@ python finance.py research AAPL
 
 ---
 
-## 📊 报告结构 (v6.3)
+## 📊 报告结构 (v6.6.4)
 
 ```
 第一部分：基本面分析（投资根基）
@@ -267,6 +284,46 @@ scripts/features/
 ---
 
 ## 📝 更新日志
+
+### v6.6.4 (2026-04-28)
+
+- 新增 `skills/stock-skill/financial_health.py`，提供财报健康分、分项体检、风险旗标、数据完整度和证据摘要。
+- 新增 CLI：`python finance.py health AAPL`。
+- 新增 API：`GET /api/financial-health/{symbol}`。
+- 缺少关键财务数据时输出“未验证”，不使用模拟数据生成健康分。
+
+### v6.6.3 (2026-04-28)
+
+- 新增报告质量门禁模块和 `scripts/quality_gate.py`，可检测英文评级动作、英文行业、英文缺失值、双顶/双底冲突、形态未标时间级别、HTML结论层次缺失。
+- 深度研报生成时自动执行质量门禁，HTML报告要求具备“综合观点、关键依据、风险与验证”。
+- 根 `SKILL.md` frontmatter 调整为仅包含 `name` 和 `description`，符合 skill 规范。
+
+### v6.6.2 (2026-04-28)
+
+- 中文报告质量控制：新增股票中文展示名、行业/板块翻译、评级动作翻译和缺失值清洗。
+- HTML深度研报新增“综合观点、关键依据、风险与验证”的递进式结论结构。
+- 技术形态输出统一双顶/双底互斥，并标注时间级别与观察窗口。
+- yfinance缺失时模块仍可加载，分析阶段明确提示数据依赖不可用，不使用模拟数据补齐。
+
+### v6.6.1 (2026-04-28)
+
+- ✅ 财务异常检测接入 `EvidenceLedger`
+- ✅ 缺少应收、存货、ROE、负债率等关键字段时标记为 `unknown`
+- ✅ 综合报告展示财务检测证据质量、不可验证项和警告
+
+### v6.6.0 (2026-04-28)
+
+- ✅ 根 `SKILL.md` 精简为 agent 使用说明，并新增 `references/`
+- ✅ 新增 `EvidenceLedger`，估值结果可追踪来源、评级、时间、质量
+- ✅ DCF 不再使用硬编码股本；缺少股本时跳过并警告
+- ✅ 估值输出新增假设、方法、敏感性、数据质量和置信度字段
+
+### v6.5.1 (2026-04-28)
+
+- ✅ Skill 自动注册与 API 市场路由
+- ✅ 股票/外汇解读不再误走加密分析器
+- ✅ 监管占位结果标记为未验证，不再输出“低风险/无重大风险”
+- ✅ 情绪和简化回测移除合成数据/伪胜率输出
 
 ### v6.3 (2026-04-18)
 

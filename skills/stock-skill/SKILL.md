@@ -2,23 +2,11 @@
 name: stock-analysis-skill
 description: |
   股票多维度分析 - 技术指标、基本面、资金流向、异常检测。
-  支持A股/港股/美股市场，包含快速分析和深度研报两种模式。
-metadata:
-  openclaw:
-    emoji: "📈"
-    triggers:
-      - "股票分析"
-      - "A股"
-      - "美股"
-      - "港股"
-      - "技术指标"
-      - "基本面"
-      - "选股"
-      - "财务异常"
-version: 2.1.0
+  支持A股/港股/美股市场，包含快速分析、财报体检、财务异常检测、
+  估值分析和深度研报。
 ---
 
-# Stock Analysis Skill v2.1
+# Stock Analysis Skill
 
 股票多维度分析 Skill，支持快速分析和深度研报两种模式。
 
@@ -71,7 +59,24 @@ result = check_financial_anomaly('600519')
 # → 风险等级: low/medium/high
 ```
 
-### 4. 深度研报 (deep-research/)
+### 4. 财报体检 (financial_health.py)
+
+输出商业化可用的财务健康分：
+- 盈利能力
+- 现金流质量
+- 资产负债安全
+- 营运资本质量
+- 成长质量
+- 数据完整度和证据摘要
+
+```python
+from skills.stock_skill.financial_health import analyze_financial_health
+
+result = analyze_financial_health('AAPL')
+# → health_score / health_grade / dimensions / risk_flags
+```
+
+### 5. 深度研报 (deep-research/)
 
 8阶段投研框架：
 - Phase 1: 公司事实底座
@@ -173,6 +178,7 @@ stock-skill/
 ├── analyzer.py           # 快速分析 (v2.1)
 ├── screener.py           # A股选股器 (v1.0)
 ├── financial_check.py    # 财务异常检测 (v1.0)
+├── financial_health.py   # 财报体检评分
 ├── deep-research/        # 深度研报
 │   ├── SKILL.md
 │   ├── analyzer.py       # 8阶段分析

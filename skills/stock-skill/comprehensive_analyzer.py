@@ -267,9 +267,15 @@ class ComprehensiveStockAnalyzer:
                         'anomaly_count': result['anomaly_count'],
                         'gross_margin': result.get('financial_data', {}).get('gross_margin'),
                         'net_margin': result.get('financial_data', {}).get('net_margin'),
+                        'verified': result.get('verified', False),
+                        'warnings': result.get('warnings', []),
+                        'unavailable_checks': result.get('unavailable_checks', []),
+                        'evidence_summary': result.get('evidence_summary', {}),
                     }
                     print(f"   ✅ 风险等级: {result['risk_description']}")
                     print(f"   ✅ 异常数量: {result['anomaly_count']}")
+                    if result.get('warnings'):
+                        print(f"   ⚠️ 财务检测警告: {result['warnings'][0]}")
             except Exception as e:
                 print(f"   ❌ 失败: {e}")
         
@@ -284,10 +290,18 @@ class ComprehensiveStockAnalyzer:
                         'fair_value': result['fair_value'],
                         'safe_price': result['safe_price'],
                         'margin_of_safety': result['margin_of_safety'],
-                        'upside': ((result['fair_value'] - result['current_price']) / result['current_price'] * 100) if result['current_price'] > 0 else 0
+                        'upside': ((result['fair_value'] - result['current_price']) / result['current_price'] * 100) if result['current_price'] > 0 else 0,
+                        'confidence': result.get('valuation_confidence', 'unknown'),
+                        'methods_used': result.get('methods_used', []),
+                        'fallback_used': result.get('fallback_used', False),
+                        'warnings': result.get('warnings', []),
+                        'evidence_summary': result.get('evidence_summary', {}),
+                        'assumptions': result.get('assumptions', []),
                     }
                     print(f"   ✅ 公允价值: ${result['fair_value']:.2f}")
                     print(f"   ✅ 上涨空间: {report['sections']['valuation']['upside']:.1f}%")
+                    if result.get('warnings'):
+                        print(f"   ⚠️ 估值警告: {result['warnings'][0]}")
             except Exception as e:
                 print(f"   ❌ 失败: {e}")
         
@@ -302,11 +316,12 @@ class ComprehensiveStockAnalyzer:
                 if '金叉' in tech.get('macd_status', ''):
                     matched_signals.append({
                         'name': 'SMA金叉 + MACD多头',
-                        'success_rate': 0.82,
-                        'confidence': 0.80,
-                        'action': 'buy',
-                        'risk_level': 'low',
-                        'description': '历史验证184次，成功率82%'
+                        'success_rate': None,
+                        'confidence': 0.50,
+                        'action': 'research',
+                        'risk_level': 'unverified',
+                        'verified': False,
+                        'description': '规则触发信号，未接入真实历史回测样本'
                     })
                 
                 # RSI信号
@@ -314,31 +329,34 @@ class ComprehensiveStockAnalyzer:
                 if rsi > 70:
                     matched_signals.append({
                         'name': 'RSI超买',
-                        'success_rate': 0.42,
-                        'confidence': 0.60,
+                        'success_rate': None,
+                        'confidence': 0.50,
                         'action': 'watch',
-                        'risk_level': 'high',
-                        'description': f'RSI={rsi:.1f}，历史成功率较低'
+                        'risk_level': 'unverified',
+                        'verified': False,
+                        'description': f'RSI={rsi:.1f}，短期偏热；未接入真实历史回测样本'
                     })
                 elif rsi < 30:
                     matched_signals.append({
                         'name': 'RSI超卖',
-                        'success_rate': 0.72,
-                        'confidence': 0.70,
-                        'action': 'buy',
-                        'risk_level': 'medium',
-                        'description': f'RSI={rsi:.1f}，可能反弹'
+                        'success_rate': None,
+                        'confidence': 0.50,
+                        'action': 'research',
+                        'risk_level': 'unverified',
+                        'verified': False,
+                        'description': f'RSI={rsi:.1f}，短期偏冷；未接入真实历史回测样本'
                     })
                 
                 # 强势多头信号
                 if '多头' in tech.get('trend', '') and rsi < 70:
                     matched_signals.append({
                         'name': '强势趋势',
-                        'success_rate': 0.72,
-                        'confidence': 0.75,
-                        'action': 'buy',
-                        'risk_level': 'low',
-                        'description': '历史验证243次，成功率72%'
+                        'success_rate': None,
+                        'confidence': 0.50,
+                        'action': 'research',
+                        'risk_level': 'unverified',
+                        'verified': False,
+                        'description': '趋势规则触发，未接入真实历史回测样本'
                     })
                 
                 if matched_signals:
@@ -348,31 +366,36 @@ class ComprehensiveStockAnalyzer:
                     }
                     print(f"   ✅ 匹配到 {len(matched_signals)} 个入场信号")
                     for sig in matched_signals:
-                        print(f"      - {sig['name']}: 成功率{sig['success_rate']*100:.0f}%")
+                        success_rate = sig.get('success_rate')
+                        if isinstance(success_rate, (int, float)):
+                            print(f"      - {sig['name']}: 成功率{success_rate*100:.0f}%")
+                        else:
+                            print(f"      - {sig['name']}: 未验证")
                 else:
-                    print("   ⚠️ 未匹配到高成功率入场信号")
+                    print("   ⚠️ 未匹配到入场规则信号")
             except Exception as e:
                 print(f"   ❌ 失败: {e}")
         
         # 5.5. 回测验证（简化版）
-        print("\n【5.5/12】信号历史验证...")
+        print("\n【5.5/12】信号回测状态...")
         if 'technical' in report['sections']:
             try:
                 tech = report['sections']['technical']
                 
-                # 使用简化的历史统计验证
+                # 当前仅标记规则触发，真实历史回测需接入 backtest_engine 后再展示胜率。
                 backtest_results = []
                 
                 # MACD信号历史统计
                 if '金叉' in tech.get('macd_status', ''):
                     backtest_results.append({
                         'signal': 'MACD金叉',
-                        'win_rate': 0.65,
-                        'avg_return': 8.2,
-                        'sample_size': 184,
+                        'win_rate': None,
+                        'avg_return': None,
+                        'sample_size': 0,
                         'holding_days': 10,
-                        'risk_level': '中低风险',
-                        'description': '历史验证184次，成功率65%，平均收益8.2%'
+                        'risk_level': '未验证',
+                        'verified': False,
+                        'description': '未接入真实历史回测；仅表示当前规则触发'
                     })
                 
                 # RSI信号统计
@@ -380,22 +403,24 @@ class ComprehensiveStockAnalyzer:
                 if rsi > 70:
                     backtest_results.append({
                         'signal': f'RSI超买({rsi:.0f})',
-                        'win_rate': 0.42,
-                        'avg_return': -2.1,
-                        'sample_size': 156,
+                        'win_rate': None,
+                        'avg_return': None,
+                        'sample_size': 0,
                         'holding_days': 5,
-                        'risk_level': '高风险',
-                        'description': '超买区域，历史成功率低，建议谨慎'
+                        'risk_level': '未验证',
+                        'verified': False,
+                        'description': '未接入真实历史回测；仅表示当前RSI偏热'
                     })
                 elif rsi < 30:
                     backtest_results.append({
                         'signal': f'RSI超卖({rsi:.0f})',
-                        'win_rate': 0.72,
-                        'avg_return': 12.5,
-                        'sample_size': 143,
+                        'win_rate': None,
+                        'avg_return': None,
+                        'sample_size': 0,
                         'holding_days': 10,
-                        'risk_level': '中风险',
-                        'description': '超卖区域，历史成功率72%，可能反弹'
+                        'risk_level': '未验证',
+                        'verified': False,
+                        'description': '未接入真实历史回测；仅表示当前RSI偏冷'
                     })
                 
                 # 趋势信号
@@ -403,12 +428,13 @@ class ComprehensiveStockAnalyzer:
                 if '多头' in trend and rsi < 70:
                     backtest_results.append({
                         'signal': '强势多头',
-                        'win_rate': 0.72,
-                        'avg_return': 15.3,
-                        'sample_size': 243,
+                        'win_rate': None,
+                        'avg_return': None,
+                        'sample_size': 0,
                         'holding_days': 20,
-                        'risk_level': '低风险',
-                        'description': '强势趋势，顺势操作，历史成功率72%'
+                        'risk_level': '未验证',
+                        'verified': False,
+                        'description': '未接入真实历史回测；仅表示趋势规则触发'
                     })
                 
                 if backtest_results:
@@ -416,9 +442,13 @@ class ComprehensiveStockAnalyzer:
                         'results': backtest_results,
                         'count': len(backtest_results)
                     }
-                    print(f"   OK: 完成 {len(backtest_results)} 个信号验证")
+                    print(f"   OK: 识别 {len(backtest_results)} 个待回测信号")
                     for bt in backtest_results:
-                        print(f"      - {bt['signal']}: 成功率{bt['win_rate']*100:.0f}%")
+                        win_rate = bt.get('win_rate')
+                        if isinstance(win_rate, (int, float)):
+                            print(f"      - {bt['signal']}: 成功率{win_rate*100:.0f}%")
+                        else:
+                            print(f"      - {bt['signal']}: 未验证")
                 else:
                     print("   WARN: 无验证信号")
             except Exception as e:
@@ -606,8 +636,13 @@ class ComprehensiveStockAnalyzer:
         if 'financial_check' in sections:
             risk_level = sections['financial_check'].get('risk_level', 0)
             if isinstance(risk_level, str):
-                risk_level = {'low': 0, 'medium': 1, 'high': 2, 'critical': 3}.get(risk_level, 0)
-            risk_score = 100 - (risk_level * 20)
+                if risk_level == 'unknown':
+                    risk_score = 50
+                else:
+                    risk_level = {'low': 0, 'medium': 1, 'high': 2, 'critical': 3}.get(risk_level, 1)
+                    risk_score = 100 - (risk_level * 20)
+            else:
+                risk_score = 100 - (risk_level * 20)
             score += risk_score * weights['financial_check']
         
         # 估值
@@ -785,8 +820,17 @@ class ComprehensiveStockAnalyzer:
 | 异常数量 | {fc['anomaly_count']} |
 | 毛利率 | {fc.get('gross_margin', 0):.1f}% |
 | 净利率 | {fc.get('net_margin', 0):.1f}% |
+| 是否验证充分 | {'是' if fc.get('verified') else '否'} |
+| 证据质量分 | {fc.get('evidence_summary', {}).get('quality_score', 'N/A')} |
 
 """
+            if fc.get('unavailable_checks'):
+                md += "**不可验证检查项**: " + ", ".join(fc['unavailable_checks']) + "\n\n"
+            if fc.get('warnings'):
+                md += "**财务检测警告**:\n"
+                for warning in fc['warnings'][:3]:
+                    md += f"- {warning}\n"
+                md += "\n"
         
         # 估值
         if 'valuation' in report['sections']:
@@ -804,8 +848,22 @@ class ComprehensiveStockAnalyzer:
 | 公允价值 | ${val['fair_value']:.2f} |
 | 安全价格 | ${val['safe_price']:.2f} |
 | 估值评估 | {upside_desc} |
+| 估值置信度 | {val.get('confidence', 'unknown')} |
+| 使用方法 | {', '.join(val.get('methods_used', [])) or '无'} |
+| 证据质量分 | {val.get('evidence_summary', {}).get('quality_score', 'N/A')} |
 
 """
+            if val.get('warnings'):
+                md += "**估值警告**:\n"
+                for warning in val['warnings'][:3]:
+                    md += f"- {warning}\n"
+                md += "\n"
+
+            if val.get('assumptions'):
+                md += "**关键模型假设**:\n"
+                for assumption in val['assumptions'][:5]:
+                    md += f"- {assumption['label']}: {assumption['value']} ({assumption['source']})\n"
+                md += "\n"
         
         # 新闻
         if 'news' in report['sections']:

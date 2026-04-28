@@ -12,19 +12,41 @@ import sys
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
-import yfinance as yf
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    yf = None
+    YFINANCE_AVAILABLE = False
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 导入共享模块
 try:
-    from skills.shared.citation_validator.validator import CitationValidator
-    from skills.shared.risk_monitor.monitor import RiskMonitor
+    from skills.shared import (
+        MISSING_TEXT,
+        CitationValidator,
+        RiskMonitor,
+        assert_report_quality,
+        normalize_report_text,
+        safe_cn,
+        stock_display_name,
+        translate_industry,
+        translate_rating,
+        translate_sector,
+    )
     SHARED_MODULES_AVAILABLE = True
 except ImportError:
+    MISSING_TEXT = '暂无数据'
+    assert_report_quality = lambda text, require_layered_conclusion=False: None
+    normalize_report_text = lambda text: text.replace('N/A', MISSING_TEXT)
+    safe_cn = lambda value, default=MISSING_TEXT: default if value in (None, '', 'N/A', 'Unknown') else str(value)
+    stock_display_name = lambda symbol, info=None: f"上市公司（{symbol}）"
+    translate_industry = safe_cn
+    translate_rating = safe_cn
+    translate_sector = safe_cn
     SHARED_MODULES_AVAILABLE = False
 
 
@@ -69,8 +91,8 @@ class StockAnalyzer:
             style: 投资风格 (value/growth/turnaround/dividend)
         """
         self.style = style
-        self.validator = CitationValidator() if SHARED_MODULES_AVAILABLE else None
-        self.monitor = RiskMonitor(asset_type='stock') if SHARED_MODULES_AVAILABLE else None
+        self.validator = CitationValidator() if SHARED_MODULES_AVAILABLE and CitationValidator else None
+        self.monitor = RiskMonitor(asset_type='stock') if SHARED_MODULES_AVAILABLE and RiskMonitor else None
         
         # 根据投资风格设置阶段优先级
         self.phase_priority = self._get_phase_priority(style)
@@ -113,9 +135,26 @@ class StockAnalyzer:
             分析结果字典
         """
         print(f"开始分析 {symbol} (风格: {self.style}, 深度: {depth})")
+        if not YFINANCE_AVAILABLE:
+            return {
+                'symbol': symbol,
+                'display_name': stock_display_name(symbol, {}),
+                'style': self.style,
+                'timestamp': datetime.now().isoformat(),
+                'phases': {},
+                'rating': {
+                    'rating': SignalRating.HOLD,
+                    'score': 0,
+                    'max_score': 5,
+                    'recommendation': '行情数据依赖未安装，无法形成充分验证的研究结论'
+                },
+                'warnings': ['yfinance未安装，未拉取行情与财务数据；报告不得使用模拟数据补齐。']
+            }
         
+        display_name = stock_display_name(symbol, {})
         results = {
             'symbol': symbol,
+            'display_name': display_name,
             'style': self.style,
             'timestamp': datetime.now().isoformat(),
             'phases': {}
@@ -135,6 +174,10 @@ class StockAnalyzer:
             if phase_method:
                 print(f"  Phase {phase_num}...")
                 results['phases'][phase_num] = phase_method(symbol)
+                if phase_num == 1:
+                    basic = results['phases'][phase_num].get('data', {}).get('公司基本信息', {})
+                    if basic.get('股票名称'):
+                        results['display_name'] = basic['股票名称']
         
         # 综合评分
         results['rating'] = self._calculate_rating(results)
@@ -154,16 +197,19 @@ class StockAnalyzer:
             # 获取收入构成 (如果有)
             revenue_breakdown = self._get_revenue_breakdown(ticker)
             
+            display_name = stock_display_name(symbol, info)
             return {
                 'name': '公司事实底座',
                 'data': {
                     '公司基本信息': {
-                        '公司名称': info.get('longName', ''),
-                        '所属行业': info.get('industry', ''),
-                        '所属板块': info.get('sector', ''),
-                        '员工数量': f"{info.get('fullTimeEmployees', 0):,}" if info.get('fullTimeEmployees') else 'N/A',
-                        '成立时间': info.get('startDate', 'N/A'),
-                        '总部地址': info.get('city', '') + ', ' + info.get('country', ''),
+                        '股票名称': display_name,
+                        '股票代码': symbol,
+                        '公司名称': display_name,
+                        '所属行业': translate_industry(info.get('industry')),
+                        '所属板块': translate_sector(info.get('sector')),
+                        '员工数量': f"{info.get('fullTimeEmployees', 0):,}" if info.get('fullTimeEmployees') else MISSING_TEXT,
+                        '成立时间': safe_cn(info.get('startDate')),
+                        '总部地址': self._format_headquarters(info),
                     },
                     '主营业务': {
                         '业务描述': info.get('longBusinessSummary', '')[:500] + '...' if len(info.get('longBusinessSummary', '')) > 500 else info.get('longBusinessSummary', ''),
@@ -197,8 +243,8 @@ class StockAnalyzer:
                 'name': '行业周期分析',
                 'data': {
                     '行业概况': {
-                        '所属行业': industry,
-                        '所属板块': sector,
+                        '所属行业': translate_industry(industry),
+                        '所属板块': translate_sector(sector),
                         '周期阶段': cycle_info['cycle'],
                         '行业增速': f"{cycle_info['growth_rate']}%",
                     },
@@ -369,11 +415,11 @@ class StockAnalyzer:
                         '毛利率': f'{gross_margin*100:.1f}%' if gross_margin < 1 else f'{gross_margin:.1f}%',
                         '净利率': f'{net_margin*100:.1f}%' if net_margin < 1 else f'{net_margin:.1f}%',
                         '负债率': f'{debt_to_equity:.2f}',
-                        '流动比率': f'{current_ratio:.2f}' if current_ratio else 'N/A',
+                        '流动比率': f'{current_ratio:.2f}' if current_ratio else MISSING_TEXT,
                     },
                     '现金流验证': {
-                        '经营现金流': f'${operating_cf/1e9:.1f}B' if operating_cf else 'N/A',
-                        '自由现金流': f'${free_cf/1e9:.1f}B' if free_cf else 'N/A',
+                        '经营现金流': f'${operating_cf/1e9:.1f}B' if operating_cf else MISSING_TEXT,
+                        '自由现金流': f'${free_cf/1e9:.1f}B' if free_cf else MISSING_TEXT,
                         'OCF/净利润': f'{ocf_to_ni:.2f}',
                         '判断': cashflow_check,
                         '说明': cashflow_desc,
@@ -413,12 +459,12 @@ class StockAnalyzer:
                     '股权结构': {
                         '机构持股': f'{institutional_ownership:.1f}%',
                         '内部人持股': f'{insider_ownership:.1f}%',
-                        '流通股': f"{info.get('floatShares', 0):,}" if info.get('floatShares') else 'N/A',
-                        '总股本': f"{info.get('sharesOutstanding', 0):,}" if info.get('sharesOutstanding') else 'N/A',
+                        '流通股': f"{info.get('floatShares', 0):,}" if info.get('floatShares') else MISSING_TEXT,
+                        '总股本': f"{info.get('sharesOutstanding', 0):,}" if info.get('sharesOutstanding') else MISSING_TEXT,
                     },
                     '管理层': management,
                     '资本配置': capital_allocation,
-                    'ROIC': f'{roic:.1f}%' if roic else 'N/A',
+                    'ROIC': f'{roic:.1f}%' if roic else MISSING_TEXT,
                 },
                 'citation': self._cite('yfinance') if self.validator else None
             }
@@ -449,10 +495,10 @@ class StockAnalyzer:
                 'name': '市场分歧分析',
                 'data': {
                     '分析师观点': {
-                        '评级': recommendation.upper() if recommendation else 'N/A',
-                        '目标价': f'${target_price:.2f}' if target_price else 'N/A',
-                        '当前价': f'${current_price:.2f}' if current_price else 'N/A',
-                        '潜在空间': f'{(target_price/current_price - 1)*100:.1f}%' if target_price and current_price else 'N/A',
+                        '评级': translate_rating(recommendation),
+                        '目标价': f'${target_price:.2f}' if target_price else MISSING_TEXT,
+                        '当前价': f'${current_price:.2f}' if current_price else MISSING_TEXT,
+                        '潜在空间': f'{(target_price/current_price - 1)*100:.1f}%' if target_price and current_price else MISSING_TEXT,
                         '分析师数量': analyst_count,
                     },
                     '多方逻辑': bull_case,
@@ -491,11 +537,11 @@ class StockAnalyzer:
                 'name': '估值与护城河',
                 'data': {
                     '估值指标': {
-                        'P/E (TTM)': f'{pe_ratio:.1f}' if pe_ratio else 'N/A',
-                        'P/B': f'{pb_ratio:.1f}' if pb_ratio else 'N/A',
-                        'P/S': f'{ps_ratio:.1f}' if ps_ratio else 'N/A',
-                        'EV/EBITDA': f'{ev_ebitda:.1f}' if ev_ebitda else 'N/A',
-                        'PEG': f'{peg_ratio:.2f}' if peg_ratio else 'N/A',
+                        'P/E (TTM)': f'{pe_ratio:.1f}' if pe_ratio else MISSING_TEXT,
+                        'P/B': f'{pb_ratio:.1f}' if pb_ratio else MISSING_TEXT,
+                        'P/S': f'{ps_ratio:.1f}' if ps_ratio else MISSING_TEXT,
+                        'EV/EBITDA': f'{ev_ebitda:.1f}' if ev_ebitda else MISSING_TEXT,
+                        'PEG': f'{peg_ratio:.2f}' if peg_ratio else MISSING_TEXT,
                     },
                     '估值判断': valuation_level,
                     '护城河评分': {
@@ -531,10 +577,17 @@ class StockAnalyzer:
             }
         except:
             return {'说明': '数据暂不可用'}
+
+    def _format_headquarters(self, info: Dict) -> str:
+        """格式化总部信息，避免英文缺失占位进入中文报告。"""
+        city = safe_cn(info.get('city'), '')
+        country = safe_cn(info.get('country'), '')
+        parts = [part for part in [city, country] if part]
+        return '，'.join(parts) if parts else MISSING_TEXT
     
     def _extract_products(self, info: Dict) -> str:
         """提取主要产品"""
-        industry = info.get('industry', '')
+        industry = translate_industry(info.get('industry'))
         sector = info.get('sector', '')
         
         # 简化产品描述
@@ -545,14 +598,13 @@ class StockAnalyzer:
         elif 'Financial' in sector:
             return '金融服务'
         else:
-            return f'{industry}相关产品/服务'
+            return f'{industry}相关产品或服务' if industry != MISSING_TEXT else '主要产品或服务需查阅年报'
     
     def _analyze_value_chain(self, info: Dict) -> Dict:
         """分析产业链位置"""
-        industry = info.get('industry', '')
         return {
             '上游': '原材料/零部件供应商',
-            '中游': info.get('longName', '该公司'),
+            '中游': stock_display_name('', info).replace('（未知代码）', ''),
             '下游': '终端客户/消费者',
             '地位': '需进一步分析市场地位'
         }
@@ -599,7 +651,7 @@ class StockAnalyzer:
         """分析业务板块"""
         return {
             '主营业务': {
-                '描述': info.get('industry', '主营业务'),
+                '描述': translate_industry(info.get('industry')),
                 '收入占比': '占主要部分',
             },
             '说明': '详细业务分解需查阅年报分部报告'
@@ -640,8 +692,8 @@ class StockAnalyzer:
     
     def _summarize_business_model(self, info: Dict) -> str:
         """总结商业模式"""
-        industry = info.get('industry', '')
-        sector = info.get('sector', '')
+        industry = translate_industry(info.get('industry'))
+        sector = translate_sector(info.get('sector'))
         
         return f"主营{industry}业务，属于{sector}板块"
     
@@ -681,13 +733,13 @@ class StockAnalyzer:
         """获取同行对比"""
         return {
             '说明': '同行对比需获取同行业公司数据',
-            '建议': f'比较{info.get("industry", "同行业")}其他公司指标'
+            '建议': f'比较{translate_industry(info.get("industry"))}其他公司指标'
         }
     
     def _get_management_info(self, info: Dict) -> Dict:
         """获取管理层信息"""
         return {
-            'CEO': info.get('companyOfficers', [{}])[0].get('name', 'N/A') if info.get('companyOfficers') else 'N/A',
+            'CEO': info.get('companyOfficers', [{}])[0].get('name', MISSING_TEXT) if info.get('companyOfficers') else MISSING_TEXT,
             '说明': '详细管理层信息需查阅公司治理报告'
         }
     
@@ -908,8 +960,10 @@ class StockAnalyzer:
     
     def generate_report_markdown(self, results: Dict) -> str:
         """生成 Markdown 报告"""
-        md = f"""# 股票投资尽调报告
+        display_name = results.get('display_name') or stock_display_name(results.get('symbol', ''), {})
+        md = f"""# {display_name}投资尽调报告
 
+**股票名称**: {display_name}  
 **股票代码**: {results['symbol']}  
 **投资风格**: {results['style']}  
 **分析时间**: {results['timestamp']}  
@@ -968,9 +1022,11 @@ class StockAnalyzer:
 
 ---
 
-*by Neo9527 Finance Skill v5.0*
+*by Neo9527 Finance Skill v6.6.4*
 """
         
+        md = normalize_report_text(md)
+        assert_report_quality(md)
         return md
     
     def generate_report(self, symbol: str, output_dir: str = './reports', format: str = 'markdown') -> str:
@@ -997,41 +1053,126 @@ class StockAnalyzer:
     
     def generate_report_html(self, results: Dict, output_dir: str) -> str:
         """生成 HTML 报告"""
-        # 这里可以创建类似 crypto-skill 的 HTML 模板
-        # 暂时使用简化版本
+        display_name = results.get('display_name') or stock_display_name(results.get('symbol', ''), {})
+        conclusion = self._build_conclusion_layers(results)
+        basis_items = ''.join(f"<li>{item}</li>" for item in conclusion['关键依据'])
+        risk_items = ''.join(f"<li>{item}</li>" for item in conclusion['风险与验证'])
+        phase_cards = ''.join(self._phase_summary_card(num, phase) for num, phase in sorted(results.get('phases', {}).items()))
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>{results['symbol']} 投资尽调报告</title>
+    <title>{display_name} 投资尽调报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-black text-white p-8">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-bold mb-2">{results['symbol']}</h1>
-        <p class="text-gray-400 mb-8">股票投资尽调报告 | {results['timestamp']}</p>
+<body class="bg-slate-950 text-slate-100 p-8">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-4xl font-bold mb-2">{display_name}</h1>
+        <p class="text-slate-400 mb-8">股票投资尽调报告 | {results['timestamp']}</p>
         
-        <div class="bg-gray-900 rounded-lg p-6 mb-8">
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
             <div class="text-3xl font-bold mb-2">{results['rating']['rating']}</div>
-            <div class="text-gray-400">{results['rating']['recommendation']}</div>
+            <div class="text-slate-300">{results['rating']['recommendation']}</div>
+            <div class="text-slate-400 mt-2">评分：{results['rating']['score']}/{results['rating']['max_score']}</div>
+        </div>
+
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">综合结论</h2>
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">一、综合观点</h3>
+                    <p class="text-slate-300 leading-7">{conclusion['综合观点']}</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">二、关键依据</h3>
+                    <ul class="list-disc pl-6 text-slate-300 leading-7">{basis_items}</ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">三、风险与验证</h3>
+                    <ul class="list-disc pl-6 text-slate-300 leading-7">{risk_items}</ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">分项小结</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {phase_cards}
+            </div>
+        </section>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-5 mb-8">
+            <h2 class="text-xl font-bold mb-2">报告小结</h2>
+            <p class="text-slate-300 leading-7">本报告先确认公司事实底座，再进入行业周期、业务质量、财务质量、治理结构、市场分歧和估值护城河分析。若关键数据缺失，结论仅保留为待验证判断，不使用模拟数据补齐。</p>
         </div>
         
-        <p class="text-gray-500 text-sm mt-8">
-            *本报告仅供参考，不构成投资建议。投资有风险，决策需谨慎。*
+        <p class="text-slate-500 text-sm mt-8">
+            本报告仅供研究参考，不构成投资建议。所有判断依赖公开数据，需结合公告、财报和个人风险承受能力复核。
         </p>
     </div>
 </body>
 </html>"""
+        html = normalize_report_text(html)
+        assert_report_quality(html, require_layered_conclusion=True)
         
         report_file = os.path.join(
             output_dir,
-            f"STOCK_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            f"STOCK_{results['symbol']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         )
         
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(html)
         
         return report_file
+
+    def _build_conclusion_layers(self, results: Dict) -> Dict:
+        rating = results.get('rating', {})
+        phases = results.get('phases', {})
+        basis = []
+        risks = []
+
+        phase1 = phases.get(1, {}).get('data', {}).get('公司基本信息', {})
+        if phase1:
+            basis.append(f"公司归属{phase1.get('所属板块', MISSING_TEXT)}板块、{phase1.get('所属行业', MISSING_TEXT)}行业，先以业务事实作为分析起点。")
+
+        phase4 = phases.get(4, {}).get('data', {})
+        if phase4:
+            cashflow = phase4.get('现金流验证', {}).get('判断', MISSING_TEXT)
+            basis.append(f"财务质量重点观察现金流与利润匹配度，当前现金流判断为{cashflow}。")
+            warnings = phase4.get('异常排查', [])
+            risks.extend(warnings[:2])
+
+        phase7 = phases.get(7, {}).get('data', {})
+        if phase7:
+            valuation = phase7.get('估值水平', {}).get('判断', MISSING_TEXT)
+            moat = phase7.get('护城河评分', {}).get('评级', MISSING_TEXT)
+            basis.append(f"估值与护城河共同校验安全边际，当前估值判断为{valuation}，护城河为{moat}。")
+
+        if not basis:
+            basis.append("当前公开数据不足，无法形成充分验证的投资结论。")
+        if not risks:
+            risks.append("需继续验证财报、公告、行业景气度和估值假设，避免单一指标驱动结论。")
+
+        score = rating.get('score', 0)
+        max_score = rating.get('max_score', 5)
+        recommendation = rating.get('recommendation', '需进一步验证')
+        viewpoint = f"综合评分为{score}/{max_score}，当前结论为：{recommendation}。该结论按事实底座、经营质量、财务质量和估值验证逐层形成，数据不足处不做确定性推断。"
+        return {'综合观点': viewpoint, '关键依据': basis[:4], '风险与验证': risks[:4]}
+
+    def _phase_summary_card(self, phase_num: int, phase: Dict) -> str:
+        name = phase.get('name', '未知阶段')
+        if 'error' in phase:
+            summary = f"该阶段分析失败：{phase['error']}。"
+        else:
+            keys = list(phase.get('data', {}).keys())
+            summary = '、'.join(keys[:4]) if keys else '该阶段暂无可展示数据'
+        return f"""
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                    <div class="text-sm text-slate-500 mb-1">第{phase_num}阶段</div>
+                    <h3 class="text-lg font-semibold mb-2">{name}</h3>
+                    <p class="text-slate-300 leading-7">{summary}</p>
+                </div>
+        """
 
 
 # 快速使用函数
@@ -1055,4 +1196,4 @@ if __name__ == '__main__':
     print(f"建议: {results['rating']['recommendation']}")
     
     # 测试生成报告
-    report_file = analyzer.generate_report('AAPL', output_dir='D:/OpenClaw/outputs/reports')
+    report_file = analyzer.generate_report('AAPL', output_dir='./outputs/reports')

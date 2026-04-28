@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Neo9527 Finance Skill - PyPI Setup
-v6.4.0 - A股综合分析器重构 + 技术分析模块优化
+v6.6.4 - 财报体检评分与商业化API入口
 """
 
 from setuptools import setup, find_packages
@@ -12,7 +12,7 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="neo9527-finance-skill",
-    version="6.4.0",
+    version="6.6.4",
     author="beautifulboy9527",
     author_email="beautifulboy9527@gmail.com",
     description="Lightweight production-ready AI finance skill platform for multi-market analysis, signals, reports, and on-chain intelligence.",

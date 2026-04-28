@@ -33,6 +33,7 @@ cache/
 
 # 测试
 .pytest_cache/
+pytest-cache-files-*/
 .coverage
 htmlcov/
 tests/test_data/temp_*
@@ -66,4 +67,5 @@ Thumbs.db
 planning/
 references/
 reports/
+outputs/
 *.egg-info/

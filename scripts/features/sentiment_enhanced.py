@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from config import OUTPUT_DIR
 except ImportError:
-    OUTPUT_DIR = Path(r'D:\OpenClaw\outputs')
+    OUTPUT_DIR = Path(__file__).resolve().parents[2] / 'outputs'
 
 
 class SentimentAnalyzer:
@@ -289,21 +289,8 @@ class SentimentAnalyzer:
                     if title:
                         headlines.append(title)
             
-            # 如果 yfinance 没有新闻，使用模拟数据
-            if not headlines:
-                headlines = [
-                    f'{symbol} stock shows mixed signals amid market volatility',
-                    f'Analysts remain cautious on {symbol} outlook',
-                    f'{symbol} earnings beat expectations',
-                    f'Investors watch {symbol} closely after recent moves'
-                ]
-            
         except Exception as e:
-            # 使用模拟数据
-            headlines = [
-                f'{symbol} stock trading in focus',
-                f'Market sentiment on {symbol} remains neutral'
-            ]
+            headlines = []
         
         return headlines
     

@@ -76,41 +76,17 @@ class RegulationMonitor:
         else:
             market = 'us'
         
-        # A股需要检查监管风险
-        if market == 'cn':
-            # 模拟检查（实际应该从官方网站抓取）
-            result['risk_level'] = 'low'
-            result['risk_score'] = 10
-            result['alerts'] = [
-                {
-                    'source': 'csrc',
-                    'type': 'info',
-                    'message': '暂无重大监管风险'
-                }
-            ]
-            result['recent_regulations'] = [
-                {
-                    'date': datetime.now().strftime('%Y-%m-%d'),
-                    'source': 'CSRC',
-                    'title': '近期监管动态',
-                    'impact': 'neutral',
-                    'description': '市场运行正常，无重大监管变化'
-                }
-            ]
-            result['industry_impact'] = {
-                'level': 'low',
-                'description': '行业监管环境稳定'
-            }
-        else:
-            # 美股
-            result['risk_level'] = 'low'
-            result['risk_score'] = 5
-            result['alerts'] = []
-            result['recent_regulations'] = []
-            result['industry_impact'] = {
-                'level': 'low',
-                'description': '无重大监管风险'
-            }
+        # 当前版本未接入真实监管公告抓取，不能输出“低风险/无风险”的确定性结论。
+        result['risk_level'] = 'unknown'
+        result['risk_score'] = 50
+        result['verified'] = False
+        result['data_available'] = False
+        result['alerts'] = []
+        result['recent_regulations'] = []
+        result['industry_impact'] = {
+            'level': 'unknown',
+            'description': '监管数据源未接入实时抓取；该项为中性占位，不代表无监管风险。'
+        }
         
         return result
     
@@ -125,22 +101,7 @@ class RegulationMonitor:
         Returns:
             监管公告列表
         """
-        regulations = []
-        
-        sources_to_check = [source] if source != 'all' else list(self.SOURCES.keys())
-        
-        for src in sources_to_check:
-            if src in self.SOURCES:
-                # 模拟数据（实际应该抓取）
-                regulations.append({
-                    'date': datetime.now().strftime('%Y-%m-%d'),
-                    'source': self.SOURCES[src]['name'],
-                    'title': f'{self.SOURCES[src]["name"]}近期公告',
-                    'url': self.SOURCES[src]['url'],
-                    'impact': 'neutral'
-                })
-        
-        return regulations
+        return []
     
     def calculate_regulation_risk(self, symbol: str) -> Dict:
         """
@@ -155,6 +116,18 @@ class RegulationMonitor:
         impact = self.analyze_regulatory_impact(symbol)
         
         risk_score = impact['risk_score']
+        
+        if not impact.get('verified'):
+            return {
+                'success': True,
+                'symbol': symbol,
+                'risk_score': 50,
+                'risk_level': 'unknown',
+                'risk_description': '监管数据未验证：尚未接入官方公告实时抓取，本项不作为低风险判断。',
+                'alerts_count': 0,
+                'verified': False,
+                'data_source': []
+            }
         
         if risk_score >= 70:
             risk_level = 'high'

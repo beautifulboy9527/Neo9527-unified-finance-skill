@@ -13,6 +13,18 @@ from datetime import datetime
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
+try:
+    from skills.shared import normalize_pattern_report
+except ImportError:
+    def normalize_pattern_report(patterns, timeframe='日线', lookback='最近20个交易日'):
+        patterns = dict(patterns or {})
+        patterns['形态时间级别'] = timeframe
+        patterns['形态观察窗口'] = lookback
+        if patterns.get('double_top') and patterns.get('double_bottom'):
+            patterns['double_bottom'] = False
+            patterns.pop('double_bottom_desc', None)
+        return patterns
+
 
 class CompleteCryptoAnalyzer:
     """完整加密货币分析器"""
@@ -290,7 +302,8 @@ class CompleteCryptoAnalyzer:
             # 7. 布林带位置
             bb_upper = result['indicators']['bb_upper']
             bb_lower = result['indicators']['bb_lower']
-            
+            patterns = normalize_pattern_report(patterns, timeframe='日线', lookback='最近20个交易日')
+
             if price > bb_upper:
                 patterns['bb_signal'] = 'breakout_up'
                 patterns['bb_desc'] = '突破布林上轨 (强势或回调)'

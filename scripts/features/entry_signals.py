@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 入场信号分析器 - 整合自 entry-signals
-基于历史验证的信号模式库，提供成功率统计和置信度评估
+内置信号库仅作规则参考；当前版本不代表已针对请求标的完成实时历史回测。
 """
 
 import sys
@@ -15,7 +15,9 @@ import pandas as pd
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-# 高成功率信号库 (来自 entry-signals 的历史验证数据)
+# 内置信号库。success_rate/samples 是规则库元数据，不等同于当前标的实时回测结果。
+SIGNAL_STATS_VERIFIED = False
+
 HIGH_CONFIDENCE_SIGNALS = {
     'multi_timeframe_bullish': {
         'name': '多时间框架多头对齐',
@@ -290,6 +292,14 @@ class SignalDetector:
         except Exception as e:
             pass
         
+        for signal in signals:
+            signal['stats_verified'] = SIGNAL_STATS_VERIFIED
+            signal['score_type'] = 'rule_library'
+            signal['description'] = (
+                f"{signal.get('description', '')} | "
+                "未针对当前标的执行实时历史回测，需二次验证。"
+            )
+        
         return signals
     
     def _detect_sma_macd_signal(self, symbol: str) -> Optional[Dict]:
@@ -488,7 +498,9 @@ class SignalScorer:
             'risk_level': risk,
             'signals_count': len(signals),
             'top_signal': top_signal['name'],
-            'all_signals': [s['name'] for s in signals]
+            'all_signals': [s['name'] for s in signals],
+            'stats_verified': SIGNAL_STATS_VERIFIED,
+            'score_type': 'rule_library'
         }
 
 
@@ -519,11 +531,11 @@ def analyze_entry_signals(symbol: str) -> Dict:
     # 生成建议
     if score['action'] == 'buy':
         if score['confidence'] >= 0.80:
-            recommendation = f"强烈买入信号，历史成功率 {score['overall_score']}%，置信度 {score['confidence']}"
+            recommendation = f"规则库偏多信号，规则分 {score['overall_score']}，置信度 {score['confidence']}；需针对当前标的回测验证"
         else:
-            recommendation = f"买入信号，历史成功率 {score['overall_score']}%，置信度 {score['confidence']}"
+            recommendation = f"规则库偏多信号，规则分 {score['overall_score']}，置信度 {score['confidence']}；需二次验证"
     elif score['action'] == 'sell':
-        recommendation = f"卖出信号，历史成功率 {score['overall_score']}%，置信度 {score['confidence']}"
+        recommendation = f"规则库偏空信号，规则分 {score['overall_score']}，置信度 {score['confidence']}；需针对当前标的回测验证"
     elif score['action'] == 'watch':
         recommendation = f"观望信号，建议等待更好入场点"
     else:

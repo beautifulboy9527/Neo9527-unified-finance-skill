@@ -18,6 +18,18 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
+try:
+    from skills.shared import normalize_pattern_report
+except ImportError:
+    def normalize_pattern_report(patterns, timeframe='日线', lookback='最近20个交易日'):
+        patterns = dict(patterns or {})
+        patterns['形态时间级别'] = timeframe
+        patterns['形态观察窗口'] = lookback
+        if patterns.get('double_top') and patterns.get('double_bottom'):
+            patterns['double_bottom'] = False
+            patterns.pop('double_bottom_desc', None)
+        return patterns
+
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -1021,7 +1033,7 @@ class AShareAnalyzer:
             if len(peaks) >= 2:
                 if abs(peaks[-1][1] - peaks[-2][1]) / peaks[-1][1] < 0.03:
                     patterns['double_top'] = True
-                    patterns['double_top_desc'] = '双顶形态 (看跌)'
+                    patterns['double_top_desc'] = '双顶形态（看跌）'
             
             # 双底检测
             troughs = []
@@ -1032,8 +1044,9 @@ class AShareAnalyzer:
             if len(troughs) >= 2:
                 if abs(troughs[-1][1] - troughs[-2][1]) / troughs[-1][1] < 0.03:
                     patterns['double_bottom'] = True
-                    patterns['double_bottom_desc'] = '双底形态 (看涨)'
+                    patterns['double_bottom_desc'] = '双底形态（看涨）'
         
+        patterns = normalize_pattern_report(patterns, timeframe='日线', lookback='最近30个交易日')
         result['patterns'] = patterns
         
         # ========== 信号生成 (叠buff逻辑) ==========

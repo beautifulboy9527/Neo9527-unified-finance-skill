@@ -8,6 +8,7 @@ Neo9527 Finance API - FastAPI 服务
 
 import sys
 import os
+import importlib.util
 from typing import Optional
 
 # 添加路径
@@ -19,13 +20,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # 导入 Skills
-from skills.base_skill import SkillInput, SkillRegistry
+from skills.base_skill import SkillInput, SkillRegistry, load_builtin_skills
+
+APP_VERSION = "6.6.4"
+load_builtin_skills()
 
 # 创建 FastAPI 应用
 app = FastAPI(
     title="Neo9527 Finance API",
     description="Multi-dimensional financial analysis with Skills",
-    version="4.3.0",
+    version=APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -61,6 +65,34 @@ class CommentaryRequest(BaseModel):
     market: str = "crypto"
 
 
+def get_analysis_skill(market: str) -> str:
+    """按市场选择分析 Skill。"""
+    skill_map = {
+        "crypto": "CryptoAnalysisSkill",
+        "stock": "StockAnalysisSkill",
+        "forex": "ForexAnalysisSkill",
+    }
+    if market not in skill_map:
+        raise HTTPException(status_code=400, detail=f"Unsupported market: {market}")
+    return skill_map[market]
+
+
+def load_stock_module(file_name: str, module_name: str):
+    """Load stock-skill modules whose parent directory contains a hyphen."""
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "skills",
+        "stock-skill",
+        file_name,
+    )
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if not spec or not spec.loader:
+        raise HTTPException(status_code=500, detail=f"Cannot load module: {file_name}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 # ============ 健康检查 ============
 
 @app.get("/")
@@ -68,7 +100,7 @@ async def root():
     """根路径"""
     return {
         "service": "Neo9527 Finance API",
-        "version": "4.3.0",
+        "version": APP_VERSION,
         "skills": SkillRegistry.list_all(),
         "docs": "/docs"
     }
@@ -87,11 +119,12 @@ async def analyze(request: AnalyzeRequest):
     """
     综合分析
     
-    调用 CryptoAnalysisSkill 执行完整分析
+    按 market 调用对应分析 Skill 执行完整分析
     """
     try:
+        skill_name = get_analysis_skill(request.market)
         output = SkillRegistry.execute(
-            'CryptoAnalysisSkill',
+            skill_name,
             SkillInput(
                 symbol=request.symbol,
                 market=request.market,
@@ -155,7 +188,7 @@ async def commentary(request: CommentaryRequest):
 async def quick_analysis(
     symbol: str,
     market: str = Query("crypto", description="Market type"),
-    skill: str = Query("CryptoAnalysisSkill", description="Skill to use")
+    skill: Optional[str] = Query(None, description="Skill to use; defaults by market")
 ):
     """
     快速分析（GET 请求）
@@ -163,8 +196,9 @@ async def quick_analysis(
     示例: GET /api/quick/BTC-USD?market=crypto
     """
     try:
+        skill_name = skill or get_analysis_skill(market)
         output = SkillRegistry.execute(
-            skill,
+            skill_name,
             SkillInput(symbol=symbol, market=market)
         )
         
@@ -175,7 +209,10 @@ async def quick_analysis(
 
 
 @app.get("/api/health/{symbol}")
-async def symbol_health(symbol: str):
+async def symbol_health(
+    symbol: str,
+    market: str = Query("crypto", description="Market type")
+):
     """
     健康度检查
     
@@ -184,7 +221,7 @@ async def symbol_health(symbol: str):
     try:
         output = SkillRegistry.execute(
             'SignalDetectionSkill',
-            SkillInput(symbol=symbol, market='crypto')
+            SkillInput(symbol=symbol, market=market)
         )
         
         return {
@@ -195,6 +232,21 @@ async def symbol_health(symbol: str):
             "confidence": output.confidence
         }
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/financial-health/{symbol}")
+async def financial_health(symbol: str):
+    """
+    财报体检
+
+    返回财务健康分、分项体检、风险旗标、数据完整度和证据摘要。
+    """
+    try:
+        module = load_stock_module("financial_health.py", "stock_financial_health")
+        result = module.analyze_financial_health(symbol)
+        return JSONResponse(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -343,7 +395,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("Neo9527 Finance API Server")
     print("=" * 60)
-    print(f"Version: 4.3.0")
+    print(f"Version: {APP_VERSION}")
     print(f"Skills: {', '.join(SkillRegistry.list_all())}")
     print(f"Docs: http://localhost:8000/docs")
     print("=" * 60)

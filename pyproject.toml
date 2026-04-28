@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo9527-finance-skill"
-version = "4.4.2"
+version = "6.6.4"
 description = "Lightweight production-ready AI finance skill platform"
 readme = "README.md"
 license = {text = "MIT"}
@@ -30,7 +30,7 @@ Repository = "https://github.com/beautifulboy9527/Neo9527-unified-finance-skill"
 Issues = "https://github.com/beautifulboy9527/Neo9527-unified-finance-skill/issues"
 
 [project.scripts]
-neo-finance = "scripts.finance:main"
+neo-finance = "neo9527_finance_skill:main"
 
 [project.optional-dependencies]
 crypto = ["ccxt>=4.3.0", "pandas-ta>=0.3.14b0"]
@@ -47,4 +47,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -p no:cacheprovider"

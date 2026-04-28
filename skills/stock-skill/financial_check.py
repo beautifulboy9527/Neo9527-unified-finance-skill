@@ -22,17 +22,24 @@ if sys.platform == 'win32':
 
 try:
     import akshare as ak
-    import pandas as pd
-    import numpy as np
     AKSHARE_AVAILABLE = True
 except ImportError:
     AKSHARE_AVAILABLE = False
+
+try:
+    import pandas as pd
+    import numpy as np
+except ImportError:
+    pd = None
+    np = None
 
 try:
     import yfinance as yf
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
+
+from skills.shared.evidence import EvidenceLedger
 
 
 class FinancialAnomalyDetector:
@@ -81,14 +88,6 @@ class FinancialAnomalyDetector:
         Returns:
             检测结果
         """
-        if not AKSHARE_AVAILABLE:
-            return {
-                'success': False,
-                'error': 'AkShare 未安装',
-                'anomalies': [],
-                'risk_level': 'unknown'
-            }
-        
         print(f"开始财务异常检测: {symbol}...")
         
         # 获取财务数据
@@ -99,7 +98,9 @@ class FinancialAnomalyDetector:
                 'success': False,
                 'error': '无法获取财务数据',
                 'anomalies': [],
-                'risk_level': 'unknown'
+                'risk_level': 'unknown',
+                'evidence': [],
+                'evidence_summary': {'quality_score': 0}
             }
         
         # 执行各项检测
@@ -131,7 +132,10 @@ class FinancialAnomalyDetector:
             anomalies.append(rp_anomaly)
         
         # 计算风险等级
-        risk_level = self._calculate_risk_level(anomalies)
+        unavailable_checks = financial_data.get('unavailable_checks', [])
+        risk_level = self._calculate_risk_level(anomalies, unavailable_checks)
+        ledger = financial_data.get('_ledger') or EvidenceLedger()
+        warnings = financial_data.get('warnings', [])
         
         print(f"  检测完成: {len(anomalies)} 项异常, 风险等级: {risk_level}")
         
@@ -143,6 +147,12 @@ class FinancialAnomalyDetector:
             'risk_level': risk_level,
             'risk_description': self._get_risk_description(risk_level),
             'financial_data': financial_data.get('summary', {}),
+            'unavailable_checks': unavailable_checks,
+            'warnings': warnings,
+            'verified': risk_level != 'unknown',
+            'evidence': ledger.to_list(),
+            'evidence_summary': ledger.summary(),
+            'data_quality_score': ledger.quality_score(),
             'timestamp': datetime.now().isoformat()
         }
     
@@ -158,7 +168,10 @@ class FinancialAnomalyDetector:
         if market == 'us':
             return self._get_us_financial_data(symbol)
         
-        data = {}
+        data = self._new_data()
+        if not AKSHARE_AVAILABLE:
+            self._mark_unavailable(data, 'financial_data', 'AkShare 未安装，A股财务异常检测不可验证')
+            return data
         
         # 判断市场
         if symbol.isdigit():
@@ -182,6 +195,10 @@ class FinancialAnomalyDetector:
                 # 计算增长率
                 revenues = recent['营业收入'].astype(float).tolist()
                 profits = recent['净利润'].astype(float).tolist() if '净利润' in recent.columns else [0,0,0]
+                for idx, value in enumerate(revenues[:3]):
+                    self._record(data, f'revenue_{idx}', value, 'AkShare/Sina Finance', '利润表:营业收入', unit='CNY')
+                for idx, value in enumerate(profits[:3]):
+                    self._record(data, f'net_profit_{idx}', value, 'AkShare/Sina Finance', '利润表:净利润', unit='CNY')
                 
                 # 计算营收增长率
                 rev_growth = []
@@ -203,8 +220,10 @@ class FinancialAnomalyDetector:
                 
                 data['revenue_growth'] = rev_growth + [0] * (3 - len(rev_growth))
                 data['profit_growth'] = profit_growth + [0] * (3 - len(profit_growth))
-                data['receivable_growth'] = [0, 0, 0]  # 需要资产负债表
-                data['inventory_growth'] = [0, 0, 0]   # 需要资产负债表
+                data['receivable_growth'] = []
+                data['inventory_growth'] = []
+                self._mark_unavailable(data, 'receivable', '应收账款增长率缺失，利润表接口无法完成应收异常检测')
+                self._mark_unavailable(data, 'inventory', '存货增长率缺失，利润表接口无法完成存货异常检测')
                 data['gross_margin'] = [0, 0, 0]
                 data['net_margin'] = [0, 0, 0]
                 
@@ -216,20 +235,26 @@ class FinancialAnomalyDetector:
                         gross_margins = [(rev - cost) / rev * 100 if rev > 0 else 0 
                                        for rev, cost in zip(revenues, costs)]
                         data['gross_margin'] = gross_margins
+                        for idx, value in enumerate(gross_margins[:3]):
+                            self._record(data, f'gross_margin_{idx}', value, 'AkShare/Sina Finance', '利润表计算:毛利率', unit='%')
                     
                     # 计算净利率
                     if len(profits) > 0:
                         net_margins = [p / r * 100 if r > 0 else 0 
                                      for p, r in zip(profits, revenues)]
                         data['net_margin'] = net_margins
+                        for idx, value in enumerate(net_margins[:3]):
+                            self._record(data, f'net_margin_{idx}', value, 'AkShare/Sina Finance', '利润表计算:净利率', unit='%')
                 
                 # 摘要
                 data['summary'] = {
                     'gross_margin': data['gross_margin'][0] if data['gross_margin'] else 0,
                     'net_margin': data['net_margin'][0] if data['net_margin'] else 0,
-                    'roe': 0,  # 需要净资产
-                    'debt_ratio': 0,  # 需要资产负债表
+                    'roe': 0,
+                    'debt_ratio': 0,
                 }
+                self._mark_unavailable(data, 'roe', 'ROE缺少净资产数据，未作为低风险依据')
+                self._mark_unavailable(data, 'debt_ratio', '资产负债率缺少资产负债表数据，未作为低风险依据')
                 
                 print(f"  财务数据获取成功 (利润表)")
                 return data
@@ -255,19 +280,31 @@ class FinancialAnomalyDetector:
                 
                 import pandas as pd
                 
-                data['revenue_growth'] = get_col_value(recent, ['营业收入同比', '营收增长'])
-                data['profit_growth'] = get_col_value(recent, ['净利润同比', '利润增长'])
-                data['receivable_growth'] = get_col_value(recent, ['应收账款同比'])
-                data['inventory_growth'] = get_col_value(recent, ['存货同比'])
-                data['gross_margin'] = get_col_value(recent, ['销售毛利率', '毛利率'])
-                data['net_margin'] = get_col_value(recent, ['销售净利率', '净利率'])
+                data['revenue_growth'] = [get_col_value(recent, ['营业收入同比', '营收增长']), 0, 0]
+                data['profit_growth'] = [get_col_value(recent, ['净利润同比', '利润增长']), 0, 0]
+                receivable = get_col_value(recent, ['应收账款同比'], None)
+                inventory = get_col_value(recent, ['存货同比'], None)
+                data['receivable_growth'] = [receivable, 0, 0] if receivable is not None else []
+                data['inventory_growth'] = [inventory, 0, 0] if inventory is not None else []
+                data['gross_margin'] = [get_col_value(recent, ['销售毛利率', '毛利率']), 0, 0]
+                data['net_margin'] = [get_col_value(recent, ['销售净利率', '净利率']), 0, 0]
+                self._record(data, 'revenue_growth_latest', data['revenue_growth'][0], 'AkShare', '财务指标:营业收入同比', unit='%')
+                self._record(data, 'profit_growth_latest', data['profit_growth'][0], 'AkShare', '财务指标:净利润同比', unit='%')
+                if receivable is None:
+                    self._mark_unavailable(data, 'receivable', '应收账款同比字段缺失')
+                else:
+                    self._record(data, 'receivable_growth_latest', receivable, 'AkShare', '财务指标:应收账款同比', unit='%')
+                if inventory is None:
+                    self._mark_unavailable(data, 'inventory', '存货同比字段缺失')
+                else:
+                    self._record(data, 'inventory_growth_latest', inventory, 'AkShare', '财务指标:存货同比', unit='%')
                 
                 latest = df_indicator.iloc[0]
                 data['summary'] = {
-                    'gross_margin': float(get_col_value(pd.DataFrame([latest]), ['销售毛利率'])[0] or 0),
-                    'net_margin': float(get_col_value(pd.DataFrame([latest]), ['销售净利率'])[0] or 0),
-                    'roe': float(get_col_value(pd.DataFrame([latest]), ['净资产收益率', 'ROE'])[0] or 0),
-                    'debt_ratio': float(get_col_value(pd.DataFrame([latest]), ['资产负债率'])[0] or 0),
+                    'gross_margin': float(get_col_value(pd.DataFrame([latest]), ['销售毛利率']) or 0),
+                    'net_margin': float(get_col_value(pd.DataFrame([latest]), ['销售净利率']) or 0),
+                    'roe': float(get_col_value(pd.DataFrame([latest]), ['净资产收益率', 'ROE']) or 0),
+                    'debt_ratio': float(get_col_value(pd.DataFrame([latest]), ['资产负债率']) or 0),
                 }
                 
                 print(f"  财务数据获取成功 (指标接口)")
@@ -291,6 +328,7 @@ class FinancialAnomalyDetector:
                     yoy_return = 0
                 
                 return {
+                    **self._new_data(),
                     'revenue_growth': [yoy_return, 0, 0],
                     'profit_growth': [0, 0, 0],
                     'receivable_growth': [0, 0, 0],
@@ -303,7 +341,9 @@ class FinancialAnomalyDetector:
                         'roe': 0,
                         'debt_ratio': 0,
                     },
-                    'price_trend': yoy_return
+                    'price_trend': yoy_return,
+                    'warnings': ['仅获取到历史行情，财务异常检测不可验证'],
+                    'unavailable_checks': ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
                 }
         
         except Exception as e:
@@ -324,7 +364,7 @@ class FinancialAnomalyDetector:
         ar_yoy = ar_growth[0] if ar_growth else 0
         
         # 应收账款增速 > 营收增速 × 1.5
-        if ar_yoy > rev_yoy * 1.5 and ar_yoy > 20:
+        if ar_yoy is not None and rev_yoy is not None and ar_yoy > rev_yoy * 1.5 and ar_yoy > 20:
             return {
                 'type': 'receivable',
                 'name': '应收账款异常',
@@ -379,7 +419,7 @@ class FinancialAnomalyDetector:
         inv_yoy = inv_growth[0] if inv_growth else 0
         
         # 存货增速 > 营收增速 × 2
-        if inv_yoy > rev_yoy * 2 and inv_yoy > 30:
+        if inv_yoy is not None and rev_yoy is not None and inv_yoy > rev_yoy * 2 and inv_yoy > 30:
             return {
                 'type': 'inventory',
                 'name': '存货异常',
@@ -398,6 +438,8 @@ class FinancialAnomalyDetector:
         gross_margin = data.get('gross_margin', [])
         
         if len(gross_margin) < 3:
+            return None
+        if np is None:
             return None
         
         # 计算毛利率波动
@@ -426,9 +468,15 @@ class FinancialAnomalyDetector:
         # 这里返回None，实际实现需要额外数据源
         return None
     
-    def _calculate_risk_level(self, anomalies: List[Dict]) -> str:
+    def _calculate_risk_level(self, anomalies: List[Dict], unavailable_checks: List[str] = None) -> str:
         """计算风险等级"""
+        unavailable_checks = unavailable_checks or []
         if not anomalies:
+            if 'financial_data' in unavailable_checks:
+                return 'unknown'
+            critical = {'receivable', 'cashflow', 'inventory', 'roe', 'debt_ratio'}
+            if len(critical.intersection(set(unavailable_checks))) >= 2:
+                return 'unknown'
             return 'low'
         
         # 计算风险分数
@@ -455,7 +503,8 @@ class FinancialAnomalyDetector:
         descriptions = {
             'low': '🟢 低风险：无明显异常',
             'medium': '🟡 中风险：存在1-2项轻微异常，需关注',
-            'high': '🔴 高风险：存在多项异常或严重异常，需警惕'
+            'high': '🔴 高风险：存在多项异常或严重异常，需警惕',
+            'unknown': '⚪ 未验证：关键财务字段缺失，不能判断为低风险'
         }
         return descriptions.get(risk_level, '未知风险等级')
     
@@ -479,14 +528,15 @@ class FinancialAnomalyDetector:
                 return None
             
             # 取最近3年数据
-            data = {
+            data = self._new_data()
+            data.update({
                 'revenue_growth': [],
                 'profit_growth': [],
                 'receivable_growth': [],
                 'inventory_growth': [],
                 'gross_margin': [],
                 'net_margin': []
-            }
+            })
             
             # 营收和利润
             if 'Total Revenue' in income_stmt.index:
@@ -495,11 +545,18 @@ class FinancialAnomalyDetector:
                 revenues = income_stmt.loc['Revenue'].tolist()[:3]
             else:
                 revenues = []
+                self._mark_unavailable(data, 'revenue', '利润表缺少营收字段')
             
             if 'Net Income' in income_stmt.index:
                 profits = income_stmt.loc['Net Income'].tolist()[:3]
             else:
                 profits = []
+                self._mark_unavailable(data, 'net_income', '利润表缺少净利润字段')
+            
+            for idx, value in enumerate(revenues[:3]):
+                self._record(data, f'revenue_{idx}', value, 'yfinance/Yahoo Finance', 'Income Statement:Total Revenue', unit='USD')
+            for idx, value in enumerate(profits[:3]):
+                self._record(data, f'net_income_{idx}', value, 'yfinance/Yahoo Finance', 'Income Statement:Net Income', unit='USD')
             
             # 计算增长率
             if len(revenues) >= 2:
@@ -534,6 +591,10 @@ class FinancialAnomalyDetector:
                         if receivables[i+1] and receivables[i+1] > 0:
                             growth = (receivables[i] - receivables[i+1]) / receivables[i+1] * 100
                             data['receivable_growth'].append(growth)
+                for idx, value in enumerate(receivables[:3]):
+                    self._record(data, f'receivable_{idx}', value, 'yfinance/Yahoo Finance', 'Balance Sheet:Net Receivables', unit='USD')
+            else:
+                self._mark_unavailable(data, 'receivable', '资产负债表缺少应收账款字段')
             
             # 存货
             if not balance_sheet.empty and 'Inventory' in balance_sheet.index:
@@ -543,6 +604,10 @@ class FinancialAnomalyDetector:
                         if inventory[i+1] and inventory[i+1] > 0:
                             growth = (inventory[i] - inventory[i+1]) / inventory[i+1] * 100
                             data['inventory_growth'].append(growth)
+                for idx, value in enumerate(inventory[:3]):
+                    self._record(data, f'inventory_{idx}', value, 'yfinance/Yahoo Finance', 'Balance Sheet:Inventory', unit='USD')
+            else:
+                self._mark_unavailable(data, 'inventory', '资产负债表缺少存货字段')
             
             # 填充默认值
             for key in data:
@@ -562,6 +627,10 @@ class FinancialAnomalyDetector:
                 equity = balance_sheet.loc['Stockholders Equity'].tolist()
                 if equity and equity[0] and profits and profits[0]:
                     data['summary']['roe'] = profits[0] / equity[0] * 100
+                    self._record(data, 'stockholders_equity_0', equity[0], 'yfinance/Yahoo Finance', 'Balance Sheet:Stockholders Equity', unit='USD')
+                    self._record(data, 'roe_latest', data['summary']['roe'], 'yfinance/Yahoo Finance', 'calculated:ROE', unit='%')
+            else:
+                self._mark_unavailable(data, 'roe', '资产负债表缺少股东权益字段')
             
             print(f"  美股财务数据获取成功")
             return data
@@ -569,6 +638,46 @@ class FinancialAnomalyDetector:
         except Exception as e:
             print(f"  美股数据获取失败: {e}")
             return None
+
+    def _new_data(self) -> Dict:
+        """创建带证据账本的数据容器"""
+        return {
+            '_ledger': EvidenceLedger(),
+            'warnings': [],
+            'unavailable_checks': []
+        }
+
+    def _mark_unavailable(self, data: Dict, check: str, reason: str):
+        """标记某项检测不可验证"""
+        data.setdefault('unavailable_checks', [])
+        data.setdefault('warnings', [])
+        if check not in data['unavailable_checks']:
+            data['unavailable_checks'].append(check)
+        if reason not in data['warnings']:
+            data['warnings'].append(reason)
+        ledger = data.get('_ledger')
+        if ledger:
+            ledger.add(
+                f'{check}_unavailable',
+                'unavailable',
+                'unverified',
+                quality='missing',
+                verified=False,
+                note=reason
+            )
+
+    def _record(self, data: Dict, key: str, value, source: str, field: str, unit: str = ''):
+        """记录原始/计算数据到证据账本"""
+        ledger = data.get('_ledger')
+        if ledger is None:
+            return
+        try:
+            clean_value = float(value)
+        except (TypeError, ValueError):
+            clean_value = value
+        if clean_value is None:
+            return
+        ledger.add(key, clean_value, source, field=field, unit=unit)
 
 
 # 快速使用函数

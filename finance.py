@@ -124,6 +124,44 @@ def cmd_check(args):
         print(f"❌ 检测失败: {result.get('error', '未知错误')}")
 
 
+def cmd_health(args):
+    """财报体检评分"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "financial_health",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'financial_health.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    analyze_financial_health = module.analyze_financial_health
+
+    symbol = args.symbol
+    print(f"\n🧾 财报体检 {symbol}...")
+
+    result = analyze_financial_health(symbol)
+    print(f"\n{'='*60}")
+    print(f" {symbol} 财报体检")
+    print(f"{'='*60}")
+    print(f"健康分: {result.get('health_score') if result.get('health_score') is not None else '未验证'}")
+    print(f"等级: {result.get('health_grade')}")
+    print(f"数据完整度: {result.get('data_completeness', 0):.0%}")
+    print(f"结论: {result.get('conclusion')}")
+
+    dimensions = result.get('dimensions', {})
+    if dimensions:
+        print("\n分项体检:")
+        for item in dimensions.values():
+            score = item.get('score') if item.get('score') is not None else '未验证'
+            print(f"  - {item.get('name')}: {score} ({item.get('status')}) - {item.get('reason')}")
+
+    flags = result.get('risk_flags', [])
+    if flags:
+        print("\n风险与验证:")
+        for flag in flags[:6]:
+            print(f"  - {flag}")
+
+
 def cmd_value(args):
     """估值计算"""
     import importlib.util
@@ -244,6 +282,11 @@ def main():
     parser_check = subparsers.add_parser('check', help='财务异常检测')
     parser_check.add_argument('symbol', help='股票代码')
     parser_check.set_defaults(func=cmd_check)
+
+    # health 命令
+    parser_health = subparsers.add_parser('health', help='财报体检评分')
+    parser_health.add_argument('symbol', help='股票代码')
+    parser_health.set_defaults(func=cmd_health)
     
     # value 命令
     parser_value = subparsers.add_parser('value', help='估值计算')
