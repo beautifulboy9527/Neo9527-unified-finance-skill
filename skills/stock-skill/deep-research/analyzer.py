@@ -1022,7 +1022,7 @@ class StockAnalyzer:
 
 ---
 
-*by Neo9527 Finance Skill v6.6.4*
+*by Neo9527 Finance Skill v6.6.5*
 """
         
         md = normalize_report_text(md)

@@ -162,6 +162,32 @@ def cmd_health(args):
             print(f"  - {flag}")
 
 
+def cmd_alerts(args):
+    """股票风险预警"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "risk_alerts",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'risk_alerts.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    symbols = args.symbols
+    print(f"\n🚨 风险预警: {', '.join(symbols)}")
+    result = module.analyze_watchlist_alerts(symbols)
+
+    for item in result.get('items', []):
+        print(f"\n{'='*60}")
+        print(f" {item['symbol']} | 最高级别: {item['highest_severity_cn']} | 告警数: {item['alert_count']}")
+        print(f"{'='*60}")
+        print(item.get('summary', '暂无摘要'))
+        for alert in item.get('alerts', [])[:8]:
+            verified = '已验证' if alert.get('verified') else '待验证'
+            print(f"  - [{alert['severity_cn']}] {alert['title']} ({verified})")
+            print(f"    {alert['message']}")
+
+
 def cmd_value(args):
     """估值计算"""
     import importlib.util
@@ -287,6 +313,11 @@ def main():
     parser_health = subparsers.add_parser('health', help='财报体检评分')
     parser_health.add_argument('symbol', help='股票代码')
     parser_health.set_defaults(func=cmd_health)
+
+    # alerts 命令
+    parser_alerts = subparsers.add_parser('alerts', help='股票/自选股风险预警')
+    parser_alerts.add_argument('symbols', nargs='+', help='股票代码，可输入多个')
+    parser_alerts.set_defaults(func=cmd_alerts)
     
     # value 命令
     parser_value = subparsers.add_parser('value', help='估值计算')

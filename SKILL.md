@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.6.4. Tested: 2026-04-28. API and CLI supported.
+Version: 6.6.5. Tested: 2026-04-28. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -42,6 +42,7 @@ separation between reported facts, estimates, and analyst interpretation.
 neo-finance analyze AAPL
 neo-finance check 600519
 neo-finance health AAPL
+neo-finance alerts AAPL MSFT
 neo-finance value AAPL
 neo-finance research AAPL --style value --depth standard
 uvicorn api.server:app --reload

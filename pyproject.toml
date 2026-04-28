@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo9527-finance-skill"
-version = "6.6.4"
+version = "6.6.5"
 description = "Lightweight production-ready AI finance skill platform"
 readme = "README.md"
 license = {text = "MIT"}

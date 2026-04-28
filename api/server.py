@@ -22,7 +22,7 @@ from pydantic import BaseModel
 # 导入 Skills
 from skills.base_skill import SkillInput, SkillRegistry, load_builtin_skills
 
-APP_VERSION = "6.6.4"
+APP_VERSION = "6.6.5"
 load_builtin_skills()
 
 # 创建 FastAPI 应用
@@ -63,6 +63,11 @@ class CommentaryRequest(BaseModel):
     """解读请求"""
     symbol: str
     market: str = "crypto"
+
+
+class WatchlistAlertRequest(BaseModel):
+    """自选股预警请求"""
+    symbols: list[str]
 
 
 def get_analysis_skill(market: str) -> str:
@@ -246,6 +251,28 @@ async def financial_health(symbol: str):
     try:
         module = load_stock_module("financial_health.py", "stock_financial_health")
         result = module.analyze_financial_health(symbol)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/risk-alerts/{symbol}")
+async def risk_alerts(symbol: str):
+    """单只股票风险预警"""
+    try:
+        module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
+        result = module.analyze_risk_alerts(symbol)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/watchlist/alerts")
+async def watchlist_alerts(request: WatchlistAlertRequest):
+    """自选股批量风险预警"""
+    try:
+        module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
+        result = module.analyze_watchlist_alerts(request.symbols)
         return JSONResponse(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

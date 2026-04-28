@@ -2,8 +2,8 @@
 name: stock-analysis-skill
 description: |
   股票多维度分析 - 技术指标、基本面、资金流向、异常检测。
-  支持A股/港股/美股市场，包含快速分析、财报体检、财务异常检测、
-  估值分析和深度研报。
+  支持A股/港股/美股市场，包含快速分析、财报体检、风险预警、
+  财务异常检测、估值分析和深度研报。
 ---
 
 # Stock Analysis Skill
@@ -76,7 +76,20 @@ result = analyze_financial_health('AAPL')
 # → health_score / health_grade / dimensions / risk_flags
 ```
 
-### 5. 深度研报 (deep-research/)
+### 5. 风险预警 (risk_alerts.py)
+
+统一聚合财报体检、财务异常、估值、监管和技术形态风险：
+- 严重度: 严重 / 高 / 中 / 低 / 提示
+- 类别: 财务健康、财务异常、估值、监管、技术、数据质量
+- 输出验证状态和后续验证动作
+
+```python
+from skills.stock_skill.risk_alerts import analyze_watchlist_alerts
+
+result = analyze_watchlist_alerts(['AAPL', 'MSFT'])
+```
+
+### 6. 深度研报 (deep-research/)
 
 8阶段投研框架：
 - Phase 1: 公司事实底座
@@ -179,6 +192,7 @@ stock-skill/
 ├── screener.py           # A股选股器 (v1.0)
 ├── financial_check.py    # 财务异常检测 (v1.0)
 ├── financial_health.py   # 财报体检评分
+├── risk_alerts.py        # 自选股风险预警
 ├── deep-research/        # 深度研报
 │   ├── SKILL.md
 │   ├── analyzer.py       # 8阶段分析

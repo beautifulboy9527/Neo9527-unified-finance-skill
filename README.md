@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v6.6.4 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.6.5 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v6.6.4-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.6.5-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,9 +12,9 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v6.6.4** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.6.5** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v6.6.4 核心特性
+### v6.6.5 核心特性
 
 - 📊 **A股综合分析**: 完整的A股分析报告，含技术形态、信号叠加、深度研报
 - 🔬 **深度研报**: 8阶段投研框架，护城河评估、市场分歧、风险评估
@@ -30,10 +30,11 @@
 - ✅ **形态一致性**: 双顶/双底互斥处理，并标注形态时间级别和观察窗口
 - ✅ **报告质量门禁**: 提供 `scripts/quality_gate.py` 校验中文研报禁用英文评级、英文行业、形态冲突和弱结论结构
 - ✅ **财报体检**: 新增财务健康分、五维度体检、风险旗标、数据完整度和证据摘要
+- ✅ **自选股风险预警**: 聚合财报体检、财务异常、估值、监管和技术形态风险
 
-### v6.6.4 升级亮点
+### v6.6.5 升级亮点
 
-| 功能 | 之前 | v6.6.4 |
+| 功能 | 之前 | v6.6.5 |
 |------|------|------|
 | A股分析 | ⚠️ 基础 | ✅ 完整报告 |
 | 技术分析 | ⚠️ 简单 | ✅ 形态+信号+支撑阻力 |
@@ -51,6 +52,7 @@
 | 技术形态 | ⚠️ 展示层可能双顶双底并存 | ✅ 互斥输出 + 时间级别标注 |
 | 报告质检 | ❌ 无自动检查 | ✅ CLI + 共享模块质量门禁 |
 | 财报体检 | ❌ 只有异常检测 | ✅ 健康分 + 五维度评分 + API/CLI |
+| 风险预警 | ❌ 无聚合预警 | ✅ 单股/自选股告警 + 严重度排序 |
 
 ---
 
@@ -147,7 +149,7 @@ python finance.py research AAPL
 
 ---
 
-## 📊 报告结构 (v6.6.4)
+## 📊 报告结构 (v6.6.5)
 
 ```
 第一部分：基本面分析（投资根基）
@@ -284,6 +286,13 @@ scripts/features/
 ---
 
 ## 📝 更新日志
+
+### v6.6.5 (2026-04-28)
+
+- 新增 `skills/stock-skill/risk_alerts.py`，统一聚合财报体检、财务异常、估值、监管和技术形态风险。
+- 新增 CLI：`python finance.py alerts AAPL MSFT`。
+- 新增 API：`GET /api/risk-alerts/{symbol}` 和 `POST /api/watchlist/alerts`。
+- 风险预警输出严重度、类别、验证状态和后续验证动作，避免使用买卖指令。
 
 ### v6.6.4 (2026-04-28)
 
