@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.6.7. Tested: 2026-04-29. API and CLI supported.
+Version: 6.7.0 (Phase 1 Complete). Tested: 2026-05-09. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -90,7 +90,23 @@ output = SkillRegistry.execute(
 - Valuation methodology: `references/valuation_methodology.md`
 - Finance skill/tool catalog for future development: `references/finance_skill_catalog.md`
 - Product strategy and monetization workflow: `references/product_strategy.md`
+- Enhanced technical analysis module: `skills/shared/technical_indicators.py`
 - Detailed project usage and packaging notes: `README.md`
+
+## v6.7.0 Phase 1 - 增强技术分析
+
+### 新增功能
+
+| 指标 | 说明 | 状态 |
+|------|------|------|
+| VWAP | 成交量加权平均价 | ✅ |
+| 斐波那契回撤 | 23.6%/38.2%/50%/61.8%/78.6%/100% | ✅ |
+| 斐波那契扩展 | 61.8%/100%/161.8%/261.8%/423.6% | ✅ |
+| 缠论中枢 | 笔段识别 + 中枢计算 | ✅ |
+| K线形态 | 锤子/射击/吞没/早晨/黄昏/十字星 | ✅ |
+| 趋势线 | 自动识别 + R²检验 | ✅ |
+| ADX | 趋势强度 + 方向 | ✅ |
+| 综合分析 | 信号聚合 + 偏多/偏空判断 | ✅ |
 
 ## Validation
 

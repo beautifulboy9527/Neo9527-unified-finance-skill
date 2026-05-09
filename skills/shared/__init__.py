@@ -25,6 +25,18 @@ from .report_quality_gate import (
     validate_chinese_report,
 )
 
+# 增强技术分析模块
+from .technical_indicators import (
+    calculate_vwap,
+    calculate_fibonacci_retracements,
+    calculate_fibonacci_extensions,
+    calculate_chan_segments,
+    identify_candlestick_patterns,
+    identify_trendlines,
+    calculate_adx,
+    enhanced_technical_analysis,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -53,11 +65,15 @@ RiskMonitor = _load_class(
 )
 
 __all__ = [
+    # 核心组件
     'CitationValidator',
     'RiskMonitor',
+    # 证据系统
     'EvidenceItem',
     'EvidenceLedger',
+    # 数据源
     'check_data_sources',
+    # 本地化
     'MISSING_TEXT',
     'normalize_report_text',
     'normalize_pattern_report',
@@ -67,8 +83,18 @@ __all__ = [
     'translate_industry',
     'translate_rating',
     'translate_sector',
+    # 报告质量
     'ReportQualityIssue',
     'assert_report_quality',
     'issues_to_dicts',
     'validate_chinese_report',
+    # 增强技术分析
+    'calculate_vwap',
+    'calculate_fibonacci_retracements',
+    'calculate_fibonacci_extensions',
+    'calculate_chan_segments',
+    'identify_candlestick_patterns',
+    'identify_trendlines',
+    'calculate_adx',
+    'enhanced_technical_analysis',
 ]
