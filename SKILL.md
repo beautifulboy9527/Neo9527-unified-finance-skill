@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.7.0 (Phase 1 Complete). Tested: 2026-05-09. API and CLI supported.
+Version: 6.8.0 (Phase 2 Complete). Tested: 2026-05-09. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -105,8 +105,43 @@ output = SkillRegistry.execute(
 | 缠论中枢 | 笔段识别 + 中枢计算 | ✅ |
 | K线形态 | 锤子/射击/吞没/早晨/黄昏/十字星 | ✅ |
 | 趋势线 | 自动识别 + R²检验 | ✅ |
-| ADX | 趋势强度 + 方向 | ✅ |
-| 综合分析 | 信号聚合 + 偏多/偏空判断 | ✅ |
+|| ADX | 趋势强度 + 方向 | ✅ |
+|| 综合分析 | 信号聚合 + 偏多/偏空判断 | ✅ |
+
+## v6.8.0 Phase 2 - 财报预测与回顾
+
+### 新增功能
+
+| 模块 | 说明 | CLI 命令 |
+|------|------|---------|
+| 财报预测 (earnings_preview) | 收入/利润/EPS预测，基于线性回归和增长率模型 | `python earnings_cli.py preview AAPL 4` |
+| 财报回顾 (earnings_recap) | 业绩达标检测、利润率趋势、资产负债表、现金流质量 | `python earnings_cli.py recap AAPL` |
+| 业绩比较 (performance_comparison) | 同比/环比分析、多股票横向对比、行业内对比 | `python earnings_cli.py compare AAPL MSFT` |
+| 统一 CLI (earnings_cli) | 三大功能集成，一站式财报分析 | `python earnings_cli.py all AAPL` |
+
+### 核心函数
+
+```python
+from skills.stock_skill.earnings_preview import earnings_preview, format_preview_output
+from skills.stock_skill.earnings_recap import earnings_recap, format_recap_output
+from skills.stock_skill.performance_comparison import compare_performance, format_comparison_output
+
+# 财报预测
+result = earnings_preview("AAPL", periods=4)
+print(format_preview_output(result))
+
+# 财报回顾
+result = earnings_recap("AAPL")
+print(format_recap_output(result))
+
+# 业绩比较
+result = compare_performance(["AAPL", "MSFT", "GOOGL"])
+print(format_comparison_output(result))
+```
+
+### 数据依赖
+- 美股: `yfinance` (pip install yfinance)
+- A股: `akshare` (pip install akshare)
 
 ## Validation
 

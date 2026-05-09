@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v6.6.7 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.8.0 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v6.6.7-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.8.0-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,14 +12,15 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v6.7.0** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.8.0** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v6.7.0 核心特性
+### v6.8.0 核心特性
 
 - 📊 **A股综合分析**: 完整的A股分析报告，含技术形态、信号叠加、深度研报
 - 🔬 **深度研报**: 8阶段投研框架，护城河评估、市场分歧、风险评估
 - 📈 **技术分析**: 完整指标(RSI/MACD/布林带/ADX) + 形态识别 + 信号叠加
 - 📊 **增强技术分析 Phase 1**: VWAP + 斐波那契回撤/扩展 + 缠论中枢 + K线形态 + 趋势线 + ADX
+- 📊 **财报分析 Phase 2**: 财报预测(收入/利润/EPS) + 财报回顾(业绩达标/利润率/资产负债/现金流) + 业绩比较(同比/环比/行业对比)
 - 🧩 **Skills生态**: 6个独立Skills，可组合编排
 - 🤖 **Agent调用**: 标准接口 + OpenAI Function Calling
 - 🌐 **REST API**: FastAPI服务 + 自动文档
@@ -34,6 +35,15 @@
 - ✅ **自选股风险预警**: 聚合财报体检、财务异常、估值、监管和技术形态风险
 - ✅ **估值工作台**: 谨慎/基准/乐观三情景估值，输出估值区间、上行空间、假设和警告
 - ✅ **外部数据覆盖**: 财报体检和估值工作台支持外部已验证字段输入，适配无数据源环境
+
+### v6.8.0 Phase 2 财报分析新增
+
+| 模块 | 功能 | CLI 示例 |
+|------|------|---------|
+| 财报预测 | 收入/利润/EPS预测，基于线性回归和增长率模型 | `python earnings_cli.py preview AAPL 4` |
+| 财报回顾 | 业绩达标检测、利润率趋势、资产负债表健康度、现金流质量 | `python earnings_cli.py recap AAPL` |
+| 业绩比较 | 同比/环比分析、多股票横向对比、行业内排名 | `python earnings_cli.py compare AAPL MSFT GOOGL` |
+| 统一CLI | 三大功能集成，一站式财报分析 | `python earnings_cli.py all AAPL` |
 
 ### v6.6.7 升级亮点
 
