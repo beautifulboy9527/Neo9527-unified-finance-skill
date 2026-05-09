@@ -74,12 +74,35 @@ class ValuationCalculator:
             'fcf_growth': None,
             'peer_pe': None,
             'peer_pb': None,
+            'current_price': None,
+            'price': None,
+            'eps': None,
+            'bps': None,
+            'pe': None,
+            'pb': None,
+            'dividend': None,
+            'dividend_yield': None,
+            'free_cash_flow': None,
+            'shares_outstanding': None,
+            'total_debt': None,
+            'cash': None,
+            'sector': None,
+            'industry': None,
         }
+        skip_external_data = bool(params.pop('skip_external_data', False))
         user_params = set(params.keys())
         calc_params = {**default_params, **params}
 
         market = self._detect_market(symbol)
-        financial_data = self._get_financial_data(symbol, market)
+        if skip_external_data:
+            financial_data = {
+                'symbol': symbol,
+                'market': market,
+                'warnings': ['离线输入模式：估值未请求外部行情和财报接口'],
+                '_ledger': EvidenceLedger(),
+            }
+        else:
+            financial_data = self._get_financial_data(symbol, market)
 
         if not financial_data:
             return {
@@ -90,7 +113,9 @@ class ValuationCalculator:
                 'timestamp': datetime.now().isoformat()
             }
 
-        ledger = financial_data.pop('_ledger', EvidenceLedger())
+        ledger = financial_data.get('_ledger', EvidenceLedger())
+        self._apply_manual_overrides(financial_data, calc_params, user_params, ledger)
+        ledger = financial_data.pop('_ledger', ledger)
         assumptions = self._build_model_assumptions(calc_params, user_params, financial_data, ledger)
 
         valuations = {}
@@ -136,6 +161,49 @@ class ValuationCalculator:
             'data_quality_score': ledger.quality_score(),
             'timestamp': datetime.now().isoformat()
         }
+
+    def _apply_manual_overrides(self, data: Dict, params: Dict, user_params: set, ledger: EvidenceLedger):
+        """Use externally verified inputs when built-in data providers are unavailable or incomplete."""
+        field_map = {
+            'current_price': ('price', 'manual:current_price', 'price'),
+            'price': ('price', 'manual:price', 'price'),
+            'eps': ('eps', 'manual:eps', 'per_share'),
+            'bps': ('bps', 'manual:bps', 'per_share'),
+            'pe': ('pe', 'manual:pe', 'x'),
+            'pb': ('pb', 'manual:pb', 'x'),
+            'dividend': ('dividend', 'manual:dividend', 'per_share'),
+            'dividend_yield': ('dividend_yield', 'manual:dividend_yield', ''),
+            'free_cash_flow': ('free_cash_flow', 'manual:free_cash_flow', 'currency'),
+            'shares_outstanding': ('shares_outstanding', 'manual:shares_outstanding', 'shares'),
+            'total_debt': ('total_debt', 'manual:total_debt', 'currency'),
+            'cash': ('cash', 'manual:cash', 'currency'),
+            'sector': ('sector', 'manual:sector', ''),
+            'industry': ('industry', 'manual:industry', ''),
+        }
+        applied = []
+        for param_key, (data_key, field, unit) in field_map.items():
+            if param_key not in user_params:
+                continue
+            value = params.get(param_key)
+            if value in [None, '']:
+                continue
+            clean_value = self._safe_float(value)
+            if clean_value is None and isinstance(value, str):
+                clean_value = value
+            data[data_key] = clean_value
+            ledger.add(
+                data_key,
+                clean_value,
+                'user_input:manual_override',
+                field=field,
+                unit=unit,
+                verified=True,
+                note='外部传入的已验证估值输入，覆盖或补充内置数据源',
+            )
+            applied.append(data_key)
+        if applied:
+            data.setdefault('warnings', [])
+            data['warnings'].append(f"使用外部传入估值字段: {', '.join(sorted(set(applied)))}")
 
     def _detect_market(self, symbol: str) -> str:
         if symbol.isdigit() and len(symbol) == 6:

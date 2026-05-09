@@ -21,9 +21,15 @@ if sys.platform == 'win32':
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import yfinance as yf
 import pandas as pd
 import numpy as np
+
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    yf = None
+    YFINANCE_AVAILABLE = False
 
 try:
     import akshare as ak
@@ -220,6 +226,10 @@ class StockAnalysisSkill:
     
     def _get_yf_data(self, symbol: str) -> Optional[Dict]:
         """从 yfinance 获取数据"""
+        if not YFINANCE_AVAILABLE:
+            print("    yfinance 未安装，跳过行情获取")
+            return None
+
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
@@ -348,6 +358,8 @@ class StockAnalysisSkill:
     def _get_technical_from_yf(self, symbol: str) -> Dict:
         """从 yfinance 获取技术指标"""
         tech = {}
+        if not YFINANCE_AVAILABLE:
+            return tech
         
         try:
             ticker = yf.Ticker(symbol)
@@ -401,6 +413,8 @@ class StockAnalysisSkill:
     def _get_fundamentals_from_yf(self, symbol: str) -> Dict:
         """从 yfinance 获取基本面"""
         fund = {}
+        if not YFINANCE_AVAILABLE:
+            return fund
         
         try:
             ticker = yf.Ticker(symbol)
@@ -563,22 +577,22 @@ class StockAnalysisSkill:
         sell_signals = [s for s in signals if s['signal'] == 'sell']
         
         if score >= 70:
-            rating = '买入'
+            rating = '积极关注'
         elif score >= 55:
-            rating = '持有偏多'
+            rating = '中性偏强'
         elif score >= 45:
-            rating = '持有'
+            rating = '中性观察'
         elif score >= 30:
-            rating = '持有偏空'
+            rating = '谨慎观察'
         else:
-            rating = '卖出'
+            rating = '高度谨慎'
         
-        summary = f"综合评分: {score}/100, 建议: {rating}, 趋势: {trend}"
+        summary = f"综合评分: {score}/100, 观察结论: {rating}, 趋势: {trend}"
         
         if buy_signals:
-            summary += f", 买入信号: {len(buy_signals)}个"
+            summary += f", 偏强信号: {len(buy_signals)}个"
         if sell_signals:
-            summary += f", 卖出信号: {len(sell_signals)}个"
+            summary += f", 偏弱信号: {len(sell_signals)}个"
         
         return summary
 

@@ -35,8 +35,8 @@ class FinancialHealthAnalyzer:
     def __init__(self):
         self.detector = FinancialAnomalyDetector()
 
-    def analyze(self, symbol: str, financial_data: Optional[Dict] = None) -> Dict:
-        data = financial_data or self.detector._get_financial_data(symbol)
+    def analyze(self, symbol: str, financial_data: Optional[Dict] = None, **manual_fields) -> Dict:
+        data = financial_data or self._manual_financial_data(manual_fields) or self.detector._get_financial_data(symbol)
         if not data:
             ledger = EvidenceLedger()
             ledger.add(
@@ -114,6 +114,57 @@ class FinancialHealthAnalyzer:
             "evidence_summary": ledger.summary(),
             "timestamp": datetime.now().isoformat(),
         }
+
+    def _manual_financial_data(self, fields: Dict) -> Optional[Dict]:
+        clean = {key: value for key, value in (fields or {}).items() if value not in [None, ""]}
+        if not clean:
+            return None
+
+        ledger = EvidenceLedger()
+        data = {
+            "_ledger": ledger,
+            "summary": {},
+            "warnings": ["使用外部传入财务字段进行财报体检，需确认字段口径和报告期。"],
+            "unavailable_checks": [],
+        }
+        summary_map = {
+            "gross_margin": "gross_margin",
+            "net_margin": "net_margin",
+            "roe": "roe",
+            "debt_ratio": "debt_ratio",
+        }
+        series_map = {
+            "revenue_growth": "revenue_growth",
+            "profit_growth": "profit_growth",
+            "receivable_growth": "receivable_growth",
+            "inventory_growth": "inventory_growth",
+            "operating_cash_flow": "operating_cash_flow",
+            "net_income": "net_income",
+        }
+        for source_key, target_key in summary_map.items():
+            if source_key in clean:
+                value = self._num(clean[source_key])
+                data["summary"][target_key] = value
+                ledger.add(target_key, value, "user_input:manual_financials", field=f"manual:{source_key}", unit="%", verified=True)
+        for source_key, target_key in series_map.items():
+            if source_key in clean:
+                values = self._to_series(clean[source_key])
+                data[target_key] = values
+                ledger.add(target_key, values[0] if values else None, "user_input:manual_financials", field=f"manual:{source_key}", verified=True)
+
+        required = {
+            "gross_margin": "盈利能力",
+            "net_margin": "盈利能力",
+            "roe": "盈利能力",
+            "debt_ratio": "资产负债安全",
+            "revenue_growth": "成长质量",
+            "profit_growth": "成长质量",
+        }
+        for field, label in required.items():
+            if field not in clean:
+                data["unavailable_checks"].append(field)
+                data["warnings"].append(f"{label}字段 {field} 未外部传入。")
+        return data
 
     def _score_profitability(self, data: Dict) -> Dict:
         summary = data.get("summary", {})
@@ -242,6 +293,13 @@ class FinancialHealthAnalyzer:
             value = [value]
         return [float(v) for v in value if self._num(v) is not None]
 
+    def _to_series(self, value) -> List[float]:
+        if isinstance(value, str):
+            value = [part.strip() for part in value.split(",")]
+        elif not isinstance(value, list):
+            value = [value]
+        return [float(v) for v in value if self._num(v) is not None]
+
     def _first(self, value) -> Optional[float]:
         series = self._series(value)
         return series[0] if series else None
@@ -259,9 +317,9 @@ class FinancialHealthAnalyzer:
         return "暂无数据" if number is None else f"{number:.1f}%"
 
 
-def analyze_financial_health(symbol: str) -> Dict:
+def analyze_financial_health(symbol: str, **manual_fields) -> Dict:
     analyzer = FinancialHealthAnalyzer()
-    return analyzer.analyze(symbol)
+    return analyzer.analyze(symbol, **manual_fields)
 
 
 if __name__ == "__main__":

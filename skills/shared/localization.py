@@ -72,13 +72,14 @@ STOCK_NAME_CN = {
     "NIO": "蔚来",
     "LI": "理想汽车",
     "XPEV": "小鹏汽车",
+    "002050": "三花智控",
 }
 
 
 RATING_CN = {
     "strong_buy": "积极关注",
     "buy": "偏积极",
-    "hold": "中性观望",
+    "hold": "中性观察",
     "sell": "偏谨慎",
     "strong_sell": "高度谨慎",
     "underperform": "弱于市场",
@@ -91,7 +92,7 @@ ACTION_CN = {
     "strong_buy": "积极关注",
     "sell": "偏谨慎",
     "strong_sell": "高度谨慎",
-    "hold": "中性观望",
+    "hold": "中性观察",
     "exit": "降低风险暴露",
     "monitor": "持续跟踪",
     "strengthen": "加强验证",
@@ -102,7 +103,7 @@ def is_missing(value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return value.strip() in {"", "N/A", "NA", "None", "null", "Unknown", "--"}
+        return value.strip() in {"", "N/A", "NA", "None", "null", "Unknown", "--", "????"}
     return False
 
 
@@ -155,14 +156,16 @@ def normalize_report_text(text: str) -> str:
         "N/A": MISSING_TEXT,
         "Unknown": MISSING_TEXT,
         "STRONG_BUY": "积极关注",
+        "STRONG BUY": "积极关注",
         "STRONG SELL": "高度谨慎",
         "STRONG_SELL": "高度谨慎",
         "BUY": "偏积极",
         "SELL": "偏谨慎",
-        "HOLD": "中性观望",
+        "HOLD": "中性观察",
         "buy": "偏积极",
         "sell": "偏谨慎",
-        "hold": "中性观望",
+        "hold": "中性观察",
+        "Technology": "科技",
     }
     result = text
     for source, target in replacements.items():

@@ -22,7 +22,7 @@ from pydantic import BaseModel
 # 导入 Skills
 from skills.base_skill import SkillInput, SkillRegistry, load_builtin_skills
 
-APP_VERSION = "6.6.5"
+APP_VERSION = "6.6.7"
 load_builtin_skills()
 
 # 创建 FastAPI 应用
@@ -70,6 +70,95 @@ class WatchlistAlertRequest(BaseModel):
     symbols: list[str]
 
 
+class ValuationWorkbenchRequest(BaseModel):
+    """估值工作台参数"""
+    methods: str = "all"
+    discount_rate: Optional[float] = None
+    terminal_growth: Optional[float] = None
+    fcf_growth: Optional[float] = None
+    peer_pe: Optional[float] = None
+    peer_pb: Optional[float] = None
+    margin_of_safety: Optional[float] = None
+    current_price: Optional[float] = None
+    eps: Optional[float] = None
+    bps: Optional[float] = None
+    pe: Optional[float] = None
+    pb: Optional[float] = None
+    free_cash_flow: Optional[float] = None
+    shares_outstanding: Optional[float] = None
+    total_debt: Optional[float] = None
+    cash: Optional[float] = None
+    sector: Optional[str] = None
+    industry: Optional[str] = None
+
+
+class FinancialHealthRequest(BaseModel):
+    """外部财务字段体检参数"""
+    gross_margin: Optional[float] = None
+    net_margin: Optional[float] = None
+    roe: Optional[float] = None
+    debt_ratio: Optional[float] = None
+    revenue_growth: Optional[float] = None
+    profit_growth: Optional[float] = None
+    receivable_growth: Optional[float] = None
+    inventory_growth: Optional[float] = None
+    operating_cash_flow: Optional[float] = None
+    net_income: Optional[float] = None
+
+
+class PriceBar(BaseModel):
+    """外部传入的真实K线字段"""
+    date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: Optional[float] = None
+
+
+class StockReportRequest(BaseModel):
+    """投资者HTML报告请求"""
+    style: str = "kami"
+    price_csv: Optional[str] = None
+    price_rows: Optional[list[PriceBar]] = None
+    strict_data: bool = True
+    require_technical_data: bool = True
+    live_data_check: bool = False
+    enforce_freshness: bool = False
+    max_price_age_days: int = 10
+    timeframe: str = "日线"
+    trend: Optional[str] = None
+    business_summary: Optional[str] = None
+    moat: Optional[str] = None
+    industry: Optional[str] = None
+    methods: str = "all"
+    discount_rate: Optional[float] = None
+    terminal_growth: Optional[float] = None
+    fcf_growth: Optional[float] = None
+    peer_pe: Optional[float] = None
+    peer_pb: Optional[float] = None
+    margin_of_safety: Optional[float] = None
+    current_price: Optional[float] = None
+    eps: Optional[float] = None
+    bps: Optional[float] = None
+    pe: Optional[float] = None
+    pb: Optional[float] = None
+    free_cash_flow: Optional[float] = None
+    shares_outstanding: Optional[float] = None
+    total_debt: Optional[float] = None
+    cash: Optional[float] = None
+    gross_margin: Optional[float] = None
+    net_margin: Optional[float] = None
+    roe: Optional[float] = None
+    debt_ratio: Optional[float] = None
+    revenue_growth: Optional[float] = None
+    profit_growth: Optional[float] = None
+    receivable_growth: Optional[float] = None
+    inventory_growth: Optional[float] = None
+    operating_cash_flow: Optional[float] = None
+    net_income: Optional[float] = None
+
+
 def get_analysis_skill(market: str) -> str:
     """按市场选择分析 Skill。"""
     skill_map = {
@@ -96,6 +185,127 @@ def load_stock_module(file_name: str, module_name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _dump_model(model: BaseModel) -> dict:
+    return model.model_dump(exclude_none=True) if hasattr(model, "model_dump") else model.dict(exclude_none=True)
+
+
+def _build_stock_report_context(symbol: str, request: StockReportRequest) -> dict:
+    from skills.shared import check_data_sources, stock_display_name
+
+    health_module = load_stock_module("financial_health.py", "api_stock_financial_health")
+    workbench_module = load_stock_module("valuation_workbench.py", "api_stock_valuation_workbench")
+    risk_module = load_stock_module("risk_alerts.py", "api_stock_risk_alerts")
+    collector_module = load_stock_module("stock_data_collector.py", "api_stock_data_collector")
+    preflight_module = load_stock_module("report_preflight.py", "api_stock_report_preflight")
+
+    payload = _dump_model(request)
+    data_sources = check_data_sources(
+        live=request.live_data_check,
+        sample_symbol=symbol if str(symbol).isdigit() else "002050",
+    )
+    collected_data = collector_module.collect_stock_data(symbol)
+    if request.price_csv:
+        csv_data = collector_module.collect_price_csv(request.price_csv, symbol=symbol, timeframe=request.timeframe)
+        if csv_data.get("technical_analysis"):
+            collected_data["technical_analysis"] = csv_data["technical_analysis"]
+        if csv_data.get("market_data", {}).get("price") is not None:
+            collected_data.setdefault("market_data", {}).update(csv_data.get("market_data", {}))
+            collected_data.setdefault("valuation_fields", {}).update(csv_data.get("valuation_fields", {}))
+        collected_data.setdefault("warnings", []).extend(csv_data.get("warnings", []))
+        collected_data.setdefault("sources", []).extend(csv_data.get("sources", []))
+        collected_data["success"] = collected_data.get("success") or csv_data.get("success", False)
+    if request.price_rows:
+        rows = [_dump_model(row) for row in request.price_rows]
+        row_data = collector_module.collect_price_rows(rows, symbol=symbol, timeframe=request.timeframe)
+        if row_data.get("technical_analysis"):
+            collected_data["technical_analysis"] = row_data["technical_analysis"]
+        if row_data.get("market_data", {}).get("price") is not None:
+            collected_data.setdefault("market_data", {}).update(row_data.get("market_data", {}))
+            collected_data.setdefault("valuation_fields", {}).update(row_data.get("valuation_fields", {}))
+        collected_data.setdefault("warnings", []).extend(row_data.get("warnings", []))
+        collected_data.setdefault("sources", []).extend(row_data.get("sources", []))
+        collected_data["success"] = collected_data.get("success") or row_data.get("success", False)
+
+    data_sources["collection"] = {
+        "success": collected_data.get("success", False),
+        "warnings": collected_data.get("warnings", []),
+        "sources": collected_data.get("sources", []),
+    }
+
+    health_keys = {
+        "gross_margin", "net_margin", "roe", "debt_ratio", "revenue_growth",
+        "profit_growth", "receivable_growth", "inventory_growth",
+        "operating_cash_flow", "net_income",
+    }
+    valuation_keys = {
+        "methods", "discount_rate", "terminal_growth", "fcf_growth", "peer_pe",
+        "peer_pb", "margin_of_safety", "current_price", "eps", "bps", "pe",
+        "pb", "free_cash_flow", "shares_outstanding", "total_debt", "cash",
+        "industry",
+    }
+    health_params = {key: payload[key] for key in health_keys if key in payload}
+    valuation_params = {key: payload[key] for key in valuation_keys if key in payload}
+
+    merged_health_params = dict(collected_data.get("financial_fields", {}))
+    merged_health_params.update(health_params)
+    merged_valuation_params = dict(collected_data.get("valuation_fields", {}))
+    merged_valuation_params.update(valuation_params)
+
+    financial_health = health_module.analyze_financial_health(symbol, **merged_health_params)
+    valuation_workbench = workbench_module.analyze_valuation_workbench(symbol, **merged_valuation_params)
+    alerts_result = risk_module.analyze_watchlist_alerts([symbol])
+    risk_alerts = alerts_result.get("items", [{}])[0] if alerts_result.get("items") else {}
+    risk_alerts = preflight_module.reconcile_risk_alerts_with_financials(risk_alerts, financial_health)
+    fundamental = {
+        **collected_data.get("fundamental_analysis", {}),
+        "industry": request.industry or collected_data.get("fundamental_analysis", {}).get("industry") or "行业信息暂未验证",
+        "business_summary": request.business_summary or collected_data.get("fundamental_analysis", {}).get("business_summary"),
+        "moat": request.moat,
+    }
+    technical = dict(collected_data.get("technical_analysis", {}))
+    if request.trend:
+        technical.update({"timeframe": request.timeframe, "trend": request.trend})
+
+    preflight_collected = {
+        **collected_data,
+        "financial_fields": merged_health_params,
+        "valuation_fields": merged_valuation_params,
+    }
+    if merged_valuation_params.get("current_price") is not None:
+        preflight_collected.setdefault("market_data", {})
+        preflight_collected["market_data"] = {
+            **preflight_collected.get("market_data", {}),
+            "price": merged_valuation_params.get("current_price"),
+        }
+
+    display_name = stock_display_name(symbol, collected_data.get("profile", {}))
+    preflight = preflight_module.assess_report_readiness(
+        symbol=symbol,
+        display_name=display_name,
+        collected_data=preflight_collected,
+        financial_health=financial_health,
+        valuation_workbench=valuation_workbench,
+        technical_analysis=technical,
+        fundamental_analysis=fundamental,
+        mode="full",
+        enforce_freshness=request.enforce_freshness,
+        max_price_age_days=request.max_price_age_days,
+    )
+    data_sources["preflight"] = preflight
+    return {
+        "symbol": symbol,
+        "display_name": display_name,
+        "data_sources": data_sources,
+        "collected_data": collected_data,
+        "financial_health": financial_health,
+        "valuation_workbench": valuation_workbench,
+        "risk_alerts": risk_alerts,
+        "fundamental_analysis": fundamental,
+        "technical_analysis": technical,
+        "preflight": preflight,
+    }
 
 
 # ============ 健康检查 ============
@@ -256,6 +466,18 @@ async def financial_health(symbol: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/financial-health/{symbol}")
+async def financial_health_with_inputs(symbol: str, request: FinancialHealthRequest):
+    """使用外部已验证财务字段执行财报体检"""
+    try:
+        module = load_stock_module("financial_health.py", "stock_financial_health")
+        params = request.model_dump(exclude_none=True) if hasattr(request, "model_dump") else request.dict(exclude_none=True)
+        result = module.analyze_financial_health(symbol, **params)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/risk-alerts/{symbol}")
 async def risk_alerts(symbol: str):
     """单只股票风险预警"""
@@ -274,6 +496,83 @@ async def watchlist_alerts(request: WatchlistAlertRequest):
         module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
         result = module.analyze_watchlist_alerts(request.symbols)
         return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/valuation-workbench/{symbol}")
+async def valuation_workbench(symbol: str, request: ValuationWorkbenchRequest):
+    """情景估值工作台"""
+    try:
+        params = request.model_dump(exclude_none=True) if hasattr(request, "model_dump") else request.dict(exclude_none=True)
+        module = load_stock_module("valuation_workbench.py", "stock_valuation_workbench")
+        result = module.analyze_valuation_workbench(symbol, **params)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/report/preflight/{symbol}")
+async def report_preflight(symbol: str, request: StockReportRequest):
+    """正式报告生成前的数据完整性检查"""
+    try:
+        context = _build_stock_report_context(symbol, request)
+        return JSONResponse({
+            "symbol": symbol,
+            "display_name": context["display_name"],
+            "preflight": context["preflight"],
+            "data_source_status": context["data_sources"].get("status"),
+            "collection": context["data_sources"].get("collection"),
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/report/html/{symbol}")
+async def report_html(symbol: str, request: StockReportRequest):
+    """生成投资者可读HTML报告；严格模式下核心数据不足则拒绝输出"""
+    try:
+        context = _build_stock_report_context(symbol, request)
+        preflight = context["preflight"]
+        if request.require_technical_data and not context["technical_analysis"].get("candles"):
+            return JSONResponse(
+                {
+                    "success": False,
+                    "symbol": symbol,
+                    "reason": "没有取得可验证K线数据，无法展示技术面、支撑位和压力位。",
+                    "preflight": preflight,
+                },
+                status_code=422,
+            )
+        if request.strict_data and not preflight.get("can_generate"):
+            return JSONResponse(
+                {
+                    "success": False,
+                    "symbol": symbol,
+                    "reason": "核心数据不足，严格模式下不生成正式HTML报告。",
+                    "preflight": preflight,
+                },
+                status_code=422,
+            )
+
+        if request.style == "apple":
+            report_module = load_stock_module("apple_style_report.py", "api_apple_style_report")
+            report_class = report_module.AppleStyleStockReport
+        else:
+            report_module = load_stock_module("kami_style_report.py", "api_kami_style_report")
+            report_class = report_module.KamiStyleStockReport
+
+        html_text = report_class().generate(
+            symbol,
+            display_name=context["display_name"],
+            financial_health=context["financial_health"],
+            valuation_workbench=context["valuation_workbench"],
+            risk_alerts=context["risk_alerts"],
+            technical_analysis=context["technical_analysis"],
+            fundamental_analysis=context["fundamental_analysis"],
+            data_sources=context["data_sources"],
+        )
+        return HTMLResponse(html_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

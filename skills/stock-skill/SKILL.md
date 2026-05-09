@@ -3,7 +3,7 @@ name: stock-analysis-skill
 description: |
   股票多维度分析 - 技术指标、基本面、资金流向、异常检测。
   支持A股/港股/美股市场，包含快速分析、财报体检、风险预警、
-  财务异常检测、估值分析和深度研报。
+  估值工作台、外部数据覆盖、财务异常检测和深度研报。
 ---
 
 # Stock Analysis Skill
@@ -89,7 +89,20 @@ from skills.stock_skill.risk_alerts import analyze_watchlist_alerts
 result = analyze_watchlist_alerts(['AAPL', 'MSFT'])
 ```
 
-### 6. 深度研报 (deep-research/)
+### 6. 估值工作台 (valuation_workbench.py)
+
+运行谨慎、基准、乐观三套估值情景：
+- 输出估值区间和安全价
+- 展示上行空间、方法、置信度和模型假设
+- 缺少可验证估值数据时不生成伪区间
+
+```python
+from skills.stock_skill.valuation_workbench import analyze_valuation_workbench
+
+result = analyze_valuation_workbench('AAPL', discount_rate=0.10, peer_pe=25)
+```
+
+### 7. 深度研报 (deep-research/)
 
 8阶段投研框架：
 - Phase 1: 公司事实底座
@@ -193,6 +206,7 @@ stock-skill/
 ├── financial_check.py    # 财务异常检测 (v1.0)
 ├── financial_health.py   # 财报体检评分
 ├── risk_alerts.py        # 自选股风险预警
+├── valuation_workbench.py # 情景估值工作台
 ├── deep-research/        # 深度研报
 │   ├── SKILL.md
 │   ├── analyzer.py       # 8阶段分析

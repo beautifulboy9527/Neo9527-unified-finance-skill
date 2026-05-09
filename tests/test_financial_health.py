@@ -73,3 +73,26 @@ def test_financial_health_flags_working_capital_deterioration():
 
     assert result["dimensions"]["working_capital"]["score"] < 50
     assert any("营运资本质量偏弱" in flag for flag in result["risk_flags"])
+
+
+def test_financial_health_accepts_manual_external_inputs():
+    analyzer = _load_financial_health()()
+    result = analyzer.analyze(
+        "002050",
+        gross_margin=28,
+        net_margin=12,
+        roe=18,
+        debt_ratio=45,
+        revenue_growth=10,
+        profit_growth=15,
+        receivable_growth=8,
+        inventory_growth=6,
+        operating_cash_flow=100,
+        net_income=80,
+    )
+
+    assert result["success"] is True
+    assert result["health_score"] >= 60
+    assert result["data_completeness"] >= 0.8
+    assert any("外部传入财务字段" in warning for warning in result["warnings"])
+    assert result["evidence_summary"]["items"] >= 8

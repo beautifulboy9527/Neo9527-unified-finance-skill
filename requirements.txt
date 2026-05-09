@@ -22,6 +22,8 @@ pydantic>=2.0.0              # 数据验证
 # ============ Optional (按需安装) ============
 # A股数据 (中国用户)
 # akshare>=1.10.0            # A股数据源
+# efinance>=0.5.0            # A股行情备用数据源
+# baostock>=0.8.9            # A股历史行情备用数据源
 
 # 加密货币交易
 # ccxt>=4.0.0                # 加密货币交易所API
@@ -40,6 +42,6 @@ mypy>=1.0.0                  # 类型检查
 
 # ============ Notes ============
 # 1. 核心依赖已启用，默认安装即可使用加密货币分析
-# 2. A股分析需安装 akshare: pip install akshare
+# 2. A股分析建议安装完整备用源: pip install -e .[china]
 # 3. 加密货币交易需安装 ccxt: pip install ccxt
 # 4. 开发依赖可通过 pip install -e .[dev] 安装

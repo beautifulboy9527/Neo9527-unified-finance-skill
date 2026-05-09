@@ -6,6 +6,7 @@ import importlib.util
 from pathlib import Path
 
 from .evidence import EvidenceItem, EvidenceLedger
+from .data_source_health import check_data_sources
 from .localization import (
     MISSING_TEXT,
     normalize_report_text,
@@ -56,6 +57,7 @@ __all__ = [
     'RiskMonitor',
     'EvidenceItem',
     'EvidenceLedger',
+    'check_data_sources',
     'MISSING_TEXT',
     'normalize_report_text',
     'normalize_pattern_report',

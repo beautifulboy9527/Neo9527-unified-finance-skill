@@ -1,9 +1,9 @@
 # Neo9527 Unified Finance Skill
 
-> 📊 可组合的金融AI能力平台 | v6.6.5 | by Neo9527
+> 📊 可组合的金融AI能力平台 | v6.6.7 | by Neo9527
 
 [![GitHub](https://img.shields.io/badge/GitHub-Neo9527--unified--finance--skill-blue)](https://github.com/beautifulboy9527/Neo9527-unified-finance-skill)
-[![Version](https://img.shields.io/badge/version-v6.6.5-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v6.6.7-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.9+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-orange)]()
 [![PyPI](https://img.shields.io/pypi/v/neo9527-finance-skill?color=green)](https://pypi.org/project/neo9527-finance-skill/)
@@ -12,9 +12,9 @@
 
 ## 🎯 项目简介
 
-**Neo9527 Unified Finance Skill v6.6.5** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
+**Neo9527 Unified Finance Skill v6.6.7** 是一个可组合的金融AI能力平台，采用Skills生态架构，支持加密货币、股票、外汇多市场分析，提供REST API服务，可被Agent直接调用。
 
-### v6.6.5 核心特性
+### v6.6.7 核心特性
 
 - 📊 **A股综合分析**: 完整的A股分析报告，含技术形态、信号叠加、深度研报
 - 🔬 **深度研报**: 8阶段投研框架，护城河评估、市场分歧、风险评估
@@ -31,10 +31,12 @@
 - ✅ **报告质量门禁**: 提供 `scripts/quality_gate.py` 校验中文研报禁用英文评级、英文行业、形态冲突和弱结论结构
 - ✅ **财报体检**: 新增财务健康分、五维度体检、风险旗标、数据完整度和证据摘要
 - ✅ **自选股风险预警**: 聚合财报体检、财务异常、估值、监管和技术形态风险
+- ✅ **估值工作台**: 谨慎/基准/乐观三情景估值，输出估值区间、上行空间、假设和警告
+- ✅ **外部数据覆盖**: 财报体检和估值工作台支持外部已验证字段输入，适配无数据源环境
 
-### v6.6.5 升级亮点
+### v6.6.7 升级亮点
 
-| 功能 | 之前 | v6.6.5 |
+| 功能 | 之前 | v6.6.7 |
 |------|------|------|
 | A股分析 | ⚠️ 基础 | ✅ 完整报告 |
 | 技术分析 | ⚠️ 简单 | ✅ 形态+信号+支撑阻力 |
@@ -53,6 +55,8 @@
 | 报告质检 | ❌ 无自动检查 | ✅ CLI + 共享模块质量门禁 |
 | 财报体检 | ❌ 只有异常检测 | ✅ 健康分 + 五维度评分 + API/CLI |
 | 风险预警 | ❌ 无聚合预警 | ✅ 单股/自选股告警 + 严重度排序 |
+| 估值工作台 | ⚠️ 单次估值 | ✅ 三情景估值区间 + API/CLI 参数调节 |
+| A股无数据源场景 | ⚠️ 只能未验证 | ✅ 支持外部财务/估值字段覆盖 |
 
 ---
 
@@ -149,7 +153,7 @@ python finance.py research AAPL
 
 ---
 
-## 📊 报告结构 (v6.6.5)
+## 📊 报告结构 (v6.6.7)
 
 ```
 第一部分：基本面分析（投资根基）
@@ -286,6 +290,20 @@ scripts/features/
 ---
 
 ## 📝 更新日志
+
+### v6.6.7 (2026-04-29)
+
+- 财报体检新增外部字段输入：毛利率、净利率、ROE、资产负债率、收入/利润/应收/存货增速、经营现金流、净利润。
+- 估值模型新增外部字段覆盖：当前价、EPS、BPS、PE、PB、自由现金流、股本、债务、现金、行业板块。
+- CLI/API 均支持外部已验证数据输入，并写入证据账本。
+- 用三花智控 `002050` 完成无 AkShare 环境下的外部数据体检和估值工作台冒烟测试。
+
+### v6.6.6 (2026-04-29)
+
+- 新增 `skills/stock-skill/valuation_workbench.py`，支持谨慎、基准、乐观三情景估值。
+- 新增 CLI：`python finance.py workbench AAPL --discount-rate 0.10 --peer-pe 25`。
+- 新增 API：`POST /api/valuation-workbench/{symbol}`。
+- 缺少可验证估值方法时不生成伪造估值区间，输出未验证结论和警告。
 
 ### v6.6.5 (2026-04-28)
 

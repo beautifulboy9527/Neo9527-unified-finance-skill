@@ -1022,7 +1022,7 @@ class StockAnalyzer:
 
 ---
 
-*by Neo9527 Finance Skill v6.6.5*
+*by Neo9527 Finance Skill v6.6.7*
 """
         
         md = normalize_report_text(md)
@@ -1058,6 +1058,17 @@ class StockAnalyzer:
         basis_items = ''.join(f"<li>{item}</li>" for item in conclusion['关键依据'])
         risk_items = ''.join(f"<li>{item}</li>" for item in conclusion['风险与验证'])
         phase_cards = ''.join(self._phase_summary_card(num, phase) for num, phase in sorted(results.get('phases', {}).items()))
+        if not phase_cards:
+            phase_cards = self._empty_phase_card(results)
+        warning_items = ''.join(f"<li>{warning}</li>" for warning in results.get('warnings', []))
+        warning_block = f"""
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">数据状态</h2>
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                <ul class="list-disc pl-6 text-slate-300 leading-7">{warning_items}</ul>
+            </div>
+        </section>
+        """ if warning_items else ""
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1100,6 +1111,8 @@ class StockAnalyzer:
                 {phase_cards}
             </div>
         </section>
+
+        {warning_block}
 
         <div class="bg-slate-900 border border-slate-800 rounded-lg p-5 mb-8">
             <h2 class="text-xl font-bold mb-2">报告小结</h2>
@@ -1171,6 +1184,16 @@ class StockAnalyzer:
                     <div class="text-sm text-slate-500 mb-1">第{phase_num}阶段</div>
                     <h3 class="text-lg font-semibold mb-2">{name}</h3>
                     <p class="text-slate-300 leading-7">{summary}</p>
+                </div>
+        """
+
+    def _empty_phase_card(self, results: Dict) -> str:
+        reason = '；'.join(results.get('warnings', [])) or '关键行情和财务数据暂不可用'
+        return f"""
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                    <div class="text-sm text-slate-500 mb-1">待验证</div>
+                    <h3 class="text-lg font-semibold mb-2">分项分析暂不可用</h3>
+                    <p class="text-slate-300 leading-7">{reason}。系统未使用模拟数据补齐，因此分项结论暂不展开。</p>
                 </div>
         """
 

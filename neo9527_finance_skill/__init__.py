@@ -3,7 +3,7 @@
 Neo9527 Finance Skill - CLI入口
 """
 
-__version__ = "6.6.5"
+__version__ = "6.6.7"
 
 
 def main():

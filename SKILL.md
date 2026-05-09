@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.6.5. Tested: 2026-04-28. API and CLI supported.
+Version: 6.6.7. Tested: 2026-04-29. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -42,11 +42,25 @@ separation between reported facts, estimates, and analyst interpretation.
 neo-finance analyze AAPL
 neo-finance check 600519
 neo-finance health AAPL
+neo-finance health 002050 --gross-margin 28 --net-margin 12 --roe 18
 neo-finance alerts AAPL MSFT
+neo-finance doctor
+neo-finance doctor --live --sample-symbol 002050
+neo-finance discover --candidate-csv candidates.csv --top 10 --generate-reports --report-count 3
+neo-finance monitor --watchlist-csv watchlist.csv --generate-review-reports --report-count 3 --generate-plan
+neo-finance workbench AAPL --discount-rate 0.10 --peer-pe 25
+neo-finance report 002050 --style kami --live-data-check --require-technical-data --strict-data --enforce-freshness
 neo-finance value AAPL
 neo-finance research AAPL --style value --depth standard
 uvicorn api.server:app --reload
 ```
+
+API report endpoints:
+
+- `POST /api/report/preflight/{symbol}` checks whether a formal investor report has enough real inputs.
+- `POST /api/report/html/{symbol}` returns investor-facing HTML and rejects incomplete strict reports.
+- Both endpoints accept `price_rows` OHLCV arrays for real K-line data when the caller cannot provide a server-local CSV.
+- Use `enforce_freshness=true` and `max_price_age_days` to reject stale K-line data in formal reports.
 
 ## Python Use
 
@@ -74,6 +88,8 @@ output = SkillRegistry.execute(
 
 - Report quality rules: `references/report_quality.md`
 - Valuation methodology: `references/valuation_methodology.md`
+- Finance skill/tool catalog for future development: `references/finance_skill_catalog.md`
+- Product strategy and monetization workflow: `references/product_strategy.md`
 - Detailed project usage and packaging notes: `README.md`
 
 ## Validation

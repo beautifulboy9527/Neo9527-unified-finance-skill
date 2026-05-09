@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Neo9527 Finance Skill - PyPI Setup
-v6.6.5 - 自选股风险预警与订阅能力雏形
+v6.6.7 - 外部数据覆盖与A股无数据源可用性增强
 """
 
 from setuptools import setup, find_packages
@@ -12,7 +12,7 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="neo9527-finance-skill",
-    version="6.6.5",
+    version="6.6.7",
     author="beautifulboy9527",
     author_email="beautifulboy9527@gmail.com",
     description="Lightweight production-ready AI finance skill platform for multi-market analysis, signals, reports, and on-chain intelligence.",
@@ -45,6 +45,8 @@ setup(
         ],
         "china": [
             "akshare>=1.12.0",
+            "efinance>=0.5.0",
+            "baostock>=0.8.9",
         ],
         "dev": [
             "pytest>=8.0.0",
@@ -57,6 +59,8 @@ setup(
             "ccxt>=4.3.0",
             "pandas-ta>=0.3.14b0",
             "akshare>=1.12.0",
+            "efinance>=0.5.0",
+            "baostock>=0.8.9",
             "pytest>=8.0.0",
             "pytest-cov>=5.0.0",
             "build>=1.2.1",
