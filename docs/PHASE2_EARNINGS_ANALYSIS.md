@@ -111,7 +111,12 @@ GET /api/performance-comparison/{symbol}
   - [x] 财报回顾 (业绩达标/利润率/资产负债/现金流)
   - [x] 业绩比较 (同比/环比/行业对比)
   - [x] CLI 集成 (finance.py earnings/preview/recap/compare)
-- [ ] Phase 3: 选股器增强
+- [x] Phase 3: 选股器增强 (已完成 2026-05-10)
+  - [x] 预设策略 (7种: value/growth/dividend/garp/turnaround/defensive/quality)
+  - [x] 技术面筛选 (6种: golden-cross/ma-bullish/volume-breakout/rsi-oversold/bollinger-squeeze/consolidation-breakout)
+  - [x] 多因子评分系统 (估值/盈利/成长/安全/动量)
+  - [x] 行业筛选
+  - [x] CLI 集成 (finance.py screen --strategy/--technical/--scoring)
 - [ ] Phase 4: 数据源稳定性
 - [ ] Phase 5: 产品化功能
 
