@@ -793,6 +793,114 @@ def cmd_board(args):
     print(f"\n结果: {result}")
 
 
+def cmd_earnings(args):
+    """财报分析 - 完整财报分析 (预测 + 回顾 + 比较)"""
+    import importlib.util
+    
+    # 设置正确的路径
+    stock_skill_dir = os.path.join(SKILLS_DIR, 'skills', 'stock-skill')
+    if stock_skill_dir not in sys.path:
+        sys.path.insert(0, stock_skill_dir)
+    
+    # 动态导入 earnings_cli
+    spec = importlib.util.spec_from_file_location(
+        "earnings_cli",
+        os.path.join(stock_skill_dir, 'earnings_cli.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    symbol = args.symbol.upper()
+    
+    print(f"\n{'='*60}")
+    print(f"📊 完整财报分析 - {symbol}")
+    print(f"{'='*60}\n")
+    
+    # 设置 sys.argv 并运行
+    original_argv = sys.argv
+    sys.argv = ['earnings_cli', 'all', symbol]
+    try:
+        module.main()
+    finally:
+        sys.argv = original_argv
+
+
+def cmd_preview(args):
+    """财报预测"""
+    import importlib.util
+    
+    stock_skill_dir = os.path.join(SKILLS_DIR, 'skills', 'stock-skill')
+    if stock_skill_dir not in sys.path:
+        sys.path.insert(0, stock_skill_dir)
+    
+    spec = importlib.util.spec_from_file_location(
+        "earnings_cli",
+        os.path.join(stock_skill_dir, 'earnings_cli.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    symbol = args.symbol.upper()
+    periods = args.periods if hasattr(args, 'periods') else 4
+    
+    original_argv = sys.argv
+    sys.argv = ['earnings_cli', 'preview', symbol, str(periods)]
+    try:
+        module.main()
+    finally:
+        sys.argv = original_argv
+
+
+def cmd_recap(args):
+    """财报回顾"""
+    import importlib.util
+    
+    stock_skill_dir = os.path.join(SKILLS_DIR, 'skills', 'stock-skill')
+    if stock_skill_dir not in sys.path:
+        sys.path.insert(0, stock_skill_dir)
+    
+    spec = importlib.util.spec_from_file_location(
+        "earnings_cli",
+        os.path.join(stock_skill_dir, 'earnings_cli.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    symbol = args.symbol.upper()
+    
+    original_argv = sys.argv
+    sys.argv = ['earnings_cli', 'recap', symbol]
+    try:
+        module.main()
+    finally:
+        sys.argv = original_argv
+
+
+def cmd_compare(args):
+    """业绩比较"""
+    import importlib.util
+    
+    stock_skill_dir = os.path.join(SKILLS_DIR, 'skills', 'stock-skill')
+    if stock_skill_dir not in sys.path:
+        sys.path.insert(0, stock_skill_dir)
+    
+    spec = importlib.util.spec_from_file_location(
+        "earnings_cli",
+        os.path.join(stock_skill_dir, 'earnings_cli.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    symbols = [s.upper() for s in args.symbols]
+    
+    original_argv = sys.argv
+    sys.argv = ['earnings_cli', 'compare'] + symbols
+    try:
+        module.main()
+    finally:
+        sys.argv = original_argv
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Neo9527 Finance CLI - 统一金融分析工具',
@@ -954,6 +1062,28 @@ def main():
         default='market',
         help='筛选类型: limit-up(涨停板), strong(强势股), continuous(连板), market(市场情绪), opportunities(打板机会)')
     parser_board.set_defaults(func=cmd_board)
+    
+    # earnings 命令 (完整财报分析)
+    parser_earnings = subparsers.add_parser('earnings', help='完整财报分析 (预测+回顾)')
+    parser_earnings.add_argument('symbol', help='股票代码')
+    parser_earnings.add_argument('--periods', type=int, default=4, help='预测季度数 (默认4)')
+    parser_earnings.set_defaults(func=cmd_earnings)
+    
+    # preview 命令 (财报预测)
+    parser_preview = subparsers.add_parser('preview', help='财报预测 (预测未来季度业绩)')
+    parser_preview.add_argument('symbol', help='股票代码')
+    parser_preview.add_argument('--periods', type=int, default=4, help='预测季度数 (默认4)')
+    parser_preview.set_defaults(func=cmd_preview)
+    
+    # recap 命令 (财报回顾)
+    parser_recap = subparsers.add_parser('recap', help='财报回顾 (分析历史业绩)')
+    parser_recap.add_argument('symbol', help='股票代码')
+    parser_recap.set_defaults(func=cmd_recap)
+    
+    # compare 命令 (业绩比较)
+    parser_compare = subparsers.add_parser('compare', help='多股票业绩比较')
+    parser_compare.add_argument('symbols', nargs='+', help='股票代码列表 (至少2个)')
+    parser_compare.set_defaults(func=cmd_compare)
     
     args = parser.parse_args()
     
