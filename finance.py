@@ -63,30 +63,44 @@ def cmd_analyze(args):
 
 
 def cmd_screen(args):
-    """A股选股"""
-    from stock_skill.screener import screen_stocks
+    """A股选股 (v2.0 增强版)"""
+    import importlib.util
     
-    print(f"\n🔍 选股 ({args.scope})...")
+    # 动态导入增强选股器
+    spec = importlib.util.spec_from_file_location(
+        "enhanced_screener",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'enhanced_screener.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     
+    screener = module.EnhancedScreener()
+    
+    # 构建筛选参数
     criteria = {}
     if args.pe_max:
         criteria['pe_max'] = args.pe_max
+    if args.pb_max:
+        criteria['pb_max'] = args.pb_max
     if args.roe_min:
         criteria['roe_min'] = args.roe_min
     if args.debt_max:
         criteria['debt_ratio_max'] = args.debt_max
+    if args.margin_min:
+        criteria['net_margin_min'] = args.margin_min
     
-    result = screen_stocks(args.scope, criteria if criteria else None)
+    # 执行筛选
+    result = screener.screen(
+        scope=args.scope,
+        strategy=args.strategy,
+        criteria=criteria if criteria else None,
+        technical_checks=args.technical if args.technical else None,
+        use_scoring=args.scoring,
+        industry=args.industry,
+        top=args.top,
+    )
     
-    if result['success']:
-        print(f"\n选股结果: {result['matched_stocks']}/{result['total_stocks']} 只")
-        
-        if result['stocks']:
-            print(f"\n符合条件股票:")
-            for i, stock in enumerate(result['stocks'][:20], 1):
-                print(f"  {i}. {stock['code']} - ROE: {stock['roe']:.1f}%, PE: {stock['pe']:.1f}")
-    else:
-        print(f"❌ 选股失败: {result.get('error', '未知错误')}")
+    print(module.format_screening_output(result))
 
 
 def cmd_check(args):
@@ -914,12 +928,25 @@ def main():
     parser_analyze.add_argument('symbol', help='股票代码')
     parser_analyze.set_defaults(func=cmd_analyze)
     
-    # screen 命令
-    parser_screen = subparsers.add_parser('screen', help='A股选股')
-    parser_screen.add_argument('--scope', default='hs300', help='选股范围 (hs300/zz500/a50)')
+    # screen 命令 (v2.0 增强版)
+    parser_screen = subparsers.add_parser('screen', help='A股选股 v2.0')
+    parser_screen.add_argument('--scope', default='hs300', 
+        choices=['hs300', 'zz500', 'a50', 'all'],
+        help='选股范围，默认hs300')
+    parser_screen.add_argument('--strategy', '-s',
+        choices=['value', 'growth', 'dividend', 'garp', 'turnaround', 'defensive', 'quality'],
+        help='预设策略: value/growth/dividend/garp/turnaround/defensive/quality')
+    parser_screen.add_argument('--technical', '-t', nargs='+',
+        choices=['golden-cross', 'ma-bullish', 'volume-breakout', 'rsi-oversold', 'bollinger-squeeze', 'consolidation-breakout'],
+        help='技术面条件: golden-cross/ma-bullish/volume-breakout/rsi-oversold')
+    parser_screen.add_argument('--scoring', action='store_true', help='启用多因子评分排序')
+    parser_screen.add_argument('--industry', help='行业筛选，如: 银行, 医药')
+    parser_screen.add_argument('--top', type=int, default=20, help='展示TOP N，默认20')
     parser_screen.add_argument('--pe-max', type=float, help='PE上限')
-    parser_screen.add_argument('--roe-min', type=float, help='ROE下限')
-    parser_screen.add_argument('--debt-max', type=float, help='负债率上限')
+    parser_screen.add_argument('--pb-max', type=float, help='PB上限')
+    parser_screen.add_argument('--roe-min', type=float, help='ROE下限百分比')
+    parser_screen.add_argument('--debt-max', type=float, help='负债率上限百分比')
+    parser_screen.add_argument('--margin-min', type=float, help='净利率下限百分比')
     parser_screen.set_defaults(func=cmd_screen)
     
     # check 命令
