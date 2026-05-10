@@ -106,11 +106,15 @@ GET /api/performance-comparison/{symbol}
 ## 进度
 
 - [x] Phase 1: 增强技术分析 (VWAP/斐波那契/缠论/K线形态/趋势线/ADX)
-- [ ] Phase 2: 财报预测与回顾
+- [x] Phase 2: 财报预测与回顾 (已完成 2026-05-10)
+  - [x] 财报预测 (收入/利润/EPS预测)
+  - [x] 财报回顾 (业绩达标/利润率/资产负债/现金流)
+  - [x] 业绩比较 (同比/环比/行业对比)
+  - [x] CLI 集成 (finance.py earnings/preview/recap/compare)
 - [ ] Phase 3: 选股器增强
 - [ ] Phase 4: 数据源稳定性
 - [ ] Phase 5: 产品化功能
 
 ---
 
-*Last updated: 2026-05-09*
+*Last updated: 2026-05-10*
