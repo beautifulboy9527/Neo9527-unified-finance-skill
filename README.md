@@ -162,6 +162,22 @@ python finance.py research AAPL
 # 建议: 基本面尚可，需进一步分析
 ```
 
+### 5. 财报分析 (Phase 2)
+
+```bash
+# 财报预测 - 预测未来季度收入/利润/EPS
+python finance.py preview AAPL --periods 4
+
+# 财报回顾 - 分析最新财报表现
+python finance.py recap AAPL
+
+# 多股票业绩比较
+python finance.py compare AAPL MSFT GOOGL
+
+# 完整财报分析 (预测+回顾)
+python finance.py earnings AAPL
+```
+
 ---
 
 ## 📊 报告结构 (v6.6.7)
