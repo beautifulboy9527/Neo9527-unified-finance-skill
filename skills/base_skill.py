@@ -202,6 +202,8 @@ def load_builtin_skills(base_dir: str = None) -> List[str]:
         ("report_skill_commentary", os.path.join("report-skill", "commentary.py")),
         ("onchain_skill_whale", os.path.join("onchain-skill", "whale.py")),
         ("stock_skill_enhanced_screener", os.path.join("stock-skill", "enhanced_screener.py")),
+        ("stock_skill_watchlist", os.path.join("stock-skill", "watchlist_manager.py")),
+        ("stock_skill_portfolio", os.path.join("stock-skill", "portfolio_skill.py")),
     ]
     
     loaded = []
@@ -271,4 +273,80 @@ class EnhancedScreenerSkill(BaseSkill):
             timestamp=datetime.now().isoformat(),
             data_source=['akshare'],
             error=result.get('error')
+        )
+
+
+@register_skill
+class WatchlistSkill(BaseSkill):
+    """自选股管理 Skill - Phase 5"""
+    
+    description = "自选股管理：增删改查、监控告警、分组管理"
+    version = "1.0.0"
+    supported_markets = ["stock"]
+    
+    def execute(self, input_data: SkillInput) -> SkillOutput:
+        """执行自选股操作"""
+        params = input_data.params or {}
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        watchlist_path = os.path.join(base_dir, "stock-skill", "watchlist_manager.py")
+        
+        spec = importlib.util.spec_from_file_location("watchlist_manager", watchlist_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        skill = module.WatchlistSkill()
+        result = skill.execute(
+            action=params.get('action', 'list'),
+            **params.get('args', {})
+        )
+        
+        return SkillOutput(
+            skill_name=self.name,
+            success=result.get('success', False),
+            data=result,
+            signals=result.get('triggered', []),
+            score=len(result.get('items', [])),
+            confidence=0.9 if result.get('success') else 0,
+            timestamp=datetime.now().isoformat(),
+            data_source=['config/watchlist.json'],
+            error=result.get('message')
+        )
+
+
+@register_skill
+class PortfolioSkill(BaseSkill):
+    """组合分析 Skill - Phase 5"""
+    
+    description = "组合分析：VaR/CVaR、Markowitz优化、Kelly仓位、风险预警"
+    version = "1.0.0"
+    supported_markets = ["stock"]
+    
+    def execute(self, input_data: SkillInput) -> SkillOutput:
+        """执行组合分析"""
+        params = input_data.params or {}
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        portfolio_path = os.path.join(base_dir, "stock-skill", "portfolio_skill.py")
+        
+        spec = importlib.util.spec_from_file_location("portfolio_skill", portfolio_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        skill = module.PortfolioSkill()
+        result = skill.execute(
+            action=params.get('action', 'analyze'),
+            **params.get('args', {})
+        )
+        
+        return SkillOutput(
+            skill_name=self.name,
+            success=result.get('success', False),
+            data=result,
+            signals=result.get('warnings', []),
+            score=result.get('health_score', {}).get('total', 0) if result.get('success') else 0,
+            confidence=0.85 if result.get('success') else 0,
+            timestamp=datetime.now().isoformat(),
+            data_source=['akshare', 'yfinance'],
+            error=result.get('error') or result.get('message')
         )

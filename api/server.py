@@ -887,6 +887,305 @@ async def test_data_source(request: DataSourceTestRequest):
         return {"success": False, "error": str(e)}
 
 
+# ============ Phase 5: 产品化功能 API ============
+
+# 自选股管理请求模型
+class WatchlistAddRequest(BaseModel):
+    """添加自选股请求"""
+    symbol: str
+    target: Optional[float] = None
+    stop: Optional[float] = None
+    notes: Optional[str] = ""
+    group: Optional[str] = "默认"
+    priority: Optional[str] = "中"
+
+
+class WatchlistUpdateRequest(BaseModel):
+    """更新自选股请求"""
+    id: int
+    target: Optional[float] = None
+    stop: Optional[float] = None
+    notes: Optional[str] = None
+    group: Optional[str] = None
+    priority: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class WatchlistRemoveRequest(BaseModel):
+    """移除自选股请求"""
+    id: int
+
+
+# 组合分析请求模型
+class PortfolioAnalyzeRequest(BaseModel):
+    """组合分析请求"""
+    symbols: list[str]
+    weights: Optional[list[float]] = None
+    days: Optional[int] = 365
+
+
+class PortfolioOptimizeRequest(BaseModel):
+    """组合优化请求"""
+    symbols: list[str]
+    method: Optional[str] = "max_sharpe"  # max_sharpe, min_volatility, risk_parity
+    days: Optional[int] = 365
+
+
+class PortfolioKellyRequest(BaseModel):
+    """Kelly仓位请求"""
+    symbol: str
+    days: Optional[int] = 365
+
+
+# ============ 自选股管理 API ============
+
+@app.get("/api/watchlist")
+async def list_watchlist(
+    group: Optional[str] = None,
+    priority: Optional[str] = None,
+    enabled_only: Optional[bool] = True
+):
+    """
+    列出自选股
+    
+    Args:
+        group: 按分组筛选
+        priority: 按优先级筛选
+        enabled_only: 只返回启用的
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('list', group=group, priority=priority, enabled_only=enabled_only)
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/watchlist")
+async def add_watchlist(request: WatchlistAddRequest):
+    """
+    添加自选股
+    
+    Args:
+        symbol: 股票代码
+        target: 目标价
+        stop: 止损价
+        notes: 备注
+        group: 分组
+        priority: 优先级
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('add',
+            symbol=request.symbol,
+            target=request.target,
+            stop=request.stop,
+            notes=request.notes or "",
+            group=request.group or "默认",
+            priority=request.priority or "中"
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.delete("/api/watchlist/{item_id}")
+async def remove_watchlist(item_id: int):
+    """
+    移除自选股
+    
+    Args:
+        item_id: 自选股ID
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('remove', id=item_id)
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.patch("/api/watchlist/{item_id}")
+async def update_watchlist(item_id: int, request: WatchlistUpdateRequest):
+    """
+    更新自选股
+    
+    Args:
+        item_id: 自选股ID
+        request: 更新参数
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('update',
+            id=item_id,
+            target=request.target,
+            stop=request.stop,
+            notes=request.notes,
+            group=request.group,
+            priority=request.priority,
+            enabled=request.enabled
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/watchlist/check")
+async def check_watchlist():
+    """
+    检查自选股触发条件
+    
+    检查所有启用自选股的目标价/止损价触发情况
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('check')
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/watchlist/summary")
+async def watchlist_summary():
+    """
+    自选股统计报告
+    
+    返回总数、分组分布、优先级分布、监控设置率等
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('summary')
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/watchlist/groups")
+async def list_watchlist_groups():
+    """
+    列出分组
+    
+    返回所有分组及各分组股票数量
+    """
+    try:
+        module = load_stock_module("watchlist_manager.py", "watchlist_manager")
+        skill = module.WatchlistSkill()
+        result = skill.execute('list_groups')
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ============ 组合分析 API ============
+
+@app.post("/api/portfolio/analyze")
+async def analyze_portfolio(request: PortfolioAnalyzeRequest):
+    """
+    组合风险分析
+    
+    Args:
+        symbols: 股票代码列表
+        weights: 权重列表 (None = 等权)
+        days: 历史天数
+    
+    Returns:
+        VaR/CVaR、Sharpe、最大回撤、相关性矩阵、健康度评分
+    """
+    try:
+        module = load_stock_module("portfolio_skill.py", "portfolio_skill")
+        skill = module.PortfolioSkill()
+        result = skill.execute('analyze',
+            symbols=request.symbols,
+            weights=request.weights,
+            days=request.days or 365
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/portfolio/optimize")
+async def optimize_portfolio(request: PortfolioOptimizeRequest):
+    """
+    组合优化
+    
+    Args:
+        symbols: 股票代码列表
+        method: 优化方法 (max_sharpe / min_volatility / risk_parity)
+        days: 历史天数
+    
+    Returns:
+        最优权重分配、预期收益、波动率
+    """
+    try:
+        module = load_stock_module("portfolio_skill.py", "portfolio_skill")
+        skill = module.PortfolioSkill()
+        result = skill.execute('optimize',
+            symbols=request.symbols,
+            method=request.method or "max_sharpe",
+            days=request.days or 365
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/portfolio/kelly")
+async def calculate_kelly(request: PortfolioKellyRequest):
+    """
+    Kelly仓位计算
+    
+    Args:
+        symbol: 股票代码
+        days: 历史天数
+    
+    Returns:
+        胜率、盈亏比、Kelly%仓位建议
+    """
+    try:
+        module = load_stock_module("portfolio_skill.py", "portfolio_skill")
+        skill = module.PortfolioSkill()
+        result = skill.execute('kelly',
+            symbol=request.symbol,
+            days=request.days or 365
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/portfolio/warnings")
+async def check_portfolio_warnings(request: PortfolioAnalyzeRequest):
+    """
+    组合风险预警
+    
+    Args:
+        symbols: 股票代码列表
+        weights: 权重列表
+        days: 历史天数
+    
+    Returns:
+        风险预警列表 (集中度过高、相关性过高等)
+    """
+    try:
+        module = load_stock_module("portfolio_skill.py", "portfolio_skill")
+        skill = module.PortfolioSkill()
+        result = skill.execute('warnings',
+            symbols=request.symbols,
+            weights=request.weights,
+            days=request.days or 365
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 if __name__ == '__main__':
     import uvicorn
     

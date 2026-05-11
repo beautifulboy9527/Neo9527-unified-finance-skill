@@ -139,6 +139,146 @@ def cmd_data_health(args):
     print("\n最佳数据源:", manager.get_best_source())
 
 
+def cmd_watchlist(args):
+    """自选股管理 (Phase 5)"""
+    import importlib.util
+    
+    spec = importlib.util.spec_from_file_location(
+        "watchlist_manager",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'watchlist_manager.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    skill = module.WatchlistSkill()
+    
+    if args.watchlist_action == 'list':
+        result = skill.execute('list', group=args.group, priority=args.priority)
+        print(f"\n📊 自选股列表 ({result['count']} 个):")
+        for item in result['items']:
+            target_str = f"目标:{item['target']}" if item['target'] else ""
+            stop_str = f"止损:{item['stop']}" if item['stop'] else ""
+            print(f"  [{item['id']}] {item['symbol']} | {target_str} {stop_str} | {item['group']} | {item['priority']}")
+            if item['notes']:
+                print(f"      备注: {item['notes']}")
+    
+    elif args.watchlist_action == 'add':
+        result = skill.execute('add',
+            symbol=args.symbol,
+            target=args.target,
+            stop=args.stop,
+            notes=args.notes or "",
+            group=args.group or "默认",
+            priority=args.priority or "中"
+        )
+        if result['success']:
+            print(f"✅ {result['message']}")
+        else:
+            print(f"⚠️ {result['message']}")
+    
+    elif args.watchlist_action == 'remove':
+        result = skill.execute('remove', id=args.id)
+        print(f"{'✅' if result['success'] else '❌'} {result['message']}")
+    
+    elif args.watchlist_action == 'check':
+        result = skill.execute('check')
+        print(f"\n🔍 检查结果 ({result['checked_count']} 个已检查):")
+        if result['triggered']:
+            print(f"  ⚠️ 触发警报 ({result['triggered_count']} 个):")
+            for t in result['triggered']:
+                print(f"    [{t['priority']}] {t['symbol']}: {t['message']}")
+        else:
+            print("  ✓ 无触发警报")
+        if result['errors']:
+            print(f"  ❌ 检查失败 ({len(result['errors'])} 个):")
+            for e in result['errors']:
+                print(f"    {e['symbol']}: {e['error']}")
+    
+    elif args.watchlist_action == 'summary':
+        result = skill.execute('summary')
+        print(f"\n📊 自选股统计:")
+        print(f"  总数: {result['total']} | 启用: {result['enabled']} | 禁用: {result['disabled']}")
+        print(f"  优先级: 高 {result['priority_distribution']['高']} | 中 {result['priority_distribution']['中']} | 低 {result['priority_distribution']['低']}")
+        print(f"  监控设置: 目标价 {result['monitoring']['has_target']} | 止损价 {result['monitoring']['has_stop']} | 双向 {result['monitoring']['has_both']}")
+    
+    elif args.watchlist_action == 'groups':
+        result = skill.execute('list_groups')
+        print(f"\n📁 分组列表:")
+        for group in result['groups']:
+            count = result['stats'].get(group, 0)
+            print(f"  {group}: {count} 个")
+
+
+def cmd_portfolio(args):
+    """组合分析 (Phase 5)"""
+    import importlib.util
+    
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_skill",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'portfolio_skill.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    skill = module.PortfolioSkill()
+    
+    if args.portfolio_action == 'analyze':
+        symbols = args.symbols.split(',')
+        weights = [float(w) for w in args.weights.split(',')] if args.weights else None
+        
+        result = skill.execute('analyze', symbols=symbols, weights=weights, days=args.days)
+        
+        if result['success']:
+            print(f"\n📊 组合分析结果:")
+            print(f"  预期年化收益: {result['annual_return']}%")
+            print(f"  波动率: {result['volatility']}%")
+            print(f"  Sharpe: {result['sharpe_ratio']}")
+            print(f"  VaR(95%): {result['var_95_pct']}%")
+            print(f"  最大回撤: {result['max_drawdown_pct']}%")
+            print(f"\n  健康度评分: {result['health_score']['total']} ({result['health_score']['rating']})")
+        else:
+            print(f"❌ {result.get('error', '分析失败')}")
+    
+    elif args.portfolio_action == 'optimize':
+        symbols = args.symbols.split(',')
+        
+        result = skill.execute('optimize', symbols=symbols, method=args.method, days=args.days)
+        
+        if result['success']:
+            print(f"\n📊 优化结果 ({result['method']}):")
+            print(f"  预期收益: {result['expected_return_pct']}%")
+            print(f"  波动率: {result['volatility_pct']}%")
+            print(f"  Sharpe: {result['sharpe_ratio']}")
+            print(f"\n  权重分配:")
+            for symbol, weight in result['weight_allocation'].items():
+                print(f"    {symbol}: {weight}")
+        else:
+            print(f"❌ {result.get('error', '优化失败')}")
+    
+    elif args.portfolio_action == 'kelly':
+        result = skill.execute('kelly', symbol=args.symbol, days=args.days)
+        
+        if result['success']:
+            print(f"\n📊 Kelly 仓位 ({result['symbol']}):")
+            print(f"  胜率: {result['win_rate']}%")
+            print(f"  盈亏比: {result['win_loss_ratio']}")
+            print(f"  Kelly%: {result['kelly_pct']}%")
+            print(f"  保守Kelly: {result['conservative_kelly_pct']}%")
+            print(f"\n  建议: {result['recommendation']}")
+        else:
+            print(f"❌ {result.get('error', '计算失败')}")
+    
+    elif args.portfolio_action == 'warnings':
+        symbols = args.symbols.split(',')
+        weights = [float(w) for w in args.weights.split(',')] if args.weights else None
+        
+        result = skill.execute('warnings', symbols=symbols, weights=weights, days=args.days)
+        
+        print(f"\n⚠️ 风险预警 ({result['warning_count']} 个):")
+        for warning in result['warnings']:
+            print(f"  [{warning['severity']}] {warning['message']}")
+
+
 def cmd_check(args):
     """财务异常检测"""
     import importlib.util
@@ -991,6 +1131,70 @@ def main():
     parser_data_health.add_argument('--test', action='store_true', help='测试数据源连通性')
     parser_data_health.add_argument('--scope', default='hs300', help='测试范围')
     parser_data_health.set_defaults(func=cmd_data_health)
+    
+    # watchlist 命令 (Phase 5 新增)
+    parser_watchlist = subparsers.add_parser('watchlist', help='自选股管理')
+    watchlist_subparsers = parser_watchlist.add_subparsers(dest='watchlist_action', help='自选股操作')
+    
+    # watchlist list
+    wl_list = watchlist_subparsers.add_parser('list', help='列出自选股')
+    wl_list.add_argument('--group', help='按分组筛选')
+    wl_list.add_argument('--priority', choices=['高', '中', '低'], help='按优先级筛选')
+    
+    # watchlist add
+    wl_add = watchlist_subparsers.add_parser('add', help='添加自选股')
+    wl_add.add_argument('symbol', help='股票代码')
+    wl_add.add_argument('--target', type=float, help='目标价')
+    wl_add.add_argument('--stop', type=float, help='止损价')
+    wl_add.add_argument('--notes', help='备注')
+    wl_add.add_argument('--group', default='默认', help='分组')
+    wl_add.add_argument('--priority', default='中', choices=['高', '中', '低'], help='优先级')
+    
+    # watchlist remove
+    wl_remove = watchlist_subparsers.add_parser('remove', help='移除自选股')
+    wl_remove.add_argument('id', type=int, help='自选股ID')
+    
+    # watchlist check
+    wl_check = watchlist_subparsers.add_parser('check', help='检查触发条件')
+    
+    # watchlist summary
+    wl_summary = watchlist_subparsers.add_parser('summary', help='统计报告')
+    
+    # watchlist groups
+    wl_groups = watchlist_subparsers.add_parser('groups', help='列出分组')
+    
+    parser_watchlist.set_defaults(func=cmd_watchlist)
+    
+    # portfolio 命令 (Phase 5 新增)
+    parser_portfolio = subparsers.add_parser('portfolio', help='组合分析')
+    portfolio_subparsers = parser_portfolio.add_subparsers(dest='portfolio_action', help='组合操作')
+    
+    # portfolio analyze
+    pf_analyze = portfolio_subparsers.add_parser('analyze', help='组合风险分析')
+    pf_analyze.add_argument('symbols', help='股票代码列表 (逗号分隔)')
+    pf_analyze.add_argument('--weights', help='权重列表 (逗号分隔)')
+    pf_analyze.add_argument('--days', type=int, default=365, help='历史天数')
+    
+    # portfolio optimize
+    pf_optimize = portfolio_subparsers.add_parser('optimize', help='组合优化')
+    pf_optimize.add_argument('symbols', help='股票代码列表 (逗号分隔)')
+    pf_optimize.add_argument('--method', default='max_sharpe',
+        choices=['max_sharpe', 'min_volatility', 'risk_parity'],
+        help='优化方法')
+    pf_optimize.add_argument('--days', type=int, default=365, help='历史天数')
+    
+    # portfolio kelly
+    pf_kelly = portfolio_subparsers.add_parser('kelly', help='Kelly仓位计算')
+    pf_kelly.add_argument('symbol', help='股票代码')
+    pf_kelly.add_argument('--days', type=int, default=365, help='历史天数')
+    
+    # portfolio warnings
+    pf_warnings = portfolio_subparsers.add_parser('warnings', help='风险预警')
+    pf_warnings.add_argument('symbols', help='股票代码列表 (逗号分隔)')
+    pf_warnings.add_argument('--weights', help='权重列表 (逗号分隔)')
+    pf_warnings.add_argument('--days', type=int, default=365, help='历史天数')
+    
+    parser_portfolio.set_defaults(func=cmd_portfolio)
     
     # check 命令
     parser_check = subparsers.add_parser('check', help='财务异常检测')

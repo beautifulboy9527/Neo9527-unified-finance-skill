@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 7.0.0 (Phase 4 Complete - 数据源稳定性). Tested: 2026-05-11. API and CLI supported.
+Version: 8.0.0 (Phase 5 Complete - 产品化功能). Tested: 2026-05-11. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -247,3 +247,63 @@ GET /api/data-source/health    # 数据源健康报告
 GET /api/data-source/status    # 当前可用/不可用源
 POST /api/data-source/test     # 测试指定数据源
 ```
+
+## v8.0.0 Phase 5 - 产品化功能
+
+### 新增功能
+
+| 模块 | 说明 | CLI/API |
+|------|------|---------|
+| 自选股管理 | 增删改查、分组、备注、优先级 | ✅ |
+| 监控告警 | 目标价/止损价触发检查 | ✅ |
+| 组合风险分析 | VaR/CVaR、Sharpe、最大回撤 | ✅ |
+| Markowitz优化 | max_sharpe/min_volatility/risk_parity | ✅ |
+| Kelly仓位 | 胜率、盈亏比、仓位建议 | ✅ |
+| 风险预警 | 集中度、相关性预警 | ✅ |
+| 健康度评分 | 组合综合评分 (0-100) | ✅ |
+
+### CLI 命令
+
+```bash
+# 自选股管理
+python finance.py watchlist list                     # 列出自选股
+python finance.py watchlist add 002241 --target 28 --stop 18 --notes "歌尔股份"
+python finance.py watchlist remove 1                 # 移除自选股
+python finance.py watchlist check                    # 检查触发条件
+python finance.py watchlist summary                  # 统计报告
+python finance.py watchlist groups                   # 列出分组
+
+# 组合分析
+python finance.py portfolio analyze 600519,002241,000858 --weights 0.4,0.3,0.3
+python finance.py portfolio optimize 600519,002241,000858 --method max_sharpe
+python finance.py portfolio kelly 600519             # Kelly仓位计算
+python finance.py portfolio warnings 600519,002241   # 风险预警
+```
+
+### API 端点
+
+```
+# 自选股管理
+GET  /api/watchlist              # 列出自选股
+POST /api/watchlist              # 添加自选股
+DELETE /api/watchlist/{id}       # 移除自选股
+PATCH /api/watchlist/{id}        # 更新自选股
+POST /api/watchlist/check        # 检查触发条件
+GET  /api/watchlist/summary      # 统计报告
+GET  /api/watchlist/groups       # 列出分组
+
+# 组合分析
+POST /api/portfolio/analyze      # 组合风险分析
+POST /api/portfolio/optimize     # 组合优化
+POST /api/portfolio/kelly        # Kelly仓位计算
+POST /api/portfolio/warnings     # 风险预警
+```
+
+### 参考模块
+
+| 功能 | 参考文件 |
+|------|----------|
+| 警报管理 | `scripts/alert_manager.py` |
+| 组合管理 | `scripts/features/portfolio_manager.py` |
+| 投资计划 | `skills/stock-skill/investment_plan.py` |
+| 机会短名单 | `skills/stock-skill/opportunity_pipeline.py` |
