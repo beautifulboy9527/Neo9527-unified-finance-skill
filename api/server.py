@@ -106,6 +106,21 @@ class FinancialHealthRequest(BaseModel):
     net_income: Optional[float] = None
 
 
+class ScreenRequest(BaseModel):
+    """选股请求参数"""
+    scope: str = "hs300"  # hs300/zz500/all/a50
+    strategy: Optional[str] = None  # value/growth/dividend/garp/turnaround/defensive/quality
+    technical_checks: Optional[list[str]] = None  # golden-cross/ma-bullish等
+    scoring: bool = False  # 是否启用多因子评分
+    industry: Optional[str] = None  # 行业筛选
+    top: int = 20  # 返回TOP N
+    pe_max: Optional[float] = None
+    pb_max: Optional[float] = None
+    roe_min: Optional[float] = None
+    debt_max: Optional[float] = None
+    margin_min: Optional[float] = None
+
+
 class PriceBar(BaseModel):
     """外部传入的真实K线字段"""
     date: str
@@ -496,6 +511,82 @@ async def watchlist_alerts(request: WatchlistAlertRequest):
         module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
         result = module.analyze_watchlist_alerts(request.symbols)
         return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/screen")
+async def screen_stocks(request: ScreenRequest):
+    """
+    A股智能选股 (Phase 3 增强版)
+    
+    支持:
+    - 预设策略: value/growth/dividend/garp/turnaround/defensive/quality
+    - 技术面筛选: golden-cross/ma-bullish/volume-breakout/rsi-oversold/bollinger-squeeze/consolidation-breakout
+    - 多因子评分: 估值/盈利/成长/安全/动量
+    - 行业筛选
+    
+    示例:
+    POST /api/screen {"scope": "hs300", "strategy": "value", "scoring": true, "top": 20}
+    """
+    try:
+        module = load_stock_module("enhanced_screener.py", "stock_enhanced_screener")
+        screener = module.EnhancedScreener()
+        
+        # 构建自定义条件
+        criteria = {}
+        if request.pe_max:
+            criteria['pe_max'] = request.pe_max
+        if request.pb_max:
+            criteria['pb_max'] = request.pb_max
+        if request.roe_min:
+            criteria['roe_min'] = request.roe_min
+        if request.debt_max:
+            criteria['debt_ratio_max'] = request.debt_max
+        if request.margin_min:
+            criteria['net_margin_min'] = request.margin_min
+        
+        result = screener.screen(
+            scope=request.scope,
+            strategy=request.strategy,
+            criteria=criteria if criteria else None,
+            technical_checks=request.technical_checks,
+            use_scoring=request.scoring,
+            industry=request.industry,
+            top=request.top,
+        )
+        
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/screen/strategies")
+async def list_screening_strategies():
+    """列出所有预设选股策略"""
+    try:
+        module = load_stock_module("screening_strategies.py", "stock_screening_strategies")
+        strategies = module.list_strategies()
+        return JSONResponse({
+            "success": True,
+            "strategies": strategies,
+            "count": len(strategies)
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/screen/technical-checks")
+async def list_technical_checks():
+    """列出所有技术面筛选条件"""
+    try:
+        module = load_stock_module("technical_screener.py", "stock_technical_screener")
+        checks = module.list_technical_checks()
+        return JSONResponse({
+            "success": True,
+            "checks": checks,
+            "count": len(checks)
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

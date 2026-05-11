@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.8.0 (Phase 2 Complete). Tested: 2026-05-09. API and CLI supported.
+Version: 6.9.0 (Phase 3 Complete - 智能选股). Tested: 2026-05-11. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -151,4 +151,54 @@ Run:
 pytest -q
 python -m py_compile skills/base_skill.py api/server.py
 python scripts/quality_gate.py <report.html> --require-layered-conclusion
+```
+
+## v6.9.0 Phase 3 - 智能选股增强
+
+### 新增功能
+
+| 模块 | 说明 | CLI/API |
+|------|------|---------|
+| 预设策略 | 7种策略: value/growth/dividend/garp/turnaround/defensive/quality | ✅ |
+| 技术面筛选 | 6种条件: golden-cross/ma-bullish/volume-breakout/rsi-oversold/bollinger-squeeze/consolidation-breakout | ✅ |
+| 多因子评分 | 估值25%/盈利25%/成长20%/安全15%/动量15% | ✅ |
+| 行业筛选 | 按行业/板块筛选 | ✅ |
+
+### 核心函数
+
+```python
+from skills.stock_skill.enhanced_screener import EnhancedScreener
+
+screener = EnhancedScreener()
+result = screener.screen(
+    scope='hs300',           # 股票池范围
+    strategy='value',        # 预设策略
+    technical_checks=['golden-cross'],  # 技术面条件
+    use_scoring=True,        # 多因子评分
+    top=20                   # 返回TOP N
+)
+```
+
+### CLI 命令
+
+```bash
+# 预设策略选股
+python finance.py screen --strategy value
+
+# 技术面筛选
+python finance.py screen --technical golden-cross ma-bullish
+
+# 多因子评分排序
+python finance.py screen --scoring --top 20
+
+# 组合条件
+python finance.py screen --strategy value --technical golden-cross --scoring
+```
+
+### API 端点
+
+```
+POST /api/screen {"scope": "hs300", "strategy": "value", "scoring": true}
+GET /api/screen/strategies     # 列出预设策略
+GET /api/screen/technical-checks  # 列出技术面条件
 ```

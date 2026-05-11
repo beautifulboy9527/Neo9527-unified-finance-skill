@@ -94,15 +94,26 @@ POST /api/screen
 
 - [x] Phase 1: 增强技术分析 (VWAP/斐波那契/缠论/K线形态/趋势线/ADX)
 - [x] Phase 2: 财报预测与回顾
-- [ ] Phase 3: 选股器增强
-  - [ ] 预设策略
-  - [ ] 技术面筛选
-  - [ ] 多因子评分
-  - [ ] 行业筛选
-  - [ ] CLI 集成
+- [x] Phase 3: 选股器增强 ✅ **2026-05-11 完成**
+  - [x] 预设策略 (7种: value/growth/dividend/garp/turnaround/defensive/quality)
+  - [x] 技术面筛选 (6种: golden-cross/ma-bullish/volume-breakout/rsi-oversold/bollinger-squeeze/consolidation-breakout)
+  - [x] 多因子评分 (估值25%/盈利25%/成长20%/安全15%/动量15%)
+  - [x] 行业筛选
+  - [x] CLI 集成 (`python finance.py screen`)
+  - [x] API 端点 (`POST /api/screen`, `GET /api/screen/strategies`, `GET /api/screen/technical-checks`)
 - [ ] Phase 4: 数据源稳定性
 - [ ] Phase 5: 产品化功能
 
+## 完成文件
+
+| 文件 | 说明 | 状态 |
+|------|------|------|
+| `skills/stock-skill/enhanced_screener.py` | 选股器 v2.0 核心引擎 | ✅ |
+| `skills/stock-skill/screening_strategies.py` | 7种预设策略定义 | ✅ |
+| `skills/stock-skill/technical_screener.py` | 6种技术面筛选条件 | ✅ |
+| `skills/stock-skill/SKILL.md` | Phase 3 文档更新 | ✅ |
+| `api/server.py` | API 端点 `/api/screen` | ✅ |
+
 ---
 
-*Created: 2026-05-10*
+*Completed: 2026-05-11*

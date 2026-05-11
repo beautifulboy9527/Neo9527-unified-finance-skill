@@ -23,24 +23,66 @@ description: |
 | 信号生成 | ✅ 买入/卖出 | ✅ | ✅ |
 | 综合评分 | ✅ 0-100分 | ✅ | ✅ |
 
-### 2. A股选股器 (screener.py)
+### 2. A股选股器 v2.0 (enhanced_screener.py)
 
-多条件选股：
-- 估值指标: PE/PB/PS
-- 盈利指标: ROE/ROA/毛利率/净利率
-- 成长指标: 营收增长率/净利润增长率
-- 股息指标: 股息率
-- 财务安全: 资产负债率/流动比率
+Phase 3 增强版，支持预设策略、技术面筛选、多因子评分：
+
+#### 预设策略 (7种)
+| 策略 | 说明 | 核心条件 |
+|------|------|----------|
+| value | 价值投资 | PE<20, PB<3, ROE>15% |
+| growth | 成长股 | 收益增长>20%, PE<40 |
+| dividend | 高股息 | 股息率>3%, 连续分红 |
+| garp | GARP | PEG<1.5, ROE>12% |
+| turnaround | 困境反转 | 季度利润环比改善 |
+| defensive | 防御型 | Beta<0.8, 现金流稳定 |
+| quality | 质量因子 | ROE>15%, 毛利率>30% |
+
+#### 技术面筛选 (6种)
+| 条件 | 说明 |
+|------|------|
+| golden-cross | MACD金叉 |
+| ma-bullish | 均线多头排列 |
+| volume-breakout | 放量突破 |
+| rsi-oversold | RSI超卖反弹 |
+| bollinger-squeeze | 布林带收口 |
+| consolidation-breakout | 盘整突破 |
+
+#### 多因子评分
+- 估值因子 (25%): PE/PB/PS/PEG
+- 盈利因子 (25%): ROE/ROA/毛利率/净利率
+- 成长因子 (20%): 收益增长/利润增长
+- 安全因子 (15%): 负债率/现金流
+- 动量因子 (15%): 近期涨幅/相对强弱
 
 ```python
-from skills.stock_skill.screener import screen_stocks
+from skills.stock_skill.enhanced_screener import EnhancedScreener
 
-result = screen_stocks(
-    scope='hs300',      # 沪深300
-    pe_max=20,          # PE上限
-    roe_min=15,         # ROE下限
-    debt_ratio_max=50   # 负债率上限
+screener = EnhancedScreener()
+result = screener.screen(
+    scope='hs300',
+    strategy='value',           # 预设策略
+    technical_checks=['golden-cross', 'ma-bullish'],  # 技术面
+    use_scoring=True,           # 多因子评分
+    industry='银行',            # 行业筛选
+    top=20
 )
+```
+
+#### CLI 命令
+```bash
+# 预设策略
+python finance.py screen --strategy value
+python finance.py screen --strategy growth
+
+# 技术面筛选
+python finance.py screen --technical golden-cross ma-bullish
+
+# 多因子评分
+python finance.py screen --scoring --top 20
+
+# 组合条件
+python finance.py screen --strategy value --technical golden-cross --scoring
 ```
 
 ### 3. 财务异常检测 (financial_check.py)
@@ -202,17 +244,27 @@ print(f"异常数量: {result['anomaly_count']}")
 stock-skill/
 ├── SKILL.md              # 本文档
 ├── analyzer.py           # 快速分析 (v2.1)
-├── screener.py           # A股选股器 (v1.0)
+├── screener.py           # A股选股器 (v1.0 基础版)
+├── enhanced_screener.py  # 选股器 v2.0 (Phase 3 增强版) ✨
+├── screening_strategies.py # 预设策略库 (7种策略) ✨
+├── technical_screener.py # 技术面筛选 (6种条件) ✨
 ├── financial_check.py    # 财务异常检测 (v1.0)
 ├── financial_health.py   # 财报体检评分
 ├── risk_alerts.py        # 自选股风险预警
 ├── valuation_workbench.py # 情景估值工作台
+├── earnings_preview.py   # 财报预测 (Phase 2) ✨
+├── earnings_recap.py     # 财报回顾 (Phase 2) ✨
+├── performance_comparison.py # 业绩比较 (Phase 2) ✨
 ├── deep-research/        # 深度研报
 │   ├── SKILL.md
 │   ├── analyzer.py       # 8阶段分析
 │   └── report_html.py    # HTML报告
 └── __init__.py
 ```
+
+---
+
+*v3.0 - Phase 3 选股器增强完成，支持预设策略、技术面筛选、多因子评分*
 
 ## 依赖
 
@@ -237,7 +289,3 @@ pip install yfinance akshare pandas numpy
 - **Claude-Code-Stock-Deep-Research-Agent** - 8阶段投研框架
 
 详细资料包见: `📊 金融Skills开发资料包.md`
-
----
-
-*v2.2 - 恢复完整架构，支持快速分析 + 深度研报*

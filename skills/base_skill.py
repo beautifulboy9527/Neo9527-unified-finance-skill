@@ -201,9 +201,12 @@ def load_builtin_skills(base_dir: str = None) -> List[str]:
         ("signal_skill_detect", os.path.join("signal-skill", "detect.py")),
         ("report_skill_commentary", os.path.join("report-skill", "commentary.py")),
         ("onchain_skill_whale", os.path.join("onchain-skill", "whale.py")),
+        ("stock_skill_enhanced_screener", os.path.join("stock-skill", "enhanced_screener.py")),
     ]
     
     loaded = []
+    screener_module = None
+    
     for module_name, relative_path in modules:
         if module_name in SkillRegistry._loaded_modules:
             continue
@@ -220,5 +223,52 @@ def load_builtin_skills(base_dir: str = None) -> List[str]:
         spec.loader.exec_module(module)
         SkillRegistry._loaded_modules.add(module_name)
         loaded.append(module_name)
+        
+        if module_name == "stock_skill_enhanced_screener":
+            screener_module = module
     
     return loaded
+
+
+@register_skill
+class EnhancedScreenerSkill(BaseSkill):
+    """A股智能选股 Skill - Phase 3 增强版"""
+    
+    description = "A股智能选股：预设策略、技术面筛选、多因子评分"
+    version = "2.0.0"
+    supported_markets = ["stock"]
+    
+    def execute(self, input_data: SkillInput) -> SkillOutput:
+        """执行选股"""
+        params = input_data.params or {}
+        
+        # 动态加载 EnhancedScreener
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        screener_path = os.path.join(base_dir, "stock-skill", "enhanced_screener.py")
+        
+        spec = importlib.util.spec_from_file_location("enhanced_screener", screener_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        screener = module.EnhancedScreener()
+        result = screener.screen(
+            scope=params.get('scope', 'hs300'),
+            strategy=params.get('strategy'),
+            criteria=params.get('criteria'),
+            technical_checks=params.get('technical_checks'),
+            use_scoring=params.get('scoring', False),
+            industry=params.get('industry'),
+            top=params.get('top', 20),
+        )
+        
+        return SkillOutput(
+            skill_name=self.name,
+            success=result.get('success', False),
+            data=result,
+            signals=[],
+            score=result.get('filtered_stocks', 0),
+            confidence=0.8 if result.get('success') else 0,
+            timestamp=datetime.now().isoformat(),
+            data_source=['akshare'],
+            error=result.get('error')
+        )

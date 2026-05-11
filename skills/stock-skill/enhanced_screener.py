@@ -307,10 +307,51 @@ class EnhancedScreener:
         return df[mask]
     
     def _apply_technical_filter(self, df: pd.DataFrame, checks: List[str]) -> pd.DataFrame:
-        """应用技术面筛选 (占位 - 需要K线数据)"""
-        # 技术面筛选需要K线数据，这里先返回原数据
-        # 实际实现需要获取每只股票的K线数据
-        print("    ⚠️ 技术面筛选需要K线数据，暂跳过")
+        """应用技术面筛选"""
+        if df.empty or not checks:
+            return df
+        
+        print(f"    技术面检查: {checks}")
+        passed_codes = []
+        max_stocks = min(len(df), 50)  # 限制数量避免超时
+        
+        for i, row in df.head(max_stocks).iterrows():
+            code = row.get('code')
+            try:
+                # 获取K线数据
+                kline_df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
+                
+                if kline_df is None or len(kline_df) < 60:
+                    continue
+                
+                # 提取价格和成交量
+                prices = kline_df['收盘'].tolist()
+                prices = prices[::-1]  # 反转，使最新价格在前
+                
+                volumes = kline_df['成交量'].tolist()
+                volumes = volumes[::-1]
+                
+                # 执行技术检查
+                all_pass = True
+                for check_id in checks:
+                    result = run_technical_check(check_id, prices, volumes)
+                    if not result.get('signal', False):
+                        all_pass = False
+                        break
+                
+                if all_pass:
+                    passed_codes.append(code)
+                    
+            except Exception as e:
+                continue
+        
+        # 过滤
+        if passed_codes:
+            df = df[df['code'].isin(passed_codes)]
+            print(f"    ✅ 技术筛选通过: {len(passed_codes)} 只")
+        else:
+            print(f"    ⚠️ 技术筛选无通过股票")
+        
         return df
     
     def _calculate_scores(self, df: pd.DataFrame, weights: Dict) -> pd.DataFrame:
