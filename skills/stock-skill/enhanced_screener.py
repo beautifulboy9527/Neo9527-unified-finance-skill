@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A股选股器 v2.0 - Phase 3 增强版
+A股选股器 v3.0 - Phase 4 数据源稳定性
 
 新增功能:
-- 预设策略 (价值/成长/高股息/GARP/困境反转/防御型)
-- 技术面筛选 (MACD金叉/均线多头/放量突破/RSI超卖)
-- 多因子评分系统
-- 行业内排名
-- 组合条件筛选
+- Phase 3: 预设策略、技术面筛选、多因子评分
+- Phase 4: 数据源健康检查、自动降级、数据质量评分
 """
 
 import sys
@@ -34,10 +31,11 @@ except ImportError:
 try:
     from screening_strategies import get_strategy, list_strategies, get_strategy_criteria, get_strategy_weights
     from technical_screener import run_technical_check, list_technical_checks
+    from screener_data_source import get_screener_data_manager, DataQualityScorer
 except ImportError:
-    # 兼容独立运行
     from skills.stock_skill.screening_strategies import get_strategy, list_strategies, get_strategy_criteria, get_strategy_weights
     from skills.stock_skill.technical_screener import run_technical_check, list_technical_checks
+    from skills.stock_skill.screener_data_source import get_screener_data_manager, DataQualityScorer
 
 
 def _num(value: Any) -> Optional[float]:
@@ -54,11 +52,13 @@ def _num(value: Any) -> Optional[float]:
 
 
 class EnhancedScreener:
-    """增强选股器 v2.0"""
+    """增强选股器 v3.0 - Phase 4 数据源稳定性"""
     
-    def __init__(self):
+    def __init__(self, use_fallback: bool = True):
         self.name = "EnhancedScreener"
-        self.version = "2.0.0"
+        self.version = "3.0.0"
+        self.use_fallback = use_fallback
+        self.data_manager = get_screener_data_manager() if use_fallback else None
     
     def screen(
         self,
@@ -69,6 +69,7 @@ class EnhancedScreener:
         use_scoring: bool = False,
         industry: Optional[str] = None,
         top: int = 20,
+        source: Optional[str] = None,  # Phase 4: 指定数据源
     ) -> Dict:
         """
         执行增强选股
@@ -161,7 +162,8 @@ class EnhancedScreener:
         # 9. 格式化输出
         stocks = result_df.to_dict('records')
         
-        return {
+        # Phase 4: 添加数据质量评分
+        result = {
             'success': True,
             'scope': scope,
             'strategy': strategy,
@@ -174,40 +176,53 @@ class EnhancedScreener:
             'stocks': stocks,
             'timestamp': datetime.now().isoformat(),
         }
+        
+        # 添加数据质量标签
+        if self.data_manager:
+            result = DataQualityScorer.add_quality_to_result(result)
+            result['data_source_health'] = self.data_manager.get_health_report()
+        
+        return result
     
-    def _get_stock_pool(self, scope: str, industry: Optional[str] = None) -> List[str]:
-        """获取股票池"""
+def _get_stock_pool(self, scope: str, industry: Optional[str] = None) -> List[str]:
+        """获取股票池 - Phase 4 使用数据源管理器"""
         stocks = []
         
-        try:
-            if scope == 'hs300':
-                df = ak.index_stock_cons_weight_csindex(symbol='000300')
-                stocks = df['成分券代码'].tolist()
-            elif scope == 'zz500':
-                df = ak.index_stock_cons_weight_csindex(symbol='000905')
-                stocks = df['成分券代码'].tolist()
-            elif scope == 'a50':
-                df = ak.index_stock_cons_weight_csindex(symbol='000016')
-                stocks = df['成分券代码'].tolist()
-            elif scope == 'all':
-                df = ak.stock_zh_a_spot_em()
-                stocks = df['代码'].tolist()
-            else:
-                df = ak.index_stock_cons_weight_csindex(symbol='000300')
-                stocks = df['成分券代码'].tolist()
-            
-            # 行业筛选
-            if industry and stocks:
-                try:
-                    industry_stocks = self._filter_by_industry(stocks, industry)
-                    if industry_stocks:
-                        stocks = industry_stocks
-                        print(f"  🏭 行业筛选 ({industry}): {len(stocks)} 只")
-                except Exception as e:
-                    print(f"  ⚠️ 行业筛选失败: {e}")
+        # Phase 4: 使用数据源管理器（带降级和缓存）
+        if self.data_manager:
+            stocks = self.data_manager.get_stock_pool_with_fallback(scope)
+            print(f"  📊 股票池 ({scope}): {len(stocks)} 只")
+        else:
+            # 兼容模式：直接调用 akshare
+            try:
+                if scope == 'hs300':
+                    df = ak.index_stock_cons_weight_csindex(symbol='000300')
+                    stocks = df['成分券代码'].tolist()
+                elif scope == 'zz500':
+                    df = ak.index_stock_cons_weight_csindex(symbol='000905')
+                    stocks = df['成分券代码'].tolist()
+                elif scope == 'a50':
+                    df = ak.index_stock_cons_weight_csindex(symbol='000016')
+                    stocks = df['成分券代码'].tolist()
+                elif scope == 'all':
+                    df = ak.stock_zh_a_spot_em()
+                    stocks = df['代码'].tolist()
+                else:
+                    df = ak.index_stock_cons_weight_csindex(symbol='000300')
+                    stocks = df['成分券代码'].tolist()
+                print(f"  📊 股票池: {len(stocks)} 只")
+            except Exception as e:
+                print(f"  ❌ 获取股票池失败: {e}")
         
-        except Exception as e:
-            print(f"  ❌ 获取股票池失败: {e}")
+        # 行业筛选
+        if industry and stocks:
+            try:
+                industry_stocks = self._filter_by_industry(stocks, industry)
+                if industry_stocks:
+                    stocks = industry_stocks
+                    print(f"  🏭 行业筛选 ({industry}): {len(stocks)} 只")
+            except Exception as e:
+                print(f"  ⚠️ 行业筛选失败: {e}")
         
         return stocks
     
@@ -228,43 +243,48 @@ class EnhancedScreener:
         return industry_stocks
     
     def _get_financial_data(self, stocks: List[str]) -> pd.DataFrame:
-        """获取财务数据"""
+        """获取财务数据 - Phase 4 使用数据源管理器"""
         all_data = []
-        max_stocks = min(len(stocks), 150)  # 限制数量
+        max_stocks = min(len(stocks), 150)
         
         for i, code in enumerate(stocks[:max_stocks]):
             if i % 30 == 0:
                 print(f"    进度: {i}/{max_stocks}")
             
-            try:
-                df = ak.stock_financial_analysis_indicator(symbol=code)
-                
-                if df is not None and not df.empty:
-                    latest = df.iloc[0]
+            # Phase 4: 使用数据源管理器（带降级）
+            if self.data_manager:
+                data = self.data_manager.get_financial_data_with_fallback(code)
+                if data:
+                    all_data.append(data)
+            else:
+                # 兼容模式
+                try:
+                    df = ak.stock_financial_analysis_indicator(symbol=code)
                     
-                    stock_data = {
-                        'code': code,
-                        'pe': _num(latest.get('市盈率')),
-                        'pb': _num(latest.get('市净率')),
-                        'roe': _num(latest.get('净资产收益率')),
-                        'roa': _num(latest.get('总资产净利润(ROA)')),
-                        'gross_margin': _num(latest.get('销售毛利率')),
-                        'net_margin': _num(latest.get('销售净利率')),
-                        'debt_ratio': _num(latest.get('资产负债率')),
-                        'current_ratio': _num(latest.get('流动比率')),
-                    }
-                    
-                    # 成长指标 (如果有)
-                    if len(df) >= 2:
-                        prev = df.iloc[1]
-                        prev_roe = _num(prev.get('净资产收益率'))
-                        if stock_data['roe'] and prev_roe:
-                            stock_data['roe_growth'] = stock_data['roe'] - prev_roe
-                    
-                    all_data.append(stock_data)
-            
-            except Exception as e:
-                continue
+                    if df is not None and not df.empty:
+                        latest = df.iloc[0]
+                        
+                        stock_data = {
+                            'code': code,
+                            'pe': _num(latest.get('市盈率')),
+                            'pb': _num(latest.get('市净率')),
+                            'roe': _num(latest.get('净资产收益率')),
+                            'roa': _num(latest.get('总资产净利润(ROA)')),
+                            'gross_margin': _num(latest.get('销售毛利率')),
+                            'net_margin': _num(latest.get('销售净利率')),
+                            'debt_ratio': _num(latest.get('资产负债率')),
+                            'current_ratio': _num(latest.get('流动比率')),
+                        }
+                        
+                        if len(df) >= 2:
+                            prev = df.iloc[1]
+                            prev_roe = _num(prev.get('净资产收益率'))
+                            if stock_data['roe'] and prev_roe:
+                                stock_data['roe_growth'] = stock_data['roe'] - prev_roe
+                        
+                        all_data.append(stock_data)
+                except:
+                    continue
         
         return pd.DataFrame(all_data)
     

@@ -806,6 +806,87 @@ agent.run("Analyze BTC-USD")
     }
 
 
+# ============ Phase 4: 数据源稳定性 API ============
+
+class DataSourceTestRequest(BaseModel):
+    """数据源测试请求"""
+    source: str = Field(default="akshare", description="数据源名称")
+    test_scope: Optional[str] = Field(default="hs300", description="测试范围")
+
+
+@app.get("/api/data-source/health")
+async def get_data_source_health():
+    """获取数据源健康报告"""
+    try:
+        module = load_stock_module("screener_data_source.py", "screener_data_source")
+        manager = module.get_screener_data_manager()
+        report = manager.get_health_report()
+        
+        return {
+            "success": True,
+            "health_report": report,
+            "best_source": manager.get_best_source(),
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/data-source/status")
+async def get_data_source_status():
+    """获取当前可用数据源状态"""
+    try:
+        module = load_stock_module("screener_data_source.py", "screener_data_source")
+        manager = module.get_screener_data_manager()
+        
+        available = [s for s, h in manager.health_checker.items() if h.is_available]
+        unavailable = [s for s, h in manager.health_checker.items() if not h.is_available]
+        
+        return {
+            "success": True,
+            "available_sources": available,
+            "unavailable_sources": unavailable,
+            "best_source": manager.get_best_source(),
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/data-source/test")
+async def test_data_source(request: DataSourceTestRequest):
+    """测试指定数据源"""
+    try:
+        module = load_stock_module("screener_data_source.py", "screener_data_source")
+        manager = module.get_screener_data_manager()
+        
+        import time
+        test_scope = request.test_scope or "hs300"
+        start_time = time.time()
+        
+        try:
+            stocks = manager.get_stock_pool_with_fallback(test_scope)
+            response_time = time.time() - start_time
+            
+            return {
+                "success": True,
+                "source": request.source,
+                "test_scope": test_scope,
+                "stocks_count": len(stocks),
+                "response_time": f"{response_time:.2f}s",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "source": request.source,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 if __name__ == '__main__':
     import uvicorn
     

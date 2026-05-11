@@ -11,7 +11,7 @@ description: >
 
 # Unified Finance Skill
 
-Version: 6.9.0 (Phase 3 Complete - 智能选股). Tested: 2026-05-11. API and CLI supported.
+Version: 7.0.0 (Phase 4 Complete - 数据源稳定性). Tested: 2026-05-11. API and CLI supported.
 
 This skill turns financial requests into auditable analysis. Prefer structured
 outputs with data sources, model assumptions, confidence, caveats, and clear
@@ -201,4 +201,49 @@ python finance.py screen --strategy value --technical golden-cross --scoring
 POST /api/screen {"scope": "hs300", "strategy": "value", "scoring": true}
 GET /api/screen/strategies     # 列出预设策略
 GET /api/screen/technical-checks  # 列出技术面条件
+```
+
+## v7.0.0 Phase 4 - 数据源稳定性
+
+### 新增功能
+
+| 模块 | 说明 | CLI/API |
+|------|------|---------|
+| 数据源健康检查 | 跟踪每个数据源的成功/失败状态 | ✅ |
+| 自动降级 | 主源失败自动切换备用源 | ✅ |
+| 数据缓存 | 5分钟 TTL，减少重复请求 | ✅ |
+| 数据质量评分 | 为选股结果添加置信度标签 | ✅ |
+
+### 数据源优先级
+
+```
+1. akshare (主源) - A股专用
+2. eastmoney (备用) - 东方财富
+3. sina (兜底) - 新浪财经
+
+降级逻辑:
+- 连续失败3次 → 标记不可用
+- 成功后 → 恢复优先级
+- 自动选择健康分数最高的源
+```
+
+### CLI 命令
+
+```bash
+# 查看数据源健康报告
+python finance.py data-health
+
+# 测试数据源连通性
+python finance.py data-health --test
+
+# 禁用自动降级（直接使用主源）
+python finance.py screen --strategy value --no-fallback
+```
+
+### API 端点
+
+```
+GET /api/data-source/health    # 数据源健康报告
+GET /api/data-source/status    # 当前可用/不可用源
+POST /api/data-source/test     # 测试指定数据源
 ```

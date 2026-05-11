@@ -101,18 +101,26 @@ POST /api/screen
   - [x] 行业筛选
   - [x] CLI 集成 (`python finance.py screen`)
   - [x] API 端点 (`POST /api/screen`, `GET /api/screen/strategies`, `GET /api/screen/technical-checks`)
-- [ ] Phase 4: 数据源稳定性
+- [x] Phase 4: 数据源稳定性 ✅ **2026-05-11 完成**
+  - [x] 数据源健康检查
+  - [x] 自动降级 (主源失败自动切换备用源)
+  - [x] 数据缓存 (5分钟 TTL)
+  - [x] 数据质量评分
+  - [x] API 端点 (`GET /api/data-source/health`, `GET /api/data-source/status`, `POST /api/data-source/test`)
+  - [x] CLI 命令 (`python finance.py data-health`)
 - [ ] Phase 5: 产品化功能
 
 ## 完成文件
 
 | 文件 | 说明 | 状态 |
 |------|------|------|
-| `skills/stock-skill/enhanced_screener.py` | 选股器 v2.0 核心引擎 | ✅ |
+| `skills/stock-skill/enhanced_screener.py` | 选股器 v3.0 核心引擎 | ✅ |
 | `skills/stock-skill/screening_strategies.py` | 7种预设策略定义 | ✅ |
 | `skills/stock-skill/technical_screener.py` | 6种技术面筛选条件 | ✅ |
-| `skills/stock-skill/SKILL.md` | Phase 3 文档更新 | ✅ |
-| `api/server.py` | API 端点 `/api/screen` | ✅ |
+| `skills/stock-skill/screener_data_source.py` | 数据源管理器 (Phase 4) | ✅ |
+| `skills/stock-skill/SKILL.md` | Phase 3+4 文档更新 | ✅ |
+| `api/server.py` | API 端点 `/api/screen` + `/api/data-source/*` | ✅ |
+| `finance.py` | CLI v3.0 + `data-health` 命令 | ✅ |
 
 ---
 

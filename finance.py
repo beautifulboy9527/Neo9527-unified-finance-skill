@@ -63,7 +63,7 @@ def cmd_analyze(args):
 
 
 def cmd_screen(args):
-    """A股选股 (v2.0 增强版)"""
+    """A股选股 (v3.0 增强版 - Phase 4)"""
     import importlib.util
     
     # 动态导入增强选股器
@@ -74,7 +74,9 @@ def cmd_screen(args):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     
-    screener = module.EnhancedScreener()
+    # Phase 4: use_fallback 参数
+    use_fallback = not args.no_fallback
+    screener = module.EnhancedScreener(use_fallback=use_fallback)
     
     # 构建筛选参数
     criteria = {}
@@ -101,6 +103,40 @@ def cmd_screen(args):
     )
     
     print(module.format_screening_output(result))
+
+
+def cmd_data_health(args):
+    """数据源健康检查 (Phase 4)"""
+    import importlib.util
+    
+    spec = importlib.util.spec_from_file_location(
+        "screener_data_source",
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'screener_data_source.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    manager = module.get_screener_data_manager()
+    
+    print("\n" + "=" * 60)
+    print("数据源健康报告")
+    print("=" * 60)
+    
+    # 打印健康状态
+    manager.print_health_report()
+    
+    # 测试连通性
+    if args.test:
+        print(f"\n测试获取股票池 ({args.scope})...")
+        import time
+        start = time.time()
+        stocks = manager.get_stock_pool_with_fallback(args.scope)
+        elapsed = time.time() - start
+        
+        print(f"  ✅ 成功获取 {len(stocks)} 只股票")
+        print(f"  ⏱️ 响应时间: {elapsed:.2f}s")
+    
+    print("\n最佳数据源:", manager.get_best_source())
 
 
 def cmd_check(args):
@@ -928,8 +964,8 @@ def main():
     parser_analyze.add_argument('symbol', help='股票代码')
     parser_analyze.set_defaults(func=cmd_analyze)
     
-    # screen 命令 (v2.0 增强版)
-    parser_screen = subparsers.add_parser('screen', help='A股选股 v2.0')
+    # screen 命令 (v3.0 增强版 - Phase 4)
+    parser_screen = subparsers.add_parser('screen', help='A股选股 v3.0 (Phase 4)')
     parser_screen.add_argument('--scope', default='hs300', 
         choices=['hs300', 'zz500', 'a50', 'all'],
         help='选股范围，默认hs300')
@@ -947,7 +983,14 @@ def main():
     parser_screen.add_argument('--roe-min', type=float, help='ROE下限百分比')
     parser_screen.add_argument('--debt-max', type=float, help='负债率上限百分比')
     parser_screen.add_argument('--margin-min', type=float, help='净利率下限百分比')
+    parser_screen.add_argument('--no-fallback', action='store_true', help='禁用数据源自动降级')
     parser_screen.set_defaults(func=cmd_screen)
+    
+    # data-health 命令 (Phase 4 新增)
+    parser_data_health = subparsers.add_parser('data-health', help='数据源健康检查')
+    parser_data_health.add_argument('--test', action='store_true', help='测试数据源连通性')
+    parser_data_health.add_argument('--scope', default='hs300', help='测试范围')
+    parser_data_health.set_defaults(func=cmd_data_health)
     
     # check 命令
     parser_check = subparsers.add_parser('check', help='财务异常检测')
