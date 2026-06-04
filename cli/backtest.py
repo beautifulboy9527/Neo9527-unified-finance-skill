@@ -51,7 +51,7 @@ def cmd_backtest(args):
     # 执行回测
     print("  执行回测...")
     try:
-        result = engine.backtest_signal(symbol, signal_func, df)
+        result = engine.backtest_signal(symbol, signal_func)
     except Exception as e:
         print(f"  回测执行失败: {e}")
         # Fallback: 简单回测
@@ -84,7 +84,7 @@ def cmd_backtest(args):
     if args.walk_forward:
         print("\n  执行 Walk-Forward 分析...")
         try:
-            wf_result = engine.walk_forward_analysis(symbol, signal_func, df)
+            wf_result = engine.walk_forward_analysis(symbol, signal_func)
             if wf_result and wf_result.get("success"):
                 wf_stats = wf_result.get("statistics", {})
                 print_section("Walk-Forward 验证", 
@@ -97,7 +97,7 @@ def cmd_backtest(args):
     if args.monte_carlo:
         print("\n  执行 Monte Carlo 模拟...")
         try:
-            mc_result = engine.monte_carlo_simulation(symbol, signal_func, df)
+            mc_result = engine.monte_carlo_simulation(symbol)
             if mc_result and mc_result.get("success"):
                 mc_stats = mc_result.get("statistics", {})
                 print_section("Monte Carlo 模拟",

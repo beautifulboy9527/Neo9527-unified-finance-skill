@@ -265,23 +265,42 @@ class BaostockFinancialSource:
     def fetch_financial(self, symbol: str) -> Optional[FinancialData]:
         try:
             import baostock as bs
+            from datetime import datetime
             lg = bs.login()
             if lg.error_code != '0':
                 return None
             try:
                 prefix = "sh" if symbol.startswith("6") else "sz"
-                # 增长数据
-                rs = bs.query_growth_data(code=f"{prefix}.{symbol}", year=2024, quarter=4)
+                code = f"{prefix}.{symbol}"
+                # 自动选择最近可用季度
+                now = datetime.now()
+                year = now.year - 1 if now.month < 5 else now.year
+                quarter = 4 if now.month < 5 else min((now.month - 1) // 3, 4)
+                rs = bs.query_growth_data(code=code, year=year, quarter=quarter)
                 rows = []
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if not rows:
+                    # 尝试上一季度
+                    q = quarter - 1 if quarter > 1 else 4
+                    y = year if quarter > 1 else year - 1
+                    rs = bs.query_growth_data(code=code, year=y, quarter=q)
+                    while rs.next():
+                        rows.append(rs.get_row_data())
+                if not rows:
                     return None
                 r = rows[0]
+                # query_growth_data fields by index:
+                # 0:code, 1:pubDate, 2:statDate, 3:equityYOY, 4:assetYOY, 5:npYOY, 6:epsYOY, 7:orYOY
+                def safe_float(val):
+                    try:
+                        return float(val) if val and val != '' else 0.0
+                    except (ValueError, TypeError):
+                        return 0.0
                 return FinancialData(
                     symbol=symbol,
-                    revenue_yoy=float(r.get('YOYEquity', 0) or 0),
-                    profit_yoy=float(r.get('YOYAsset', 0) or 0),
+                    revenue_yoy=safe_float(r[7]) if len(r) > 7 else 0.0,  # orYOY = 营收同比增长率
+                    profit_yoy=safe_float(r[5]) if len(r) > 5 else 0.0,   # npYOY = 净利润同比增长率
                     source=self.name,
                 )
             finally:
