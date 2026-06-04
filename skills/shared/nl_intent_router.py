@@ -50,6 +50,44 @@ TECHNICAL_KEYWORDS = {
     "盘整突破": "consolidation-breakout",
 }
 
+# ── P1 Enhancement: Chinese Stock Name Mapping ──────────────────
+CHINA_STOCK_NAMES = {
+    "贵州茅台": "600519", "茅台": "600519",
+    "宁德时代": "300750", "宁德": "300750",
+    "比亚迪": "002594", 
+    "中国平安": "601318", "平安": "601318",
+    "招商银行": "600036", "招行": "600036",
+    "工商银行": "601398", "工行": "601398",
+    "建设银行": "601939", "建行": "601939",
+    "中国石油": "601857", "中国移动": "600941",
+    "隆基绿能": "601012", "隆基": "601012",
+    "药明康德": "603259", "海天味业": "603288",
+    "恒瑞医药": "600276", "迈瑞医疗": "300760",
+    "科大讯飞": "002230", "中芯国际": "688981",
+    "立讯精密": "002475", "歌尔股份": "002241",
+    "三一重工": "600031", "东方财富": "300059",
+    "韦尔股份": "603501", "汇川技术": "300124",
+    "阳光电源": "300274", "五粮液": "000858",
+    "泸州老窖": "000568", "山西汾酒": "600809",
+    "伊利股份": "600887", "海尔智家": "600690",
+    "美的集团": "000333", "格力电器": "000651",
+    "万科A": "000002", "中信证券": "600030",
+    "长江电力": "600900", "万华化学": "600309",
+    "海尔": "600690", "美的": "000333", "格力": "000651",
+    "万科": "000002", "平安银行": "000001",
+}
+
+# ── P1 Enhancement: Session Context ─────────────────────────────
+_last_symbol = None
+
+def set_context(symbol: str):
+    global _last_symbol
+    _last_symbol = symbol
+
+def get_context() -> Optional[str]:
+    return _last_symbol
+
+
 
 @dataclass
 class RoutedCommand:
@@ -161,11 +199,30 @@ def route_query(query: str) -> RoutedCommand:
             return _fallback("深度研报需要一个股票代码。")
         return RoutedCommand("deep_research", ["research", symbol], 0.82, "执行深度投研分析")
 
+    # P1: Full-chain analysis routing
+    if _has_any(lowered, ["全链路", "全面", "full", "完整分析", "深度分析", "综合分析", "全量分析"]):
+        symbol = _first_symbol(symbols)
+        if not symbol and _last_symbol:
+            symbol = _last_symbol
+        if symbol:
+            set_context(symbol)
+            return RoutedCommand("full_analyze", ["analyze", symbol, "--full"], 0.88, "执行全链路分析")
+
+    # P1: Context continuation ("再看看估值")
+    if _has_any(lowered, ["再", "继续", "接着", "也"]) and not symbols and _last_symbol:
+        if _has_any(lowered, ["估值", "value"]):
+            return RoutedCommand("valuation_continue", ["value", _last_symbol], 0.85, f"继续查看 {_last_symbol} 估值")
+        if _has_any(lowered, ["报告", "研报"]):
+            return RoutedCommand("report_continue", ["report", _last_symbol, "--style", "kami"], 0.85, f"继续生成 {_last_symbol} 报告")
+        if _has_any(lowered, ["风险", "预警"]):
+            return RoutedCommand("risk_continue", ["alerts", _last_symbol], 0.85, f"继续查看 {_last_symbol} 风险")
+
     symbol = _first_symbol(symbols)
     if symbol:
+        set_context(symbol)
         return RoutedCommand("quick_analyze", ["analyze", symbol], 0.78, "默认执行快速分析")
 
-    return _fallback("暂时无法识别意图。可以试试：帮我看 AAPL、生成 002050 研报、检查自选股风险。")
+    return _fallback("暂时无法识别意图。可以试试：帮我看贵州茅台、全链路分析 300750、再看看估值。")
 
 
 def _route_watchlist(text: str, lowered: str, symbols: List[str]) -> RoutedCommand:
@@ -239,10 +296,19 @@ def _route_screen(text: str, lowered: str) -> RoutedCommand:
 
 
 def _extract_symbols(text: str) -> List[str]:
+    """提取股票代码 + P1: 识别中文股票名 + 上下文记忆"""
     symbols: List[str] = []
     for match in SYMBOL_PATTERN.findall(text.upper()):
         if match not in symbols:
             symbols.append(match)
+    # P1: Chinese stock name resolution
+    for name, code in CHINA_STOCK_NAMES.items():
+        if name in text:
+            if code not in symbols:
+                symbols.append(code)
+    # P1: Context memory fallback
+    if not symbols and _last_symbol:
+        symbols.append(_last_symbol)
     return symbols
 
 
