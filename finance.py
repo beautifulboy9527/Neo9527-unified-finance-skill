@@ -1225,6 +1225,12 @@ def main():
     parser_analyze = subparsers.add_parser('analyze', help='快速分析股票')
     parser_analyze.add_argument('symbol', help='股票代码')
     parser_analyze.set_defaults(func=cmd_analyze)
+    parser_analyze.add_argument('--full', action='store_true', help='全链路分析: 财务+估值+技术+信号+风控+溯源')
+    parser_analyze.add_argument('--auto-report', action='store_true', help='全链路分析后自动生成HTML报告')
+    parser_analyze.add_argument('--skip-fundamental', action='store_true', help='跳过财务分析')
+    parser_analyze.add_argument('--skip-valuation', action='store_true', help='跳过估值分析')
+    parser_analyze.add_argument('--skip-signals', action='store_true', help='跳过入场信号')
+    parser_analyze.add_argument('--skip-risk', action='store_true', help='跳过风险分析')
     
     # screen 命令 (v3.0 增强版 - Phase 4)
     parser_screen = subparsers.add_parser('screen', help='A股选股 v3.0 (Phase 4)')
