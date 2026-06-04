@@ -181,13 +181,15 @@ def test_kami_style_report_generates_company_specific_non_boilerplate_analysis()
         },
     )
 
-    assert "汽车热管理相关业务的关键不只是收入增速" in html
-    assert "机器人或执行器线索更偏中长期期权" in html
-    assert "传统制冷空调零部件业务提供基本盘" in html
-    assert "不能把它解释为目标价" in html
-    assert "不能把它当作完整目标价" in html
-    assert "当前核心依据来自财务表现、价格位置和风险提示" in html
+    assert "制冷空调电器零部件" in html
+    assert "汽车热管理零部件" in html
+    assert "机器人/执行器" in html
+    assert "读报告前先看懂这家公司靠什么赚钱" in html
+    assert "不能把当前价包装成目标价" in html
+    assert "当前依据分三层" in html
+    assert "当前估值输入只形成单点市场价格" in html
     assert "暂不展示谨慎、基准、乐观三情景表" in html
+    assert "价格锚" not in html
     assert "估值结论为" not in html
     assert ">none<" not in html
 

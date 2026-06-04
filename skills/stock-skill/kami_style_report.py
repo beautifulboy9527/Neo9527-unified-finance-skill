@@ -11,6 +11,72 @@ from typing import Dict, Iterable, List
 from skills.shared import assert_report_quality, normalize_report_text, stock_display_name
 
 
+COMPANY_PROFILES = {
+    "002049": {
+        "name": "紫光国微",
+        "industry": "集成电路设计",
+        "business_summary": (
+            "紫光国微的业务核心是特种集成电路和智能安全芯片，同时覆盖石英晶体频率器件等领域。"
+            "它更像是一家以安全、可靠、国产替代为关键词的芯片设计公司，而不是单纯消费电子周期股。"
+        ),
+        "segments": ["特种集成电路", "智能安全芯片", "石英晶体频率器件"],
+        "segment_mix": [
+            {"name": "特种集成电路", "revenue": "2025H1收入14.69亿元", "share": "48.20%", "margin": "毛利率71.12%"},
+            {"name": "智能安全芯片", "revenue": "2025H1收入13.95亿元", "share": "45.78%", "margin": "毛利率44.16%"},
+            {"name": "石英晶体频率器件", "revenue": "2025H1收入1.51亿元", "share": "4.96%", "margin": "毛利率11.13%"},
+        ],
+        "moat": "护城河主要来自高可靠芯片设计能力、细分市场客户认证、国产替代需求和安全芯片应用场景。",
+        "drivers": [
+            "特种集成电路需求和国产替代节奏",
+            "智能安全芯片在政务、金融、通信、物联网等场景的放量",
+            "高毛利业务占比变化和研发投入效率",
+        ],
+        "risks": [
+            "半导体需求周期波动",
+            "客户认证和项目节奏导致收入确认波动",
+            "高研发投入能否持续转化为订单和现金流",
+        ],
+        "watch": [
+            "特种集成电路订单和交付节奏",
+            "智能安全芯片出货量与价格变化",
+            "毛利率、应收账款和经营现金流是否同步改善",
+        ],
+        "source_note": "业务画像参考公司官网、公开经营分析和公开报告中的主营业务描述；正式对外前仍应以最新年报、季报和公告复核。",
+    },
+    "002050": {
+        "name": "三花智控",
+        "industry": "制冷控制与汽车热管理零部件",
+        "business_summary": (
+            "三花智控的主线是制冷空调控制元器件和汽车热管理零部件。"
+            "传统制冷业务提供利润基本盘，新能源汽车热管理决定中期成长弹性，机器人/执行器更多属于远期业务期权。"
+        ),
+        "segments": ["制冷空调电器零部件", "汽车热管理零部件", "机器人/执行器等潜在增量"],
+        "segment_mix": [
+            {"name": "制冷空调电器零部件", "revenue": "2025年收入185.85亿元", "share": "59.93%", "margin": "毛利率28.77%"},
+            {"name": "汽车零部件", "revenue": "2025年收入124.27亿元", "share": "40.07%", "margin": "毛利率约28.80%"},
+            {"name": "机器人/执行器", "revenue": "仍以研发、试制、送样为主", "share": "尚未单独形成核心收入", "margin": "暂不适用"},
+        ],
+        "moat": "护城河主要来自全球客户体系、精密制造能力、热管理产品平台化和规模交付能力。",
+        "drivers": [
+            "制冷空调业务的全球份额和成本传导能力",
+            "新能源汽车热管理单车价值量和客户放量",
+            "机器人/执行器业务从验证走向量产的节奏",
+        ],
+        "risks": [
+            "汽车链需求和客户排产波动",
+            "原材料、汇率和价格年降对毛利率的压力",
+            "机器人业务预期过高但短期利润贡献不足",
+        ],
+        "watch": [
+            "汽车热管理订单、收入占比和毛利率",
+            "经营现金流/净利润是否持续大于1",
+            "制冷业务海外需求和机器人业务量产节点",
+        ],
+        "source_note": "业务画像参考公司官网、公开经营分析和公开研究资料中的主营业务描述；正式对外前仍应以最新年报、季报和公告复核。",
+    },
+}
+
+
 class KamiStyleStockReport:
     """Generate a paper-like, research-note HTML report from audited outputs."""
 
@@ -35,6 +101,7 @@ class KamiStyleStockReport:
         technical_analysis = technical_analysis or {}
         fundamental_analysis = fundamental_analysis or {}
         data_sources = data_sources or {}
+        fundamental_analysis = self._enrich_fundamental(symbol, fundamental_analysis)
 
         html_text = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -241,16 +308,16 @@ class KamiStyleStockReport:
     <div class="metrics">
       {self._metric("当前价格", self._price_text(valuation_workbench), "价格口径见页脚")}
       {self._metric("财务观察", self._financial_metric_text(financial_health), "盈利、现金流、负债")}
-      {self._metric("估值区间", self._valuation_range_text(valuation_workbench.get("valuation_range", {})), "谨慎至乐观情景")}
+      {self._metric("估值状态", self._valuation_metric_text(valuation_workbench), self._valuation_metric_note(valuation_workbench))}
       {self._metric("风险等级", risk_alerts.get("highest_severity_cn", "提示"), self._risk_metric_note(risk_alerts))}
     </div>
 
     <section>
       <h2>综合结论</h2>
-      <p class="lead"><strong>综合观点：</strong>{html.escape(self._integrated_view(financial_health, valuation_workbench, risk_alerts))}</p>
-      <p><strong>关键依据：</strong>{html.escape(self._key_evidence(financial_health, valuation_workbench, data_sources))}</p>
+      <p class="lead"><strong>综合观点：</strong>{html.escape(self._integrated_view(financial_health, valuation_workbench, risk_alerts, technical_analysis, fundamental_analysis))}</p>
+      <p><strong>关键依据：</strong>{html.escape(self._key_evidence(financial_health, valuation_workbench, data_sources, technical_analysis, fundamental_analysis))}</p>
       <p><strong>风险与验证：</strong>{html.escape(self._risk_summary(risk_alerts, data_sources))}</p>
-      <div class="callout">{html.escape(self._decision_note(financial_health, valuation_workbench, risk_alerts))}</div>
+      <div class="callout">{html.escape(self._decision_note(financial_health, valuation_workbench, risk_alerts, technical_analysis, fundamental_analysis))}</div>
       {self._action_table(financial_health, valuation_workbench, risk_alerts, technical_analysis, fundamental_analysis)}
     </section>
 
@@ -272,6 +339,7 @@ class KamiStyleStockReport:
     <section>
       <h2>公司与行业</h2>
       <p>{html.escape(self._company_context(fundamental_analysis, data_sources))}</p>
+      {self._business_map_block(fundamental_analysis)}
       <div class="callout">{html.escape(self._assumption_text(valuation_workbench, financial_health))}</div>
     </section>
 
@@ -317,6 +385,20 @@ class KamiStyleStockReport:
 
     def _metric(self, label: str, value: str, note: str) -> str:
         return f'<div><div class="metric-value">{html.escape(str(value))}</div><div class="metric-label">{html.escape(label)} · {html.escape(str(note))}</div></div>'
+
+    def _enrich_fundamental(self, symbol: str, fundamental: Dict) -> Dict:
+        code = str(symbol).upper().replace(".SZ", "").replace(".SH", "")
+        profile = COMPANY_PROFILES.get(code, {})
+        enriched = dict(fundamental or {})
+        for key in ("industry", "business_summary", "moat"):
+            if not enriched.get(key) or str(enriched.get(key)).startswith("行业信息暂未验证"):
+                if profile.get(key):
+                    enriched[key] = profile[key]
+        for key in ("segments", "drivers", "risks", "watch", "source_note", "name"):
+            if profile.get(key) and not enriched.get(key):
+                enriched[key] = profile[key]
+        enriched["symbol"] = code
+        return enriched
 
     def _data_basis_value(self, data_sources: Dict) -> str:
         collection = data_sources.get("collection") if data_sources else None
@@ -381,6 +463,22 @@ class KamiStyleStockReport:
             return f"{float(low):.2f}"
         return f"{float(low):.2f}-{float(high):.2f}"
 
+    def _valuation_metric_text(self, valuation: Dict) -> str:
+        value_range = valuation.get("valuation_range", {})
+        if self._is_single_point_valuation(value_range):
+            return "待补充"
+        return self._valuation_range_text(value_range)
+
+    def _valuation_metric_note(self, valuation: Dict) -> str:
+        value_range = valuation.get("valuation_range", {})
+        if self._is_single_point_valuation(value_range):
+            price = valuation.get("current_price")
+            price_text = "暂无当前价" if price is None else f"当前价{float(price):.2f}"
+            return f"{price_text}，缺EPS/FCF/可比倍数"
+        if self._valuation_range_text(value_range) == "暂无区间":
+            return "缺少估值输入"
+        return "谨慎至乐观情景"
+
     def _is_single_point_valuation(self, valuation_range: Dict) -> bool:
         low = valuation_range.get("low")
         high = valuation_range.get("high")
@@ -392,7 +490,7 @@ class KamiStyleStockReport:
         if current_price is None:
             return "估值端缺少当前价格，暂不能判断价格位置"
         if self._is_single_point_valuation(valuation_range):
-            return f"估值端目前只有{float(current_price):.2f}附近的价格锚，不能把它当作完整目标价"
+            return f"目前只确认到市场价格约{float(current_price):.2f}，还没有形成可验证估值区间"
         low = valuation_range.get("low")
         high = valuation_range.get("high")
         if low is None or high is None:
@@ -407,6 +505,12 @@ class KamiStyleStockReport:
         return "当前价格位于情景估值带内，需要通过财务和技术面确认风险回报是否合适"
 
     def _company_angle(self, fundamental: Dict) -> str:
+        drivers = fundamental.get("drivers") or []
+        risks = fundamental.get("risks") or []
+        if drivers:
+            driver_text = "、".join(str(item) for item in drivers[:3])
+            risk_text = "、".join(str(item) for item in risks[:2]) if risks else "订单、利润率和现金流变化"
+            return f"这家公司的分析重点应放在{driver_text}。主要反向验证点是{risk_text}。"
         text = f"{fundamental.get('business_summary', '')} {fundamental.get('industry', '')} {fundamental.get('moat', '')}"
         points = []
         if "新能源" in text or "热管理" in text or "汽车" in text:
@@ -448,16 +552,46 @@ class KamiStyleStockReport:
             '</div>'
         )
 
+    def _business_map_block(self, fundamental: Dict) -> str:
+        segments = fundamental.get("segments") or []
+        drivers = fundamental.get("drivers") or []
+        risks = fundamental.get("risks") or []
+        watch = fundamental.get("watch") or []
+        source_note = fundamental.get("source_note")
+        if not any([segments, drivers, risks, watch]):
+            return ""
+
+        def list_items(items: list) -> str:
+            if not items:
+                return "<li>暂无明确条目，需补充公司公告和财报。</li>"
+            return "".join(f"<li>{html.escape(str(item))}</li>" for item in items[:5])
+
+        source_html = f'<p class="small">{html.escape(str(source_note))}</p>' if source_note else ""
+        return (
+            '<div class="figure">'
+            '<h3>业务画像：读报告前先看懂这家公司靠什么赚钱</h3>'
+            '<div class="grid">'
+            '<div class="panel"><h3>业务板块</h3><ul>' + list_items(segments) + '</ul></div>'
+            '<div class="panel"><h3>增长驱动</h3><ul>' + list_items(drivers) + '</ul></div>'
+            '<div class="panel"><h3>反向风险</h3><ul>' + list_items(risks) + '</ul></div>'
+            '<div class="panel"><h3>复盘抓手</h3><ul>' + list_items(watch) + '</ul></div>'
+            '</div>'
+            + source_html +
+            '</div>'
+        )
+
     def _business_action_row(self, fundamental: Dict) -> tuple[str, str, str, str]:
-        text = f"{fundamental.get('business_summary', '')} {fundamental.get('moat', '')}"
-        if "热管理" in text or "汽车" in text:
-            reading = "汽车热管理与制冷零部件共同构成业务主线"
-            meaning = "短期看传统基本盘，中期看汽车热管理放量能否提高收入和利润弹性"
-            trigger = "复盘分产品收入、主要客户变化、热管理订单和毛利率走势"
-        elif "机器人" in text or "执行器" in text:
-            reading = "机器人/执行器属于中长期业务期权"
-            meaning = "题材本身不足以支撑估值，需要订单、验证和利润贡献兑现"
-            trigger = "复盘新品订单、客户验证、量产进度和单品毛利率"
+        segments = fundamental.get("segments") or []
+        drivers = fundamental.get("drivers") or []
+        watch = fundamental.get("watch") or []
+        if segments:
+            reading = " / ".join(str(item) for item in segments[:3])
+            meaning = "利润弹性主要取决于哪些业务放量、哪些业务守住毛利率，而不是只看股票题材。"
+            trigger = "；".join(str(item) for item in watch[:3]) or "复盘分产品收入、客户结构和区域结构"
+        elif drivers:
+            reading = "、".join(str(item) for item in drivers[:3])
+            meaning = "这些驱动决定公司未来收入和利润弹性。"
+            trigger = "复盘驱动因素是否兑现到收入、毛利率和现金流。"
         else:
             reading = "业务结构需要继续拆分"
             meaning = "当前只知道行业口径，尚不能判断利润弹性来自哪里"
@@ -506,8 +640,8 @@ class KamiStyleStockReport:
         price = valuation.get("current_price")
         range_text = self._valuation_range_text(valuation.get("valuation_range", {}))
         if self._is_single_point_valuation(valuation.get("valuation_range", {})):
-            reading = f"当前只有{range_text}附近价格锚"
-            meaning = "不能判断便宜或昂贵，只能作为观察风险回报的位置参考"
+            reading = f"仅有当前价{self._price_or_missing(price)}，缺少完整估值输入"
+            meaning = "现在不能判断便宜或昂贵，只能把价格与业务兑现、财务质量和技术位置放在一起观察"
             trigger = "补充可比公司市盈率、市净率、EPS、自由现金流或分业务估值后再形成估值带"
         else:
             reading = f"当前价格{self._price_or_missing(price)}，估值区间{range_text}"
@@ -538,28 +672,40 @@ class KamiStyleStockReport:
             return "数据源状态未检查"
         return data_sources.get("summary", data_sources.get("status", "数据源状态未检查"))
 
-    def _integrated_view(self, health: Dict, valuation: Dict, alerts: Dict) -> str:
+    def _integrated_view(self, health: Dict, valuation: Dict, alerts: Dict, technical: Dict, fundamental: Dict) -> str:
         financial = self._financial_metric_text(health)
-        range_text = self._valuation_range_text(valuation.get("valuation_range", {}))
         price = valuation.get("current_price")
         severity = alerts.get("highest_severity_cn", "提示")
+        business_name = fundamental.get("name") or "公司"
+        drivers = fundamental.get("drivers") or []
+        driver = str(drivers[0]) if drivers else "核心业务能否持续放量"
+        support = self._price_or_missing(technical.get("support_level"))
+        resistance = self._price_or_missing(technical.get("resistance_level"))
         valuation_judgement = self._valuation_position_text(price, valuation.get("valuation_range", {}))
         return (
-            f"当前结论为谨慎跟踪：财务侧呈现{financial}，价格侧{valuation_judgement}，"
-            f"风险提示级别为{severity}。现阶段最值得盯住的是利润增长能否继续转化为经营现金流，"
-            f"以及价格回撤时能否守住关键支撑。若收盘跌破支撑位且现金流同步转弱，应下调跟踪优先级；"
-            f"若价格回撤但毛利率、现金流和核心业务放量继续改善，才说明风险回报比开始变得更有吸引力。"
+            f"{business_name}当前更适合按“业务兑现度”而不是按单一价格信号来跟踪。"
+            f"核心问题是{driver}能否转化为收入、毛利率和经营现金流；当前财务侧呈现{financial}，"
+            f"价格侧{valuation_judgement}，风险提示级别为{severity}。"
+            f"技术上可把{support}视为短线强弱观察位、{resistance}视为压力验证位；"
+            "只有业务数据、现金流和价格突破三者相互印证，结论才应从“观察”上调。"
         )
 
-    def _key_evidence(self, health: Dict, valuation: Dict, data_sources: Dict) -> str:
+    def _key_evidence(self, health: Dict, valuation: Dict, data_sources: Dict, technical: Dict, fundamental: Dict) -> str:
         financial = self._financial_metric_text(health)
-        range_text = self._valuation_range_text(valuation.get("valuation_range", {}))
+        segments = fundamental.get("segments") or []
+        business = "、".join(str(item) for item in segments[:3]) if segments else "主营业务结构"
+        support = self._price_or_missing(technical.get("support_level"))
+        resistance = self._price_or_missing(technical.get("resistance_level"))
+        rsi = technical.get("rsi14")
+        rsi_text = "暂无RSI" if rsi is None else f"RSI {float(rsi):.1f}"
         if self._is_single_point_valuation(valuation.get("valuation_range", {})):
             return (
-                f"当前核心依据来自财务表现、价格位置和风险提示。财务观察为{financial}；"
-                f"估值端目前只有{range_text}附近的价格锚，尚不足以独立支持高置信度估值结论，"
-                "因此应把财务质量和技术位置作为交叉验证，而不是把单一价格当作目标价。"
+                f"当前依据分三层：第一，业务层看{business}，它决定收入弹性来自哪里；"
+                f"第二，财务层观察为{financial}，重点看利润是否有现金流支撑；"
+                f"第三，价格层看支撑{support}、压力{resistance}和{rsi_text}。"
+                "估值模型还缺EPS、自由现金流或可比倍数，因此不能把当前价包装成目标价。"
             )
+        range_text = self._valuation_range_text(valuation.get("valuation_range", {}))
         return f"当前核心依据来自财务表现、情景估值和风险提示。财务观察为{financial}，估值区间为{range_text}，主要风险见后文。"
 
     def _risk_summary(self, alerts: Dict, data_sources: Dict) -> str:
@@ -569,11 +715,13 @@ class KamiStyleStockReport:
             return f"当前最高风险提示级别为{severity}，主要关注财报、估值假设、监管事项和行情波动。"
         return f"当前最高风险提示级别为{severity}，暂未形成突出风险事项。"
 
-    def _decision_note(self, health: Dict, valuation: Dict, alerts: Dict) -> str:
+    def _decision_note(self, health: Dict, valuation: Dict, alerts: Dict, technical: Dict, fundamental: Dict) -> str:
         if health.get("health_score") is None or not valuation.get("valuation_range"):
             return "结论应保持审慎：关键财务或估值数据不足时，只能给出方向性观察，不应形成确定性判断。"
         if self._is_single_point_valuation(valuation.get("valuation_range", {})):
-            return "当前只有价格锚而不是完整估值带，决策重点应放在三件事：财务质量是否继续兑现、价格回撤是否守住关键支撑、业务放量是否带来利润弹性。"
+            watches = fundamental.get("watch") or []
+            watch_text = "；".join(str(item) for item in watches[:3]) or "分业务收入、现金流和支撑位变化"
+            return f"这份报告当前不能回答“目标价是多少”，但可以回答“接下来该盯什么”：{watch_text}。这些观察项比单日涨跌更能决定投资逻辑是否成立。"
         return "当前结论应围绕盈利质量、估值位置和主要风险三条线交叉确认；若后续财报或价格显著偏离，应重新评估。"
 
     def _investment_logic(self, fundamental: Dict, health: Dict, valuation: Dict) -> str:
@@ -581,17 +729,20 @@ class KamiStyleStockReport:
         angle = self._company_angle(fundamental)
         financial = self._financial_metric_text(health)
         valuation_position = self._valuation_position_text(valuation.get("current_price"), valuation.get("valuation_range", {}))
+        watch = "；".join(str(item) for item in (fundamental.get("watch") or [])[:3])
+        watch_sentence = f"后续最关键的验证项是：{watch}。" if watch else ""
         return (
             f"{business} {angle}"
-            f"本报告的投资逻辑不是简单看题材，而是看“业务放量能否转化为利润、利润能否转化为现金流、市场是否已经提前定价”。"
-            f"目前财务侧为{financial}，说明已有数据支持继续跟踪；{valuation_position}。"
-            "因此更合理的跟踪顺序是：先看订单和收入结构，再看毛利率与经营现金流，最后用价格是否守住支撑位来判断市场是否仍认可这条逻辑。"
+            "投资逻辑应拆成三步：先判断业务增量来自哪里，再确认利润率和经营现金流是否同步，最后才看当前价格是否给出足够风险补偿。"
+            f"目前财务侧为{financial}；{valuation_position}。{watch_sentence}"
         )
 
     def _fundamental_text(self, fundamental: Dict, health: Dict) -> str:
         industry = fundamental.get("industry") or "行业信息需结合最新公告确认"
-        moat = fundamental.get("moat") or "竞争优势需要结合客户结构、产品价格和毛利率变化判断"
-        return f"行业口径：{industry}。核心关注点：{moat}。"
+        moat = str(fundamental.get("moat") or "竞争优势需要结合客户结构、产品价格和毛利率变化判断").rstrip("。")
+        drivers = "、".join(str(item) for item in (fundamental.get("drivers") or [])[:3])
+        driver_text = f"主要驱动：{drivers}。" if drivers else ""
+        return f"行业口径：{industry}。核心关注点：{moat}。{driver_text}"
 
     def _company_context(self, fundamental: Dict, data_sources: Dict) -> str:
         industry = fundamental.get("industry") or "行业信息需结合最新公告确认"
@@ -608,9 +759,9 @@ class KamiStyleStockReport:
         value_range = self._valuation_range_text(valuation.get("valuation_range", {}))
         if self._is_single_point_valuation(valuation.get("valuation_range", {})):
             return (
-                f"当前估值只形成{value_range}附近的价格锚，不能视为完整目标价区间。"
+                "当前估值模块只拿到了市场价格，尚未拿到足够的每股收益、自由现金流、可比公司倍数或分业务估值输入。"
                 "正式投研需要继续补充可比公司倍数、每股收益、自由现金流或股本口径。"
-                "在估值输入不足时，报告应把价格锚用于观察风险回报位置，而不是给出确定性估值判断。"
+                "在估值输入不足时，报告只能说明“当前价格处在什么技术位置”，不能说明“公司合理价值是多少”。"
             )
         return (
             f"估值区间为{value_range}，其含义是不同盈利、倍数和折现假设下的可能价格带。"
@@ -1112,8 +1263,8 @@ class KamiStyleStockReport:
             return "估值工作台缺少可验证输入，暂不形成区间。需要补充当前价格、每股收益、每股净资产、自由现金流、总股本、现金、负债和真实可比公司倍数。"
         if self._is_single_point_valuation(value_range):
             return (
-                f"当前估值输出只有{range_text}这一价格锚，说明输入更接近价格记录，而不是完整估值模型。"
-                "这种情况下不能把它解释为目标价；更合理的用法是把它和技术位、财务质量放在一起判断风险回报。"
+                f"当前估值模块只确认到市场价格约{range_text}，这不是完整估值模型，也不是目标价。"
+                "这种情况下更合理的用法是把当前价和技术位、财务质量放在一起判断风险回报。"
                 "下一步应补充至少一种可复核估值口径，例如可比公司倍数、每股收益、自由现金流或分业务估值。"
             )
         return f"估值工作台给出的谨慎至乐观区间为{range_text}。该区间用于展示假设敏感性，不应被理解为单点价格判断。"
@@ -1124,7 +1275,7 @@ class KamiStyleStockReport:
             return "<p>暂无情景估值表。</p>"
         values = [item.get("fair_value") for item in scenarios if item.get("fair_value") is not None]
         if values and max(float(item) for item in values) - min(float(item) for item in values) < 0.01:
-            return "<p>当前估值输入只形成单点价格锚，暂不展示谨慎、基准、乐观三情景表，避免把同一价格包装成多个估值结论。</p>"
+            return "<p>当前估值输入只形成单点市场价格，暂不展示谨慎、基准、乐观三情景表，避免把同一价格包装成多个估值结论。</p>"
         rows = []
         for item in scenarios:
             fair_value = item.get("fair_value")
@@ -1248,7 +1399,7 @@ class KamiStyleStockReport:
     def _closing_summary(self, health: Dict, valuation: Dict, alerts: Dict, data_sources: Dict) -> str:
         valuation_summary = self._valuation_position_text(valuation.get("current_price"), valuation.get("valuation_range", {}))
         if self._is_single_point_valuation(valuation.get("valuation_range", {})):
-            valuation_summary += "，因此后续必须补充分业务估值、可比公司倍数或现金流假设"
+            valuation_summary += "，因此后续必须补充分业务估值、可比公司倍数或现金流假设后，才能讨论合理价值"
         return (
             "本报告的判断链条是：业务线索是否真实放量，财务质量是否承接增长，价格位置是否给出合适风险回报。"
             f"当前财务观察为{self._financial_metric_text(health)}；{valuation_summary}；"

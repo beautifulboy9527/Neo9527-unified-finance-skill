@@ -228,19 +228,65 @@ class ValuationCalculator:
             return None
 
     def _get_cn_financial_data(self, symbol: str, data: Dict, ledger: EvidenceLedger) -> Optional[Dict]:
+        # === 优先使用 StockDataCollector（含 AkShare → efinance → Baostock 三级 fallback） ===
+        collector_used = False
+        try:
+            import importlib.util as _ilu
+            import os as _os
+            _collector_path = _os.path.join(_os.path.dirname(__file__), 'stock_data_collector.py')
+            _spec = _ilu.spec_from_file_location('_sdc', _collector_path)
+            _mod = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            collector = _mod.StockDataCollector()
+            collected = collector.collect(symbol)
+
+            price = collected.get('market_data', {}).get('price')
+            name = collected.get('profile', {}).get('name')
+            vf = collected.get('valuation_fields', {})
+            ff = collected.get('financial_fields', {})
+
+            if price:
+                self._record(data, ledger, 'price', price, 'StockDataCollector', '最新价/收盘价', unit='CNY')
+                collector_used = True
+            if name:
+                self._record(data, ledger, 'name', name, 'StockDataCollector', '公司名称')
+            if vf.get('pe'):
+                self._record(data, ledger, 'pe', vf['pe'], 'StockDataCollector', '市盈率')
+            if vf.get('pb'):
+                self._record(data, ledger, 'pb', vf['pb'], 'StockDataCollector', '市净率')
+            if ff.get('roe'):
+                self._record(data, ledger, 'roe', ff['roe'], 'StockDataCollector', '净资产收益率')
+            if ff.get('gross_margin'):
+                self._record(data, ledger, 'gross_margin', ff['gross_margin'], 'StockDataCollector', '毛利率')
+            if ff.get('debt_ratio'):
+                self._record(data, ledger, 'debt_ratio', ff['debt_ratio'], 'StockDataCollector', '资产负债率')
+            if ff.get('revenue_growth'):
+                self._record(data, ledger, 'revenue_growth', ff['revenue_growth'], 'StockDataCollector', '收入增长率')
+            if ff.get('profit_growth'):
+                self._record(data, ledger, 'profit_growth', ff['profit_growth'], 'StockDataCollector', '利润增长率')
+
+            if collected.get('warnings'):
+                for w in collected['warnings']:
+                    data['warnings'].append(f'[Collector] {w}')
+        except Exception as e:
+            data['warnings'].append(f'StockDataCollector 采集失败，回退到直连 AkShare: {e}')
+
+        # === AkShare 直连补充：获取 Collector 可能缺失的估值字段 ===
         if not AKSHARE_AVAILABLE:
-            data['warnings'].append('AkShare 未安装，A股估值数据不可用')
+            if not collector_used:
+                data['warnings'].append('AkShare 未安装，A股估值数据不可用')
             return data
 
-        try:
-            df_quote = ak.stock_zh_a_spot_em()
-            stock_quote = df_quote[df_quote['代码'] == symbol]
-            if not stock_quote.empty:
-                quote = stock_quote.iloc[0]
-                self._record(data, ledger, 'price', quote.get('最新价'), 'AkShare/Eastmoney', '最新价', unit='CNY')
-                self._record(data, ledger, 'name', quote.get('名称'), 'AkShare/Eastmoney', '名称')
-        except Exception as e:
-            data['warnings'].append(f'A股行情数据获取失败: {e}')
+        if not data.get('price'):
+            try:
+                df_quote = ak.stock_zh_a_spot_em()
+                stock_quote = df_quote[df_quote['代码'] == symbol]
+                if not stock_quote.empty:
+                    quote = stock_quote.iloc[0]
+                    self._record(data, ledger, 'price', quote.get('最新价'), 'AkShare/Eastmoney', '最新价', unit='CNY')
+                    self._record(data, ledger, 'name', quote.get('名称'), 'AkShare/Eastmoney', '名称')
+            except Exception as e:
+                data['warnings'].append(f'A股行情数据获取失败: {e}')
 
         try:
             import pandas as pd

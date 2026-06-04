@@ -19,26 +19,31 @@ separation between reported facts, estimates, and analyst interpretation.
 
 ## Workflow
 
-1. Classify the requested market: `crypto`, `stock`, or `forex`.
-2. Load built-ins with `load_builtin_skills()` or use `SkillRegistry.execute()`.
-3. Route analysis by market:
+1. If the user asks in natural language, route the request with `finance.py ask`
+   or `scripts.features.nl_intent_router.route_query()` before asking them to
+   memorize CLI commands.
+2. Classify the requested market: `crypto`, `stock`, or `forex`.
+3. Load built-ins with `load_builtin_skills()` or use `SkillRegistry.execute()`.
+4. Route analysis by market:
    - `CryptoAnalysisSkill`: crypto market, technicals, market data, basic on-chain context.
    - `StockAnalysisSkill`: A-share, US stock, HK stock quick analysis.
    - `ForexAnalysisSkill`: FX pairs through yfinance symbols.
    - `SignalDetectionSkill`: market-aware signal grading.
    - `AICommentarySkill`: market-aware commentary.
    - `OnchainWhaleSkill`: DeFiLlama/Dune-style crypto ecosystem flow context.
-4. For valuation or reports, include an evidence ledger, assumptions, warnings,
+5. For valuation or reports, include an evidence ledger, assumptions, warnings,
    and data quality score. Never hide fallback values.
-5. Use professional language: state "view/bias/risk/invalidating condition";
+6. Use professional language: state "view/bias/risk/invalidating condition";
    avoid unsupported "buy/sell" directives.
-6. For Chinese reports, output Chinese stock names, Chinese industries/sectors,
+7. For Chinese reports, output Chinese stock names, Chinese industries/sectors,
    Chinese analyst ratings, explicit pattern timeframe, and clear missing-data
    disclosure. Do not use simulated data to fill unavailable fields.
 
 ## Commands
 
 ```bash
+neo-finance ask "帮我看下 AAPL"
+neo-finance ask "生成 002050 的正式研报" --dry-run
 neo-finance analyze AAPL
 neo-finance check 600519
 neo-finance health AAPL

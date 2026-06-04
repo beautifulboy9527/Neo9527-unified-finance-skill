@@ -6,7 +6,7 @@ import importlib.util
 from pathlib import Path
 
 from .evidence import EvidenceItem, EvidenceLedger
-from .data_source_health import check_data_sources
+from .data_source_health import check_data_sources, classify_live_error
 from .localization import (
     MISSING_TEXT,
     normalize_report_text,
@@ -28,6 +28,10 @@ from .report_quality_gate import (
 # 增强技术分析模块
 from .technical_indicators import (
     calculate_vwap,
+    calculate_volume_profile,
+    identify_liquidity_pools,
+    calculate_dynamic_levels,
+    calculate_confluence_support_resistance,
     calculate_fibonacci_retracements,
     calculate_fibonacci_extensions,
     calculate_chan_segments,
@@ -73,6 +77,7 @@ __all__ = [
     'EvidenceLedger',
     # 数据源
     'check_data_sources',
+    'classify_live_error',
     # 本地化
     'MISSING_TEXT',
     'normalize_report_text',
@@ -90,6 +95,10 @@ __all__ = [
     'validate_chinese_report',
     # 增强技术分析
     'calculate_vwap',
+    'calculate_volume_profile',
+    'identify_liquidity_pools',
+    'calculate_dynamic_levels',
+    'calculate_confluence_support_resistance',
     'calculate_fibonacci_retracements',
     'calculate_fibonacci_extensions',
     'calculate_chan_segments',

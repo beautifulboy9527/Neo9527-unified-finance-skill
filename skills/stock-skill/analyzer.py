@@ -70,25 +70,49 @@ class StockAnalysisSkill:
             data = self._analyze_hk_stock(symbol)
         
         # 生成信号
-        signals = self._generate_signals(data)
+        has_verifiable_data = self._has_verifiable_data(data)
+        signals = self._generate_signals(data) if has_verifiable_data else []
         
         # 计算评分
-        score = self._calculate_score(data, signals)
+        score = self._calculate_score(data, signals) if has_verifiable_data else None
         
         # 整合结果
         result = {
             'skill_name': self.name,
-            'success': True,
+            'success': has_verifiable_data,
             'symbol': symbol,
             'market': market,
             'timestamp': datetime.now().isoformat(),
             'data': data,
             'signals': signals,
             'score': score,
-            'summary': self._generate_summary(data, signals, score)
+            'data_quality': {
+                'status': 'verified' if has_verifiable_data else 'data_unavailable',
+                'message': '已获得至少一类可验证行情、技术、资金流或基本面数据。' if has_verifiable_data else '未获得可验证行情、技术、资金流或基本面数据；不生成中性占位评分。',
+            },
+            'summary': self._generate_summary(data, signals, score) if has_verifiable_data else '数据不可用：未获得可验证行情、技术、资金流或基本面数据；不生成中性占位评分。'
         }
         
         return result
+    
+    def _has_verifiable_data(self, data: Dict) -> bool:
+        """Return True only when analysis has real payload beyond metadata."""
+        payload_keys = [
+            'price',
+            'technical',
+            'fundflow',
+            'fundamentals',
+            'name',
+            'volume',
+            'amount',
+            'market_cap',
+        ]
+        for key in payload_keys:
+            value = data.get(key)
+            if value in [None, '', {}, [], 0]:
+                continue
+            return True
+        return False
     
     def _detect_market(self, symbol: str) -> str:
         """检测市场类型"""

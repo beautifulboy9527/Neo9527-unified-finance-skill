@@ -16,8 +16,9 @@ def main():
     project_dir = os.path.dirname(package_dir)
     sys.path.insert(0, project_dir)
 
-    # 导入并运行
-    from scripts.finance import main as cli_main
+    # 导入并运行当前主 CLI。根目录 finance.py 包含最新股票、研报、
+    # 自选股、组合和自然语言入口；scripts/finance.py 保留为旧版兼容脚本。
+    from finance import main as cli_main
     cli_main()
 
 

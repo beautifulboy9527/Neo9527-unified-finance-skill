@@ -4,9 +4,14 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime
 from importlib.util import find_spec
+import os
 from typing import Callable, Dict, Iterable, List
+
+
+PROXY_ENV_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
 
 
 PROVIDERS = {
@@ -46,13 +51,20 @@ PROVIDERS = {
     },
     "tushare": {
         "name": "Tushare",
-        "purpose": "A股行情、财务和基础数据备用源，需要Token",
+        "purpose": "A股行情、财务和基础数据备用源，需要 Token",
         "critical": False,
     },
 }
 
 
-def check_provider(module_name: str, meta: Dict, *, live: bool = False, sample_symbol: str = "002050") -> Dict:
+def check_provider(
+    module_name: str,
+    meta: Dict,
+    *,
+    live: bool = False,
+    sample_symbol: str = "002050",
+    suppress_proxy: bool = False,
+) -> Dict:
     available = find_spec(module_name) is not None
     status = "可用" if available else "不可用"
     severity = "正常" if available else ("阻断" if meta.get("critical") else "提示")
@@ -73,7 +85,10 @@ def check_provider(module_name: str, meta: Dict, *, live: bool = False, sample_s
     if live and available and meta.get("live_probe"):
         probe = LIVE_PROBES.get(meta["live_probe"])
         if probe:
-            item.update(probe(sample_symbol))
+            with _temporary_proxy_suppression(suppress_proxy):
+                item.update(probe(sample_symbol))
+            if suppress_proxy:
+                item["proxy_suppressed"] = True
     elif live and available:
         item.update({
             "live_checked": False,
@@ -88,10 +103,11 @@ def check_data_sources(
     *,
     live: bool = False,
     sample_symbol: str = "002050",
+    suppress_proxy: bool = False,
 ) -> Dict:
     selected = list(providers) if providers else ["akshare", "yfinance", "pandas", "numpy", "baostock", "efinance", "tushare"]
     items: List[Dict] = [
-        check_provider(name, PROVIDERS[name], live=live, sample_symbol=sample_symbol)
+        check_provider(name, PROVIDERS[name], live=live, sample_symbol=sample_symbol, suppress_proxy=suppress_proxy)
         for name in selected
         if name in PROVIDERS
     ]
@@ -121,9 +137,72 @@ def check_data_sources(
         "total_count": len(items),
         "live_checked": live,
         "live_success_count": live_success_count,
+        "proxy_suppressed": bool(suppress_proxy and live),
         "critical_missing": [item["name"] for item in critical_missing],
         "live_failures": [item["name"] for item in live_failures],
         "items": items,
+    }
+
+
+@contextmanager
+def _temporary_proxy_suppression(enabled: bool):
+    if not enabled:
+        yield
+        return
+    saved = {name: os.environ.get(name) for name in PROXY_ENV_VARS}
+    for name in PROXY_ENV_VARS:
+        os.environ.pop(name, None)
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+def classify_live_error(exc: Exception | str) -> Dict:
+    """Classify live provider failures into actionable, machine-readable buckets."""
+
+    message = str(exc)
+    lowered = message.lower()
+    proxy_vars = [
+        name
+        for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
+        if os.environ.get(name)
+    ]
+
+    if any(token in lowered for token in ["proxyerror", "cannot connect to proxy", "winerror 10061", "connection refused"]):
+        error_type = "proxy_connection_refused"
+        action_hint = "检查代理服务是否启动，或清理 HTTP_PROXY/HTTPS_PROXY/ALL_PROXY 后重试。"
+    elif "remotedisconnected" in lowered or "remote end closed connection" in lowered:
+        error_type = "remote_disconnected"
+        action_hint = "数据源主动断开连接，通常与限流、接口变更或网络出口有关；稍后重试或切换备用源。"
+    elif "unable to open database file" in lowered:
+        error_type = "local_cache_error"
+        action_hint = "本地缓存数据库无法打开；检查 yfinance/peewee 缓存目录权限，或将 TMP/TEMP 指向可写目录后重试。"
+    elif any(token in lowered for token in ["timed out", "timeout", "read timed out"]):
+        error_type = "timeout"
+        action_hint = "请求超时；建议降低频率、延长超时或切换网络出口。"
+    elif any(token in lowered for token in ["name resolution", "getaddrinfo", "nodename nor servname"]):
+        error_type = "dns_failure"
+        action_hint = "DNS 解析失败；检查网络、DNS 或代理配置。"
+    elif any(token in lowered for token in ["ssl", "certificate", "tls"]):
+        error_type = "tls_failure"
+        action_hint = "TLS/证书握手失败；检查证书链、代理证书或数据源 HTTPS 策略。"
+    elif "empty" in lowered or "返回为空" in message:
+        error_type = "empty_response"
+        action_hint = "接口返回为空；确认样本代码、交易日和接口字段是否仍有效。"
+    else:
+        error_type = "unknown_live_error"
+        action_hint = "查看 live_message 原始错误，并尝试 doctor --live 更换样本代码复核。"
+
+    return {
+        "error_type": error_type,
+        "action_hint": action_hint,
+        "proxy_env_present": bool(proxy_vars),
+        "proxy_env_vars": proxy_vars,
     }
 
 
@@ -137,12 +216,14 @@ def _probe_akshare(sample_symbol: str) -> Dict:
             "live_checked": True,
             "live_status": "请求成功" if ok else "请求失败",
             "live_message": "已获取A股日线样本。" if ok else "接口返回为空。",
+            **({} if ok else classify_live_error("返回为空")),
         }
     except Exception as exc:
         return {
             "live_checked": True,
             "live_status": "请求失败",
             "live_message": f"实时请求失败：{exc}",
+            **classify_live_error(exc),
         }
 
 
@@ -157,12 +238,14 @@ def _probe_yfinance(sample_symbol: str) -> Dict:
             "live_checked": True,
             "live_status": "请求成功" if ok else "请求失败",
             "live_message": "已获取海外股票日线样本。" if ok else "接口返回为空。",
+            **({} if ok else classify_live_error("返回为空")),
         }
     except Exception as exc:
         return {
             "live_checked": True,
             "live_status": "请求失败",
             "live_message": f"实时请求失败：{exc}",
+            **classify_live_error(exc),
         }
 
 
@@ -173,18 +256,25 @@ def _probe_baostock(sample_symbol: str) -> Dict:
         code = f"sh.{sample_symbol}" if sample_symbol.startswith("6") else f"sz.{sample_symbol}"
         login = bs.login()
         if login.error_code != "0":
-            return {"live_checked": True, "live_status": "请求失败", "live_message": f"登录失败：{login.error_msg}"}
+            return {
+                "live_checked": True,
+                "live_status": "请求失败",
+                "live_message": f"登录失败：{login.error_msg}",
+                **classify_live_error(login.error_msg),
+            }
         rs = bs.query_history_k_data_plus(code, "date,open,high,low,close", start_date="2026-01-01")
         rows = []
         while (rs.error_code == "0") and rs.next():
             rows.append(rs.get_row_data())
-            if len(rows) >= 1:
+            if rows:
                 break
         bs.logout()
+        ok = bool(rows)
         return {
             "live_checked": True,
-            "live_status": "请求成功" if rows else "请求失败",
-            "live_message": "已获取Baostock行情样本。" if rows else "Baostock返回为空。",
+            "live_status": "请求成功" if ok else "请求失败",
+            "live_message": "已获取 Baostock 行情样本。" if ok else "Baostock 返回为空。",
+            **({} if ok else classify_live_error("返回为空")),
         }
     except Exception as exc:
         try:
@@ -192,7 +282,12 @@ def _probe_baostock(sample_symbol: str) -> Dict:
             bs.logout()
         except Exception:
             pass
-        return {"live_checked": True, "live_status": "请求失败", "live_message": f"实时请求失败：{exc}"}
+        return {
+            "live_checked": True,
+            "live_status": "请求失败",
+            "live_message": f"实时请求失败：{exc}",
+            **classify_live_error(exc),
+        }
 
 
 def _probe_efinance(sample_symbol: str) -> Dict:
@@ -204,10 +299,16 @@ def _probe_efinance(sample_symbol: str) -> Dict:
         return {
             "live_checked": True,
             "live_status": "请求成功" if ok else "请求失败",
-            "live_message": "已获取efinance行情样本。" if ok else "efinance返回为空。",
+            "live_message": "已获取 efinance 行情样本。" if ok else "efinance 返回为空。",
+            **({} if ok else classify_live_error("返回为空")),
         }
     except Exception as exc:
-        return {"live_checked": True, "live_status": "请求失败", "live_message": f"实时请求失败：{exc}"}
+        return {
+            "live_checked": True,
+            "live_status": "请求失败",
+            "live_message": f"实时请求失败：{exc}",
+            **classify_live_error(exc),
+        }
 
 
 LIVE_PROBES: Dict[str, Callable[[str], Dict]] = {
@@ -218,4 +319,4 @@ LIVE_PROBES: Dict[str, Callable[[str], Dict]] = {
 }
 
 
-__all__ = ["check_data_sources", "check_provider", "PROVIDERS"]
+__all__ = ["check_data_sources", "check_provider", "classify_live_error", "PROVIDERS"]

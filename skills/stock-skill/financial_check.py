@@ -183,7 +183,108 @@ class FinancialAnomalyDetector:
         if market == 'us':
             return self._get_us_financial_data(symbol)
         
-        # A股使用 AkShare
+        # A股优先使用 Baostock 获取成长能力数据
+        try:
+            import baostock as bs
+            from datetime import datetime
+            
+            bs_code = f"sh.{symbol}" if symbol.startswith("6") else f"sz.{symbol}"
+            login = bs.login()
+            if getattr(login, "error_code", "0") == "0":
+                # 获取成长能力数据
+                current_year = datetime.now().year
+                current_quarter = (datetime.now().month - 1) // 3 + 1
+                
+                revenue_growth = None
+                profit_growth = None
+                
+                # 尝试最近几个季度的数据
+                for year in [current_year, current_year - 1]:
+                    for quarter in [current_quarter, current_quarter - 1, 4, 3, 2, 1]:
+                        if quarter < 1:
+                            continue
+                        growth_data = bs.query_growth_data(code=bs_code, year=year, quarter=quarter)
+                        if getattr(growth_data, "error_code", "0") == "0" and growth_data.next():
+                            row_data = growth_data.get_row_data()
+                            if len(row_data) >= 8:
+                                # 字段顺序: code, pubDate, statDate, YOYEquity, YOYAsset, YOYNI, YOYEPSBasic, YOYPNI
+                                profit_growth = float(row_data[5]) * 100 if row_data[5] else None  # YOYNI: 净利润增长率
+                                revenue_growth = float(row_data[7]) * 100 if row_data[7] else None  # YOYPNI: 营业收入增长率
+                                break
+                    if revenue_growth is not None:
+                        break
+                
+                bs.logout()
+                
+                if revenue_growth is not None or profit_growth is not None:
+                    data = self._new_data()
+                    data['revenue_growth'] = [revenue_growth or 0, 0, 0]
+                    data['profit_growth'] = [profit_growth or 0, 0, 0]
+                    data['receivable_growth'] = [0, 0, 0]
+                    data['inventory_growth'] = [0, 0, 0]
+                    data['gross_margin'] = [0, 0, 0]
+                    data['net_margin'] = [0, 0, 0]
+                    data['summary'] = {
+                        'gross_margin': 0,
+                        'net_margin': 0,
+                        'roe': 0,
+                        'debt_ratio': 0,
+                    }
+                    data['warnings'] = ['使用 Baostock 成长能力数据，其他财务字段需补充']
+                    data['unavailable_checks'] = ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
+                    self._record(data, 'revenue_growth_latest', revenue_growth, 'Baostock', '成长能力:营业收入增长率', unit='%')
+                    self._record(data, 'profit_growth_latest', profit_growth, 'Baostock', '成长能力:净利润增长率', unit='%')
+
+                    # 补充毛利率/净利率：尝试 AkShare stock_financial_analysis_indicator
+                    try:
+                        import akshare as _ak
+                        _fa = _ak.stock_financial_analysis_indicator(symbol=symbol, start_year='2024')
+                        if _fa is not None and len(_fa) > 0:
+                            _row = _fa.iloc[0]
+                            def _num_val(keywords):
+                                for col in _fa.columns:
+                                    if any(kw in str(col) for kw in keywords):
+                                        v = _row[col]
+                                        try:
+                                            return float(v) if v not in [None, ''] else None
+                                        except (ValueError, TypeError):
+                                            return None
+                                return None
+
+                            gm = _num_val(['销售毛利率', '主营业务利润率', '毛利率'])
+                            nm = _num_val(['销售净利率', '总资产利润率', '净利率'])
+                            roe = _num_val(['净资产收益率', 'ROE'])
+                            debt = _num_val(['资产负债率'])
+
+                            if gm is not None:
+                                data['gross_margin'] = [gm, 0, 0]
+                                data['summary']['gross_margin'] = gm
+                                self._record(data, 'gross_margin_latest', gm, 'AkShare', '毛利率', unit='%')
+                            if nm is not None:
+                                data['net_margin'] = [nm, 0, 0]
+                                data['summary']['net_margin'] = nm
+                                self._record(data, 'net_margin_latest', nm, 'AkShare', '净利率', unit='%')
+                            if roe is not None:
+                                data['summary']['roe'] = roe
+                                self._record(data, 'roe_latest', roe, 'AkShare', 'ROE', unit='%')
+                            if debt is not None:
+                                data['summary']['debt_ratio'] = debt
+                                self._record(data, 'debt_ratio_latest', debt, 'AkShare', '资产负债率', unit='%')
+
+                            # 移除 margin 不可用标记
+                            if gm is not None or nm is not None:
+                                data['unavailable_checks'] = [
+                                    c for c in data.get('unavailable_checks', []) if c != 'margin'
+                                ]
+                    except Exception as _e:
+                        data['warnings'].append(f'AkShare 财务指标补充失败: {_e}')
+
+                    print(f"  财务数据获取成功 (Baostock成长能力)")
+                    return data
+        except Exception as e:
+            print(f"  Baostock 成长能力数据获取失败: {e}")
+        
+        # 如果 Baostock 失败，回退到 AkShare
         try:
             # 方法1: 使用利润表数据 (更可靠)
             df_profit = ak.stock_financial_report_sina(stock=symbol, symbol="利润表")
@@ -313,41 +414,59 @@ class FinancialAnomalyDetector:
         except Exception as e:
             print(f"  指标接口获取失败: {e}")
         
-        # 方法3: 使用历史行情数据 (最简化)
+        # 方法3: 使用 Baostock 获取成长能力数据
         try:
-            df = ak.stock_zh_a_hist(symbol=symbol, period='daily', adjust='qfq')
+            import baostock as bs
+            from datetime import datetime
             
-            if df is not None and not df.empty:
-                # 简化分析：只基于价格趋势
-                close = df['收盘'].astype(float)
+            bs_code = f"sh.{symbol}" if symbol.startswith("6") else f"sz.{symbol}"
+            login = bs.login()
+            if getattr(login, "error_code", "0") == "0":
+                # 获取成长能力数据
+                current_year = datetime.now().year
+                current_quarter = (datetime.now().month - 1) // 3 + 1
                 
-                # 计算简单的增长率
-                if len(close) > 250:
-                    yoy_return = (close.iloc[-1] - close.iloc[-250]) / close.iloc[-250] * 100
-                else:
-                    yoy_return = 0
+                revenue_growth = None
+                profit_growth = None
                 
-                return {
-                    **self._new_data(),
-                    'revenue_growth': [yoy_return, 0, 0],
-                    'profit_growth': [0, 0, 0],
-                    'receivable_growth': [0, 0, 0],
-                    'inventory_growth': [0, 0, 0],
-                    'gross_margin': [0, 0, 0],
-                    'net_margin': [0, 0, 0],
-                    'summary': {
-                        'gross_margin': 0,
-                        'net_margin': 0,
-                        'roe': 0,
-                        'debt_ratio': 0,
-                    },
-                    'price_trend': yoy_return,
-                    'warnings': ['仅获取到历史行情，财务异常检测不可验证'],
-                    'unavailable_checks': ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
-                }
-        
+                # 尝试最近几个季度的数据
+                for year in [current_year, current_year - 1]:
+                    for quarter in [current_quarter, current_quarter - 1, 4, 3, 2, 1]:
+                        if quarter < 1:
+                            continue
+                        growth_data = bs.query_growth_data(code=bs_code, year=year, quarter=quarter)
+                        if getattr(growth_data, "error_code", "0") == "0" and growth_data.next():
+                            row_data = growth_data.get_row_data()
+                            if len(row_data) >= 8:
+                                # 字段顺序: code, pubDate, statDate, YOYEquity, YOYAsset, YOYNI, YOYEPSBasic, YOYPNI
+                                profit_growth = float(row_data[5]) * 100 if row_data[5] else None  # YOYNI: 净利润增长率
+                                revenue_growth = float(row_data[7]) * 100 if row_data[7] else None  # YOYPNI: 营业收入增长率
+                                break
+                    if revenue_growth is not None:
+                        break
+                
+                bs.logout()
+                
+                if revenue_growth is not None or profit_growth is not None:
+                    return {
+                        **self._new_data(),
+                        'revenue_growth': [revenue_growth or 0, 0, 0],
+                        'profit_growth': [profit_growth or 0, 0, 0],
+                        'receivable_growth': [0, 0, 0],
+                        'inventory_growth': [0, 0, 0],
+                        'gross_margin': [0, 0, 0],
+                        'net_margin': [0, 0, 0],
+                        'summary': {
+                            'gross_margin': 0,
+                            'net_margin': 0,
+                            'roe': 0,
+                            'debt_ratio': 0,
+                        },
+                        'warnings': ['使用 Baostock 成长能力数据，其他财务字段需补充'],
+                        'unavailable_checks': ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
+                    }
         except Exception as e:
-            print(f"  历史数据获取失败: {e}")
+            print(f"  Baostock 成长能力数据获取失败: {e}")
         
         return None
     

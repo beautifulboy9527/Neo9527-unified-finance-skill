@@ -40,6 +40,13 @@ def _pandas_module():
     return importlib.import_module("pandas")
 
 
+def _enhanced_technical_module():
+    try:
+        return importlib.import_module("skills.shared.technical_indicators")
+    except Exception:
+        return None
+
+
 class StockDataCollector:
     """Best-effort data collector with explicit missing-source disclosure."""
 
@@ -310,6 +317,51 @@ class StockDataCollector:
             if getattr(login, "error_code", "0") != "0":
                 result["warnings"].append(f"Baostock 登录失败：{getattr(login, 'error_msg', '')}")
             else:
+                # 获取公司基本信息（名称、上市日期等）
+                try:
+                    stock_basic = bs.query_stock_basic(code=code)
+                    if getattr(stock_basic, "error_code", "0") == "0" and stock_basic.next():
+                        row_data = stock_basic.get_row_data()
+                        if len(row_data) >= 2:
+                            stock_name = row_data[1]  # 第二个字段是股票名称
+                            if stock_name and stock_name not in ("", "None"):
+                                result["profile"].update({"name": stock_name})
+                                result["market_data"].update({"name": stock_name})
+                                fields.append("公司名称")
+                except Exception as exc:
+                    result["warnings"].append(f"Baostock 公司基本信息采集失败：{exc}")
+
+                # 获取成长能力数据（收入增长率、利润增长率等）
+                try:
+                    from datetime import datetime
+                    current_year = datetime.now().year
+                    current_quarter = (datetime.now().month - 1) // 3 + 1
+                    
+                    # 尝试最近几个季度的数据
+                    for year in [current_year, current_year - 1]:
+                        for quarter in [current_quarter, current_quarter - 1, 4, 3, 2, 1]:
+                            if quarter < 1:
+                                continue
+                            growth_data = bs.query_growth_data(code=code, year=year, quarter=quarter)
+                            if getattr(growth_data, "error_code", "0") == "0" and growth_data.next():
+                                row_data = growth_data.get_row_data()
+                                if len(row_data) >= 8:
+                                    # 字段顺序: code, pubDate, statDate, YOYEquity, YOYAsset, YOYNI, YOYEPSBasic, YOYPNI
+                                    profit_growth = _num(row_data[5])  # YOYNI: 净利润增长率
+                                    revenue_growth = _num(row_data[7])  # YOYPNI: 营业收入增长率
+                                    
+                                    if profit_growth is not None:
+                                        result["financial_fields"]["profit_growth"] = profit_growth
+                                        fields.append("利润增长率")
+                                    if revenue_growth is not None:
+                                        result["financial_fields"]["revenue_growth"] = revenue_growth
+                                        fields.append("收入增长率")
+                                    break
+                        if "revenue_growth" in result.get("financial_fields", {}):
+                            break
+                except Exception as exc:
+                    result["warnings"].append(f"Baostock 成长能力数据采集失败：{exc}")
+
                 rs = bs.query_history_k_data_plus(
                     code,
                     "date,open,high,low,close,volume",
@@ -558,6 +610,18 @@ class StockDataCollector:
         atr14 = self._atr(high, low, close, 14)
         volume_price_signal = self._volume_price_signal(open_, close, volume, volume_ma20)
         dominant_pattern = self._dominant_pattern(clean.tail(40), date_col, high_col, low_col, close_col, timeframe)
+        enhanced = self._enhanced_technical(clean, timeframe)
+        confluence = enhanced.get("confluence_support_resistance", {}) if isinstance(enhanced, dict) else {}
+        nearest_support = confluence.get("nearest_support") if isinstance(confluence, dict) else None
+        nearest_resistance = confluence.get("nearest_resistance") if isinstance(confluence, dict) else None
+        if nearest_support and nearest_support.get("price") is not None:
+            support = float(nearest_support["price"])
+            support_tests = max(support_tests, int(nearest_support.get("touchpoints", 0) or 0))
+            support_distance = (current / support - 1) if support else None
+        if nearest_resistance and nearest_resistance.get("price") is not None:
+            resistance = float(nearest_resistance["price"])
+            resistance_tests = max(resistance_tests, int(nearest_resistance.get("touchpoints", 0) or 0))
+            resistance_distance = (resistance / current - 1) if resistance else None
         return {
             "timeframe": timeframe,
             "lookback": "最近20个交易日",
@@ -575,6 +639,10 @@ class StockDataCollector:
             "resistance_tests": resistance_tests,
             "support_strength": self._level_strength(support_tests),
             "resistance_strength": self._level_strength(resistance_tests),
+            "support_source": nearest_support.get("sources", []) if nearest_support else ["pivot"],
+            "resistance_source": nearest_resistance.get("sources", []) if nearest_resistance else ["pivot"],
+            "support_confidence": nearest_support.get("confidence") if nearest_support else self._level_strength(support_tests),
+            "resistance_confidence": nearest_resistance.get("confidence") if nearest_resistance else self._level_strength(resistance_tests),
             "support_distance_pct": support_distance,
             "resistance_distance_pct": resistance_distance,
             "recent_high": recent_high,
@@ -586,8 +654,36 @@ class StockDataCollector:
             "atr14_pct": atr14 / current if atr14 is not None and current else None,
             "volume_price_signal": volume_price_signal,
             "dominant_pattern": dominant_pattern,
+            "enhanced": enhanced,
             "candles": candles,
         }
+
+    def _enhanced_technical(self, clean: Any, timeframe: str) -> Dict:
+        """Attach optional enhanced indicators only when computed from real K-line data."""
+        if timeframe != "日线":
+            return {}
+        module = _enhanced_technical_module()
+        if module is None:
+            return {}
+        try:
+            result = module.enhanced_technical_analysis(clean, lookback=min(len(clean), 100))
+            indicators = result.get("indicators", {}) if isinstance(result, dict) else {}
+            if not indicators:
+                return {}
+            return {
+                "vwap": indicators.get("vwap", {}),
+                "fibonacci_retracements": indicators.get("fibonacci_retracements", {}),
+                "volume_profile": indicators.get("volume_profile", {}),
+                "liquidity_pools": indicators.get("liquidity_pools", {}),
+                "dynamic_levels": indicators.get("dynamic_levels", {}),
+                "confluence_support_resistance": indicators.get("confluence_support_resistance", {}),
+                "candlestick_patterns": indicators.get("candlestick_patterns", {}),
+                "trendlines": indicators.get("trendlines", {}),
+                "adx": indicators.get("adx", {}),
+                "summary": result.get("summary", {}),
+            }
+        except Exception:
+            return {}
 
     def _rsi(self, close: Any, period: int = 14) -> Optional[float]:
         if len(close) <= period:

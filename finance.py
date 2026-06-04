@@ -59,7 +59,9 @@ def cmd_analyze(args):
         print(f"\n信号: {len(result['signals'])} 个")
         print(f"摘要: {result['summary']}")
     else:
-        print(f"❌ 分析失败: {result.get('error', '未知错误')}")
+        quality = result.get('data_quality', {})
+        message = quality.get('message') or result.get('summary') or result.get('error') or '未知错误'
+        print(f"❌ 分析失败: {message}")
 
 
 def cmd_screen(args):
@@ -454,16 +456,28 @@ def cmd_doctor(args):
     """检查本地数据源状态"""
     from skills.shared import check_data_sources
 
-    result = check_data_sources(live=args.live, sample_symbol=args.sample_symbol)
+    result = check_data_sources(live=args.live, sample_symbol=args.sample_symbol, suppress_proxy=args.no_proxy)
     print(f"\n数据源体检：{result['status']}")
     print(f"检查时间：{result['checked_at']}")
     print(f"摘要：{result['summary']}")
     print(f"可用数量：{result['available_count']}/{result['total_count']}")
     if result.get("live_checked"):
         print(f"实时请求成功数量：{result.get('live_success_count', 0)}")
+    if result.get("proxy_suppressed"):
+        print("诊断模式：已临时屏蔽 HTTP_PROXY/HTTPS_PROXY/ALL_PROXY 环境变量")
     for item in result.get("items", []):
         live_text = f"｜实时：{item.get('live_status')}｜{item.get('live_message')}" if args.live else ""
         print(f"  - {item['name']}：{item['status']}｜{item['purpose']}｜{item['action']}{live_text}")
+        if args.live and item.get("live_status") == "请求失败":
+            detail_parts = []
+            if item.get("error_type"):
+                detail_parts.append(f"类型：{item.get('error_type')}")
+            if item.get("action_hint"):
+                detail_parts.append(f"建议：{item.get('action_hint')}")
+            if item.get("proxy_env_present"):
+                detail_parts.append(f"检测到代理环境变量：{', '.join(item.get('proxy_env_vars', []))}")
+            if detail_parts:
+                print(f"      诊断：{'；'.join(detail_parts)}")
 
 
 def cmd_report(args):
@@ -1091,6 +1105,35 @@ def cmd_compare(args):
         sys.argv = original_argv
 
 
+def cmd_ask(args):
+    """自然语言金融入口"""
+    from scripts.features.nl_intent_router import route_query
+
+    routed = route_query(args.query)
+    print("\n自然语言入口")
+    print("=" * 60)
+    print(f"识别意图: {routed.intent}")
+    print(f"置信度: {routed.confidence:.0%}")
+    print(f"说明: {routed.reason}")
+    if routed.command_text:
+        print(f"将执行: {routed.command_text}")
+
+    for warning in routed.warnings:
+        print(f"提示: {warning}")
+
+    if args.dry_run or not routed.argv:
+        return
+
+    print("\n开始执行")
+    print("=" * 60)
+    original_argv = sys.argv
+    sys.argv = [original_argv[0], *routed.argv]
+    try:
+        main()
+    finally:
+        sys.argv = original_argv
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Neo9527 Finance CLI - 统一金融分析工具',
@@ -1098,6 +1141,12 @@ def main():
     )
     
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
+
+    # ask 命令 - 自然语言入口
+    parser_ask = subparsers.add_parser('ask', help='自然语言入口：把一句话转成金融分析命令')
+    parser_ask.add_argument('query', help='用户请求，例如：帮我看 AAPL，生成 002050 研报')
+    parser_ask.add_argument('--dry-run', action='store_true', help='只显示将执行的命令，不真正运行')
+    parser_ask.set_defaults(func=cmd_ask)
     
     # analyze 命令
     parser_analyze = subparsers.add_parser('analyze', help='快速分析股票')
@@ -1248,6 +1297,7 @@ def main():
     parser_doctor = subparsers.add_parser('doctor', help='检查本地数据源状态')
     parser_doctor.add_argument('--live', action='store_true', help='尝试请求真实数据接口，可能受网络、代理或限流影响')
     parser_doctor.add_argument('--sample-symbol', default='002050', help='实时接口探测使用的样本股票代码')
+    parser_doctor.add_argument('--no-proxy', action='store_true', help='实时探测时临时屏蔽 HTTP_PROXY/HTTPS_PROXY/ALL_PROXY，用于区分代理故障和数据源故障')
     parser_doctor.set_defaults(func=cmd_doctor)
 
     # discover 命令

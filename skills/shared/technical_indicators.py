@@ -43,6 +43,282 @@ def _numpy_module():
         return None
 
 
+def _normalize_ohlcv(hist: Any):
+    """Normalize common OHLCV column names for support/resistance modules."""
+    pd = _pandas_module()
+    if pd is None or hist is None or getattr(hist, "empty", True):
+        return None
+    df = hist.copy()
+    rename = {}
+    aliases = {
+        "date": {"日期", "交易日期", "时间", "date", "Date", "datetime", "Datetime"},
+        "open": {"开盘", "开盘价", "open", "Open"},
+        "high": {"最高", "最高价", "high", "High"},
+        "low": {"最低", "最低价", "low", "Low"},
+        "close": {"收盘", "收盘价", "close", "Close"},
+        "volume": {"成交量", "volume", "Volume", "vol", "Vol"},
+    }
+    for target, names in aliases.items():
+        for column in df.columns:
+            if str(column).strip() in names:
+                rename[column] = target
+                break
+    df = df.rename(columns=rename)
+    required = ["open", "high", "low", "close"]
+    if any(column not in df.columns for column in required):
+        return None
+    for column in required + (["volume"] if "volume" in df.columns else []):
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.sort_values("date")
+    df = df.dropna(subset=required)
+    if "volume" not in df.columns:
+        df["volume"] = 1.0
+    else:
+        df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0)
+    return df
+
+
+def calculate_volume_profile(hist: Any, bins: int = 48, value_area_pct: float = 0.70, lookback: int = 120) -> Dict:
+    """Calculate VPVR-style volume profile with POC/VAH/VAL."""
+    np = _numpy_module()
+    if np is None:
+        return {"error": "numpy 未安装"}
+    df = _normalize_ohlcv(hist)
+    if df is None or len(df) < 20:
+        return {"error": "K线数据不足，无法计算成交量分布"}
+    df = df.tail(lookback).copy()
+    price_low = float(df["low"].min())
+    price_high = float(df["high"].max())
+    if price_high <= price_low:
+        return {"error": "价格区间无效，无法计算成交量分布"}
+
+    bins = max(12, min(int(bins), 120))
+    edges = np.linspace(price_low, price_high, bins + 1)
+    typical_price = (df["high"] + df["low"] + df["close"]) / 3
+    volume = df["volume"].clip(lower=0)
+    bucket_ids = np.clip(np.digitize(typical_price, edges) - 1, 0, bins - 1)
+    volumes = np.zeros(bins, dtype=float)
+    for bucket, vol in zip(bucket_ids, volume):
+        volumes[int(bucket)] += float(vol)
+    total_volume = float(volumes.sum())
+    if total_volume <= 0:
+        return {"error": "成交量为空，无法计算成交量分布"}
+
+    centers = (edges[:-1] + edges[1:]) / 2
+    poc_index = int(np.argmax(volumes))
+    target_volume = total_volume * value_area_pct
+    left = right = poc_index
+    accumulated = float(volumes[poc_index])
+    while accumulated < target_volume and (left > 0 or right < bins - 1):
+        left_vol = volumes[left - 1] if left > 0 else -1
+        right_vol = volumes[right + 1] if right < bins - 1 else -1
+        if right_vol >= left_vol:
+            right += 1
+            accumulated += float(volumes[right])
+        else:
+            left -= 1
+            accumulated += float(volumes[left])
+
+    nodes = [
+        {"price": round(float(centers[i]), 2), "volume": round(float(volumes[i]), 2), "volume_pct": round(float(volumes[i] / total_volume), 4)}
+        for i in range(bins)
+        if volumes[i] > 0
+    ]
+    return {
+        "poc": round(float(centers[poc_index]), 2),
+        "vah": round(float(edges[right + 1]), 2),
+        "val": round(float(edges[left]), 2),
+        "value_area_pct": value_area_pct,
+        "total_volume": round(total_volume, 2),
+        "high_volume_nodes": sorted(nodes, key=lambda item: item["volume"], reverse=True)[:5],
+        "interpretation": "POC为成交量最大价格带；VAH/VAL为约70%成交量价值区间边界。",
+    }
+
+
+def identify_liquidity_pools(hist: Any, tolerance: float = 0.006, lookback: int = 120) -> Dict:
+    """Find equal highs/lows and recent liquidity sweeps."""
+    df = _normalize_ohlcv(hist)
+    if df is None or len(df) < 20:
+        return {"error": "K线数据不足，无法识别流动性池"}
+    df = df.tail(lookback).copy().reset_index(drop=True)
+    current = float(df["close"].iloc[-1])
+    equal_highs = _cluster_equal_levels(_pivot_points(df["high"].astype(float).tolist(), kind="high"), tolerance=tolerance, side="resistance", current=current)
+    equal_lows = _cluster_equal_levels(_pivot_points(df["low"].astype(float).tolist(), kind="low"), tolerance=tolerance, side="support", current=current)
+    return {
+        "equal_highs": equal_highs,
+        "equal_lows": equal_lows,
+        "sweeps": _detect_liquidity_sweeps(df, equal_highs, equal_lows, tolerance=tolerance),
+        "interpretation": "等高/等低通常聚集止损单；刺破后收回可视为潜在流动性扫盘。",
+    }
+
+
+def calculate_dynamic_levels(hist: Any) -> Dict:
+    """Calculate EMA/SMA dynamic support and resistance references."""
+    df = _normalize_ohlcv(hist)
+    if df is None or len(df) < 20:
+        return {"error": "K线数据不足，无法计算动态支撑压力"}
+    close = df["close"].astype(float)
+    current = float(close.iloc[-1])
+    level_specs = [("EMA20", close.ewm(span=20, adjust=False).mean())]
+    if len(close) >= 50:
+        level_specs.append(("EMA50", close.ewm(span=50, adjust=False).mean()))
+    if len(close) >= 200:
+        level_specs.append(("SMA200", close.rolling(200).mean()))
+    levels = []
+    for name, series in level_specs:
+        value = float(series.iloc[-1])
+        levels.append({
+            "name": name,
+            "price": round(value, 2),
+            "type": "support" if value <= current else "resistance",
+            "distance_pct": round((value / current - 1) * 100, 2) if current else None,
+        })
+    return {"levels": levels, "interpretation": "EMA20/EMA50 常充当趋势动态支撑压力，SMA200 常用于宏观牛熊分界。"}
+
+
+def calculate_confluence_support_resistance(hist: Any, lookback: int = 120, tolerance: float = 0.012) -> Dict:
+    """Build support/resistance zones from volume profile, liquidity pools, pivots and MAs."""
+    df = _normalize_ohlcv(hist)
+    if df is None or len(df) < 20:
+        return {"error": "K线数据不足，无法计算汇聚支撑压力"}
+    df = df.tail(lookback).copy()
+    current = float(df["close"].iloc[-1])
+    candidates: List[Dict] = []
+
+    profile = calculate_volume_profile(df, lookback=lookback)
+    if "error" not in profile:
+        _add_candidate(candidates, profile["poc"], "成交量POC", 5, current)
+        _add_candidate(candidates, profile["vah"], "价值区上沿VAH", 4, current)
+        _add_candidate(candidates, profile["val"], "价值区下沿VAL", 4, current)
+        for node in profile.get("high_volume_nodes", [])[:3]:
+            _add_candidate(candidates, node["price"], "高成交量节点", 3, current)
+
+    liquidity = identify_liquidity_pools(df, tolerance=max(tolerance / 2, 0.004), lookback=lookback)
+    if "error" not in liquidity:
+        for pool in liquidity.get("equal_lows", [])[:4]:
+            _add_candidate(candidates, pool["price"], "等低流动性池", 4, current, "support")
+        for pool in liquidity.get("equal_highs", [])[:4]:
+            _add_candidate(candidates, pool["price"], "等高流动性池", 4, current, "resistance")
+        for sweep in liquidity.get("sweeps", [])[:4]:
+            _add_candidate(candidates, sweep["price"], f"流动性扫盘:{sweep['kind']}", 5, current, sweep["type"])
+
+    fib = calculate_fibonacci_retracements(df, lookback=min(60, len(df)))
+    if "error" not in fib:
+        for key, label in (("nearest_support", "斐波那契近支撑"), ("nearest_resistance", "斐波那契近压力")):
+            item = fib.get(key)
+            if item:
+                _add_candidate(candidates, item["price"], label, 3, current)
+
+    dynamic = calculate_dynamic_levels(df)
+    if "error" not in dynamic:
+        for item in dynamic.get("levels", []):
+            _add_candidate(candidates, item["price"], item["name"], 4 if item["name"] == "SMA200" else 3, current, item["type"])
+
+    _add_candidate(candidates, float(df["low"].tail(40).min()), "近40周期低点", 3, current, "support")
+    _add_candidate(candidates, float(df["high"].tail(40).max()), "近40周期高点", 3, current, "resistance")
+
+    zones = _cluster_candidates(candidates, current=current, tolerance=tolerance)
+    supports = [zone for zone in zones if zone["type"] == "support" and zone["price"] <= current]
+    resistances = [zone for zone in zones if zone["type"] == "resistance" and zone["price"] >= current]
+    supports.sort(key=lambda item: (item["score"], -abs(item["distance_pct"])), reverse=True)
+    resistances.sort(key=lambda item: (item["score"], -abs(item["distance_pct"])), reverse=True)
+    return {
+        "current_price": round(current, 2),
+        "supports": supports[:5],
+        "resistances": resistances[:5],
+        "nearest_support": max(supports, key=lambda item: item["price"]) if supports else None,
+        "nearest_resistance": min(resistances, key=lambda item: item["price"]) if resistances else None,
+        "volume_profile": profile if "error" not in profile else {},
+        "liquidity_pools": liquidity if "error" not in liquidity else {},
+        "dynamic_levels": dynamic if "error" not in dynamic else {},
+        "method": "VPVR/POC/VAH/VAL + 等高等低流动性池 + 扫流动性 + 斐波那契 + EMA/SMA + 近端枢轴聚合评分",
+    }
+
+
+def _pivot_points(values: List[float], *, kind: str) -> List[Dict]:
+    points = []
+    for index in range(2, len(values) - 2):
+        window = values[index - 2:index + 3]
+        value = values[index]
+        if kind == "high" and value == max(window):
+            points.append({"index": index, "price": float(value)})
+        if kind == "low" and value == min(window):
+            points.append({"index": index, "price": float(value)})
+    return points
+
+
+def _cluster_equal_levels(points: List[Dict], *, tolerance: float, side: str, current: float) -> List[Dict]:
+    clusters: List[List[Dict]] = []
+    for point in points:
+        for cluster in clusters:
+            avg = sum(item["price"] for item in cluster) / len(cluster)
+            if abs(point["price"] / avg - 1) <= tolerance:
+                cluster.append(point)
+                break
+        else:
+            clusters.append([point])
+    result = []
+    for cluster in clusters:
+        if len(cluster) >= 2:
+            price = sum(item["price"] for item in cluster) / len(cluster)
+            result.append({"price": round(price, 2), "touches": len(cluster), "side": side, "distance_pct": round((price / current - 1) * 100, 2) if current else None})
+    return sorted(result, key=lambda item: item["touches"], reverse=True)
+
+
+def _detect_liquidity_sweeps(df: Any, equal_highs: List[Dict], equal_lows: List[Dict], *, tolerance: float) -> List[Dict]:
+    sweeps = []
+    recent = df.tail(12)
+    for pool in equal_highs:
+        level = pool["price"]
+        hit = recent[(recent["high"] > level * (1 + tolerance)) & (recent["close"] < level)]
+        if not hit.empty:
+            sweeps.append({"type": "resistance", "kind": "UTAD/上方扫流动性", "price": round(float(hit["high"].max()), 2), "pool": level})
+    for pool in equal_lows:
+        level = pool["price"]
+        hit = recent[(recent["low"] < level * (1 - tolerance)) & (recent["close"] > level)]
+        if not hit.empty:
+            sweeps.append({"type": "support", "kind": "Spring/下方扫流动性", "price": round(float(hit["low"].min()), 2), "pool": level})
+    return sweeps
+
+
+def _add_candidate(candidates: List[Dict], price: Any, source: str, weight: int, current: float, side: Optional[str] = None) -> None:
+    numeric = _num(price)
+    if numeric is None or numeric <= 0:
+        return
+    candidates.append({"price": float(numeric), "source": source, "weight": weight, "type": side or ("support" if numeric <= current else "resistance")})
+
+
+def _cluster_candidates(candidates: List[Dict], *, current: float, tolerance: float) -> List[Dict]:
+    clusters: List[List[Dict]] = []
+    for candidate in sorted(candidates, key=lambda item: item["price"]):
+        for cluster in clusters:
+            avg = sum(item["price"] for item in cluster) / len(cluster)
+            if abs(candidate["price"] / avg - 1) <= tolerance:
+                cluster.append(candidate)
+                break
+        else:
+            clusters.append([candidate])
+    zones = []
+    for cluster in clusters:
+        total_weight = sum(item["weight"] for item in cluster)
+        price = sum(item["price"] * item["weight"] for item in cluster) / total_weight
+        support_weight = sum(item["weight"] for item in cluster if item["type"] == "support")
+        resistance_weight = total_weight - support_weight
+        sources = sorted({item["source"] for item in cluster})
+        zones.append({
+            "price": round(price, 2),
+            "type": "support" if support_weight >= resistance_weight else "resistance",
+            "score": int(total_weight + max(0, len(sources) - 1) * 2),
+            "sources": sources,
+            "touchpoints": len(cluster),
+            "distance_pct": round((price / current - 1) * 100, 2) if current else None,
+            "confidence": "高" if total_weight >= 12 or len(sources) >= 4 else "中" if total_weight >= 7 or len(sources) >= 2 else "低",
+        })
+    return zones
+
+
 # ============ VWAP 指标 ============
 
 def calculate_vwap(hist: Any, open_col: str = "开盘", high_col: str = "最高", 
@@ -973,6 +1249,23 @@ def enhanced_technical_analysis(hist: Any, symbol: str = "", lookback: int = 100
     adx_result = calculate_adx(hist)
     if "error" not in adx_result:
         result["indicators"]["adx"] = adx_result
+
+    # 成交量分布 / 流动性池 / 汇聚支撑压力
+    volume_profile_result = calculate_volume_profile(hist, lookback=lookback)
+    if "error" not in volume_profile_result:
+        result["indicators"]["volume_profile"] = volume_profile_result
+
+    liquidity_result = identify_liquidity_pools(hist, lookback=lookback)
+    if "error" not in liquidity_result:
+        result["indicators"]["liquidity_pools"] = liquidity_result
+
+    dynamic_levels_result = calculate_dynamic_levels(hist)
+    if "error" not in dynamic_levels_result:
+        result["indicators"]["dynamic_levels"] = dynamic_levels_result
+
+    confluence_result = calculate_confluence_support_resistance(hist, lookback=lookback)
+    if "error" not in confluence_result:
+        result["indicators"]["confluence_support_resistance"] = confluence_result
     
     # 生成综合解读
     signals = []
@@ -1009,6 +1302,16 @@ def enhanced_technical_analysis(hist: Any, symbol: str = "", lookback: int = 100
                 signals.append(("趋势线", "看空", status))
             elif "突破" in status or "强势" in status:
                 signals.append(("趋势线", "看多", status))
+
+    # 汇聚支撑压力信号
+    if "confluence_support_resistance" in result["indicators"]:
+        confluence = result["indicators"]["confluence_support_resistance"]
+        nearest_support = confluence.get("nearest_support")
+        nearest_resistance = confluence.get("nearest_resistance")
+        if nearest_support:
+            signals.append(("支撑汇聚", "观察", f"最近支撑{nearest_support['price']}，置信度{nearest_support['confidence']}，来源：{'+'.join(nearest_support['sources'][:3])}"))
+        if nearest_resistance:
+            signals.append(("压力汇聚", "观察", f"最近压力{nearest_resistance['price']}，置信度{nearest_resistance['confidence']}，来源：{'+'.join(nearest_resistance['sources'][:3])}"))
     
     result["summary"]["signals"] = signals
     result["summary"]["signal_count"] = len(signals)

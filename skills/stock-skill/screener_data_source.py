@@ -252,11 +252,8 @@ class ScreenerDataSourceManager:
         except Exception as e:
             self.health_checker['akshare'].record_failure(str(e))
         
-        # 备用: 使用默认值
-        data = self._get_financial_default(code)
-        data['data_quality'] = 'fallback'
-        
-        return data
+        # 不使用默认财务值。缺数据时返回明确的不可用状态，供选股器剔除或降权。
+        return self._get_financial_unavailable(code)
     
     def _fetch_financial_akshare(self, code: str) -> Dict:
         """使用akshare获取财务数据"""
@@ -303,20 +300,21 @@ class ScreenerDataSourceManager:
         
         return data
     
-    def _get_financial_default(self, code: str) -> Dict:
-        """财务数据默认值"""
+    def _get_financial_unavailable(self, code: str) -> Dict:
+        """财务数据不可用占位。字段保持 None，避免默认值污染选股结果。"""
         return {
             'code': code,
-            'pe': 15.0,
-            'pb': 2.0,
-            'roe': 10.0,
-            'roa': 5.0,
-            'gross_margin': 30.0,
-            'net_margin': 10.0,
-            'debt_ratio': 50.0,
-            'current_ratio': 1.5,
-            'roe_growth': 0,
-            'data_quality': 'default',
+            'pe': None,
+            'pb': None,
+            'roe': None,
+            'roa': None,
+            'gross_margin': None,
+            'net_margin': None,
+            'debt_ratio': None,
+            'current_ratio': None,
+            'roe_growth': None,
+            'data_quality': 'unavailable',
+            'missing_reason': '未取得可验证财务数据，未使用默认值补齐',
         }
     
     def get_kline_with_fallback(self, code: str, days: int = 60) -> Optional[Dict]:

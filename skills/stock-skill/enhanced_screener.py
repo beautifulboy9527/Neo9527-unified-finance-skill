@@ -122,11 +122,12 @@ class EnhancedScreener:
         # 3. 获取财务数据
         print("  📥 获取财务数据...")
         financial_data = self._get_financial_data(stock_pool)
+        financial_data = self._drop_unverified_financial_rows(financial_data)
         
         if financial_data.empty:
             return {
                 'success': False,
-                'error': '获取财务数据失败',
+                'error': '没有取得可验证财务数据，未使用默认值生成选股结果',
                 'stocks': []
             }
         
@@ -287,6 +288,22 @@ def _get_stock_pool(self, scope: str, industry: Optional[str] = None) -> List[st
                     continue
         
         return pd.DataFrame(all_data)
+
+    def _drop_unverified_financial_rows(self, df: pd.DataFrame) -> pd.DataFrame:
+        """剔除没有核心财务字段的股票，避免默认值或空值进入选股结果。"""
+        if df.empty:
+            return df
+        core_fields = ["pe", "pb", "roe"]
+        for field in core_fields:
+            if field not in df.columns:
+                df[field] = None
+        verified_mask = df[core_fields].notna().any(axis=1)
+        if "data_quality" in df.columns:
+            verified_mask &= df["data_quality"].fillna("").astype(str).str.lower() != "unavailable"
+        dropped = len(df) - int(verified_mask.sum())
+        if dropped:
+            print(f"  ⚠️ 剔除财务数据不可验证股票: {dropped} 只")
+        return df[verified_mask].copy()
     
     def _apply_criteria(self, df: pd.DataFrame, criteria: Dict) -> pd.DataFrame:
         """应用筛选条件"""
