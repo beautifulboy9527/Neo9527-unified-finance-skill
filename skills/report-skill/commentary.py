@@ -43,7 +43,7 @@ class AICommentarySkill(BaseSkill):
                 return self._execute_generic_commentary(input_data)
             
             # 导入分析器
-            from scripts.features.complete_crypto_analyzer import analyze_complete
+            from skills.crypto_skill.complete_crypto_analyzer import analyze_complete
             
             # 执行分析
             result = analyze_complete(input_data.symbol)

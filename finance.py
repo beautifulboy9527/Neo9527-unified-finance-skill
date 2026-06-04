@@ -1107,7 +1107,7 @@ def cmd_compare(args):
 
 def cmd_ask(args):
     """自然语言金融入口"""
-    from scripts.features.nl_intent_router import route_query
+    from skills.shared.nl_intent_router import route_query
 
     routed = route_query(args.query)
     print("\n自然语言入口")

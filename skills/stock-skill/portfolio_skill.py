@@ -18,7 +18,7 @@ if sys.platform == 'win32':
 # 导入现有的 PortfolioManager
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
-    from scripts.features.portfolio_manager import PortfolioManager
+    from skills.stock_skill.portfolio_manager_legacy import PortfolioManager
 except ImportError:
     # 如果导入失败，定义简化版本
     PortfolioManager = None

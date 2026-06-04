@@ -107,7 +107,7 @@ class SignalDetectionSkill(BaseSkill):
         market = input_data.market
         
         if market == 'crypto':
-            from scripts.features.complete_crypto_analyzer import analyze_complete
+            from skills.crypto_skill.complete_crypto_analyzer import analyze_complete
             
             result = analyze_complete(input_data.symbol)
             conclusion = result.get('conclusion', {})
