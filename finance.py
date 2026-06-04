@@ -26,6 +26,7 @@ from cli.earnings import cmd_earnings, cmd_preview, cmd_recap, cmd_compare
 from cli.watchlist import cmd_watchlist, cmd_alerts, cmd_monitor
 from cli.portfolio import cmd_portfolio
 from cli.system import cmd_data_health, cmd_doctor, cmd_ask, cmd_workbench
+from cli.a_share import cmd_a_share
 
 
 def main():
@@ -192,6 +193,26 @@ def main():
     parser_workbench.add_argument('--sector', help='外部传入板块')
     parser_workbench.add_argument('--industry', help='外部传入行业')
     parser_workbench.set_defaults(func=cmd_workbench)
+
+    # a-share 命令 - A股特色数据 (P2)
+    parser_ashare = subparsers.add_parser('a-share', help='A股特色数据: 龙虎榜/解禁/北向资金')
+    ashare_sub = parser_ashare.add_subparsers(dest='a_share_subcmd', help='子命令')
+    
+    ashare_toplist = ashare_sub.add_parser('top-list', help='龙虎榜')
+    ashare_toplist.add_argument('--date', help='日期 YYYYMMDD (默认今天)')
+    ashare_toplist.add_argument('--recent', type=int, help='最近N天龙虎榜')
+    ashare_toplist.add_argument('--symbol', help='筛选特定股票代码')
+    
+    ashare_lockup = ashare_sub.add_parser('lockup', help='解禁日历')
+    ashare_lockup.add_argument('--days', type=int, default=30, help='查询天数 (默认30)')
+    ashare_lockup.add_argument('--symbol', help='特定股票解禁信息')
+    
+    ashare_north = ashare_sub.add_parser('northbound', help='北向资金')
+    ashare_north.add_argument('--days', type=int, default=10, help='查询天数 (默认10)')
+    ashare_north.add_argument('--date', help='日期 YYYYMMDD')
+    ashare_north.add_argument('--top', action='store_true', help='十大持仓股')
+    
+    parser_ashare.set_defaults(func=cmd_a_share)
 
     # doctor 命令
     parser_doctor = subparsers.add_parser('doctor', help='检查本地数据源状态')

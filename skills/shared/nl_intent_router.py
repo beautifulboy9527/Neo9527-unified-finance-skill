@@ -199,6 +199,25 @@ def route_query(query: str) -> RoutedCommand:
             return _fallback("深度研报需要一个股票代码。")
         return RoutedCommand("deep_research", ["research", symbol], 0.82, "执行深度投研分析")
 
+    # P2: A股特色数据路由
+    if _has_any(lowered, ["龙虎榜", "游资", "top-list", "toplist"]):
+        argv = ["a-share", "top-list"]
+        if symbols:
+            argv.extend(["--symbol", _first_symbol(symbols)])
+        return RoutedCommand("a_share_toplist", argv, 0.90, "查看龙虎榜/游资动向")
+
+    if _has_any(lowered, ["解禁", "限售", "lockup"]):
+        argv = ["a-share", "lockup"]
+        if symbols:
+            argv.extend(["--symbol", _first_symbol(symbols)])
+        return RoutedCommand("a_share_lockup", argv, 0.89, "查看解禁日历")
+
+    if _has_any(lowered, ["北向", "北水", "northbound", "沪深港通"]):
+        argv = ["a-share", "northbound"]
+        if _has_any(lowered, ["十大", "持仓", "top"]):
+            argv.append("--top")
+        return RoutedCommand("a_share_northbound", argv, 0.89, "查看北向资金流向")
+
     # P1: Full-chain analysis routing
     if _has_any(lowered, ["全链路", "全面", "full", "完整分析", "深度分析", "综合分析", "全量分析"]):
         symbol = _first_symbol(symbols)
