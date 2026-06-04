@@ -37,14 +37,32 @@ try:
 except ImportError:
     AKSHARE_AVAILABLE = False
 
+# Unified data layer (Protocol + SourceChain + Cache + CircuitBreaker)
+try:
+    from skills.shared.data_layer import get_data_layer, QuoteData, KlineData
+    DATALAYER_AVAILABLE = True
+except ImportError:
+    DATALAYER_AVAILABLE = False
+
+
 
 class StockAnalysisSkill:
     """股票分析 Skill - 快速分析模式"""
     
     def __init__(self):
         self.name = "StockAnalysisSkill"
-        self.version = "2.1.0"
+        self.version = "2.2.0"
+        self._dl = None  # lazy init unified data layer
     
+    def _get_dl(self):
+        """Lazy-init unified data layer with cache + circuit breaker"""
+        if self._dl is None and DATALAYER_AVAILABLE:
+            try:
+                self._dl = get_data_layer()
+            except Exception:
+                pass
+        return self._dl
+
     def execute(self, symbol: str) -> Dict:
         """
         执行分析
@@ -132,13 +150,32 @@ class StockAnalysisSkill:
         }
         
         try:
-            if AKSHARE_AVAILABLE:
-                # 使用 AkShare 获取A股数据
+            # 优先使用统一数据层获取行情（Protocol + SourceChain + Cache + 熔断器）
+            dl = self._get_dl()
+            if dl:
                 try:
-                    # 实时行情
+                    q = dl.get_quote(symbol)
+                    if q:
+                        data['name'] = q.name
+                        data['price'] = q.price
+                        data['change_pct'] = q.change_pct
+                        data['volume'] = q.volume
+                        data['amount'] = q.amount
+                        data['high'] = q.high
+                        data['low'] = q.low
+                        data['open'] = q.open
+                        data['pe'] = q.pe
+                        data['pb'] = q.pb
+                        data['data_source'] = [q.source, 'data_layer']
+                        print(f"  行情来源: {q.source} (via data_layer)")
+                except Exception as e:
+                    print(f"  data_layer行情获取失败: {e}")
+
+            # 回退: 直接调用 AkShare
+            if ('price' not in data or data.get('price') == 0) and AKSHARE_AVAILABLE:
+                try:
                     df = ak.stock_zh_a_spot_em()
                     stock_data = df[df['代码'] == symbol]
-                    
                     if not stock_data.empty:
                         row = stock_data.iloc[0]
                         data['name'] = row.get('名称', '')
@@ -150,6 +187,7 @@ class StockAnalysisSkill:
                         data['low'] = float(row.get('最低', 0))
                         data['open'] = float(row.get('今开', 0))
                         data['prev_close'] = float(row.get('昨收', 0))
+                        data['data_source'] = ['akshare']
                 except Exception as e:
                     print(f"  AkShare实时行情失败: {e}")
                 
@@ -285,50 +323,67 @@ class StockAnalysisSkill:
         tech = {}
         
         try:
-            if AKSHARE_AVAILABLE:
-                # 获取历史数据
-                df = ak.stock_zh_a_hist(symbol=symbol, period='daily', adjust='qfq')
-                
-                if df is not None and not df.empty:
-                    close = df['收盘'].astype(float)
-                    volume = df['成交量'].astype(float)
-                    
-                    # MA
-                    tech['ma5'] = float(close.rolling(5).mean().iloc[-1])
-                    tech['ma10'] = float(close.rolling(10).mean().iloc[-1])
-                    tech['ma20'] = float(close.rolling(20).mean().iloc[-1])
-                    
-                    # RSI
-                    delta = close.diff()
-                    gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-                    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-                    rs = gain / loss
-                    tech['rsi'] = float(100 - (100 / (1 + rs.iloc[-1])))
-                    
-                    # 趋势判断
-                    current_price = float(close.iloc[-1])
-                    if current_price > tech['ma5'] > tech['ma10'] > tech['ma20']:
-                        tech['trend'] = '强势多头'
-                    elif current_price > tech['ma10'] > tech['ma20']:
-                        tech['trend'] = '多头'
-                    elif current_price < tech['ma5'] < tech['ma10'] < tech['ma20']:
-                        tech['trend'] = '强势空头'
-                    elif current_price < tech['ma10'] < tech['ma20']:
-                        tech['trend'] = '空头'
-                    else:
-                        tech['trend'] = '震荡'
-                    
-                    # MACD
-                    exp12 = close.ewm(span=12, adjust=False).mean()
-                    exp26 = close.ewm(span=26, adjust=False).mean()
-                    macd = exp12 - exp26
-                    signal = macd.ewm(span=9, adjust=False).mean()
-                    hist = macd - signal
-                    
-                    tech['macd'] = float(macd.iloc[-1])
-                    tech['macd_signal'] = float(signal.iloc[-1])
-                    tech['macd_hist'] = float(hist.iloc[-1])
-                    tech['macd_status'] = '金叉' if hist.iloc[-1] > 0 else '死叉'
+            # 优先使用 data_layer 获取K线（带缓存+熔断器+多源fallback）
+            df = None
+            dl = self._get_dl()
+            if dl:
+                try:
+                    kline = dl.get_kline(symbol)
+                    if kline and kline.is_valid():
+                        df = kline.df
+                        print(f"      K线来源: {kline.source} (via data_layer)")
+                except Exception as e:
+                    print(f"      data_layer K线失败: {e}")
+
+            # 回退: 直接调用 AkShare（中文列名→英文列名）
+            if df is None and AKSHARE_AVAILABLE:
+                raw = ak.stock_zh_a_hist(symbol=symbol, period='daily', adjust='qfq')
+                if raw is not None and not raw.empty:
+                    df = raw.rename(columns={
+                        '日期': 'date', '开盘': 'open', '收盘': 'close',
+                        '最高': 'high', '最低': 'low', '成交量': 'volume'
+                    })
+
+            if df is not None and not df.empty:
+                close = df['close'].astype(float)
+                volume = df['volume'].astype(float)
+
+                # MA
+                tech['ma5'] = float(close.rolling(5).mean().iloc[-1])
+                tech['ma10'] = float(close.rolling(10).mean().iloc[-1])
+                tech['ma20'] = float(close.rolling(20).mean().iloc[-1])
+
+                # RSI
+                delta = close.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+                rs = gain / loss
+                tech['rsi'] = float(100 - (100 / (1 + rs.iloc[-1])))
+
+                # 趋势判断
+                current_price = float(close.iloc[-1])
+                if current_price > tech['ma5'] > tech['ma10'] > tech['ma20']:
+                    tech['trend'] = '强势多头'
+                elif current_price > tech['ma10'] > tech['ma20']:
+                    tech['trend'] = '多头'
+                elif current_price < tech['ma5'] < tech['ma10'] < tech['ma20']:
+                    tech['trend'] = '强势空头'
+                elif current_price < tech['ma10'] < tech['ma20']:
+                    tech['trend'] = '空头'
+                else:
+                    tech['trend'] = '震荡'
+
+                # MACD
+                exp12 = close.ewm(span=12, adjust=False).mean()
+                exp26 = close.ewm(span=26, adjust=False).mean()
+                macd = exp12 - exp26
+                signal = macd.ewm(span=9, adjust=False).mean()
+                hist = macd - signal
+
+                tech['macd'] = float(macd.iloc[-1])
+                tech['macd_signal'] = float(signal.iloc[-1])
+                tech['macd_hist'] = float(hist.iloc[-1])
+                tech['macd_status'] = '金叉' if hist.iloc[-1] > 0 else '死叉'
         
         except Exception as e:
             print(f"      技术指标计算失败: {e}")
