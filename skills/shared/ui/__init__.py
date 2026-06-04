@@ -181,6 +181,9 @@ def print_signal_cards(signals: List[Dict]):
 
 def print_risk_panel(risk: Dict):
     """打印风险面板"""
+    if not risk:
+        print("⚠️ 风险: 暂无风险数据")
+        return
     console = get_console()
     severity = risk.get("highest_severity_cn", "提示")
     alert_count = risk.get("alert_count", 0)

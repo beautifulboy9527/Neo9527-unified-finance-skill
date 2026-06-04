@@ -200,6 +200,25 @@ def route_query(query: str) -> RoutedCommand:
         return RoutedCommand("deep_research", ["research", symbol], 0.82, "执行深度投研分析")
 
     # P2: Backtest routing
+    if _has_any(lowered, ["财报", "业绩", "earnings", "季报", "年报", "同比", "环比"]):
+        if not symbol:
+            return _fallback("请提供股票代码，例如：贵州茅台业绩")
+        if _has_any(lowered, ["预览", "预告", "preview"]):
+            return RoutedCommand("earnings_preview", ["earnings", "preview", symbol], 0.86, "查看业绩预告")
+        if _has_any(lowered, ["复盘", "回顾", "recap"]):
+            return RoutedCommand("earnings_recap", ["earnings", "recap", symbol], 0.86, "复盘历史财报")
+        if _has_any(lowered, ["对比", "比较", "compare"]):
+            return RoutedCommand("earnings_compare", ["earnings", "compare", symbol], 0.86, "对比多期财报")
+        return RoutedCommand("earnings", ["earnings", symbol], 0.85, "查看财报数据")
+
+    if _has_any(lowered, ["体检", "健康", "health", "财务健康"]):
+        if not symbol:
+            return _fallback("请提供股票代码，例如：贵州茅台财务体检")
+        return RoutedCommand("health", ["health", symbol], 0.86, "财报健康体检")
+
+    if _has_any(lowered, ["预警", "提醒", "alerts", "监控", "monitor"]):
+        return RoutedCommand("alerts", ["alerts"], 0.85, "查看自选股预警")
+
     if _has_any(lowered, ["回测", "backtest", "策略验证"]):
         symbol = _first_symbol(symbols)
         if not symbol:
