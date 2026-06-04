@@ -98,7 +98,7 @@ def cmd_board(args):
     
     spec = importlib.util.spec_from_file_location(
         "board_scanner",
-        os.path.join(SKILLS_DIR, 'scripts', 'features', 'board_scanner.py')
+        os.path.join(SKILLS_DIR, 'skills', 'stock-skill', 'board_scanner.py')
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

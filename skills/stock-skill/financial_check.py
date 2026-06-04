@@ -156,6 +156,39 @@ class FinancialAnomalyDetector:
             'timestamp': datetime.now().isoformat()
         }
     
+    def _fetch_baostock_growth(self, symbol: str) -> Optional[Dict]:
+        """从 Baostock 获取成长能力数据（共享逻辑，避免重复代码）"""
+        try:
+            import baostock as bs
+            from datetime import datetime
+            bs_code = f"sh.{symbol}" if symbol.startswith("6") else f"sz.{symbol}"
+            login = bs.login()
+            if getattr(login, "error_code", "0") != "0":
+                return None
+            try:
+                now = datetime.now()
+                revenue_growth = None
+                profit_growth = None
+                for year in [now.year, now.year - 1]:
+                    for quarter in [min((now.month - 1) // 3 + 1, 4), 4, 3, 2, 1]:
+                        if quarter < 1:
+                            continue
+                        rs = bs.query_growth_data(code=bs_code, year=year, quarter=quarter)
+                        if getattr(rs, "error_code", "0") == "0" and rs.next():
+                            row_data = rs.get_row_data()
+                            if len(row_data) >= 8:
+                                profit_growth = float(row_data[5]) * 100 if row_data[5] else None
+                                revenue_growth = float(row_data[7]) * 100 if row_data[7] else None
+                                break
+                    if revenue_growth is not None:
+                        break
+                return {'revenue_growth': revenue_growth, 'profit_growth': profit_growth}
+            finally:
+                bs.logout()
+        except Exception as e:
+            print(f"  Baostock 成长能力数据获取失败: {e}")
+            return None
+
     def _get_financial_data(self, symbol: str) -> Optional[Dict]:
         """获取财务数据"""
         # 判断市场
@@ -414,59 +447,23 @@ class FinancialAnomalyDetector:
         except Exception as e:
             print(f"  指标接口获取失败: {e}")
         
-        # 方法3: 使用 Baostock 获取成长能力数据
-        try:
-            import baostock as bs
-            from datetime import datetime
-            
-            bs_code = f"sh.{symbol}" if symbol.startswith("6") else f"sz.{symbol}"
-            login = bs.login()
-            if getattr(login, "error_code", "0") == "0":
-                # 获取成长能力数据
-                current_year = datetime.now().year
-                current_quarter = (datetime.now().month - 1) // 3 + 1
-                
-                revenue_growth = None
-                profit_growth = None
-                
-                # 尝试最近几个季度的数据
-                for year in [current_year, current_year - 1]:
-                    for quarter in [current_quarter, current_quarter - 1, 4, 3, 2, 1]:
-                        if quarter < 1:
-                            continue
-                        growth_data = bs.query_growth_data(code=bs_code, year=year, quarter=quarter)
-                        if getattr(growth_data, "error_code", "0") == "0" and growth_data.next():
-                            row_data = growth_data.get_row_data()
-                            if len(row_data) >= 8:
-                                # 字段顺序: code, pubDate, statDate, YOYEquity, YOYAsset, YOYNI, YOYEPSBasic, YOYPNI
-                                profit_growth = float(row_data[5]) * 100 if row_data[5] else None  # YOYNI: 净利润增长率
-                                revenue_growth = float(row_data[7]) * 100 if row_data[7] else None  # YOYPNI: 营业收入增长率
-                                break
-                    if revenue_growth is not None:
-                        break
-                
-                bs.logout()
-                
-                if revenue_growth is not None or profit_growth is not None:
-                    return {
-                        **self._new_data(),
-                        'revenue_growth': [revenue_growth or 0, 0, 0],
-                        'profit_growth': [profit_growth or 0, 0, 0],
-                        'receivable_growth': [0, 0, 0],
-                        'inventory_growth': [0, 0, 0],
-                        'gross_margin': [0, 0, 0],
-                        'net_margin': [0, 0, 0],
-                        'summary': {
-                            'gross_margin': 0,
-                            'net_margin': 0,
-                            'roe': 0,
-                            'debt_ratio': 0,
-                        },
-                        'warnings': ['使用 Baostock 成长能力数据，其他财务字段需补充'],
-                        'unavailable_checks': ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
-                    }
-        except Exception as e:
-            print(f"  Baostock 成长能力数据获取失败: {e}")
+        # 方法3: 使用 Baostock 获取成长能力数据（共享helper）
+        bs_growth = self._fetch_baostock_growth(symbol)
+        if bs_growth and (bs_growth.get('revenue_growth') is not None or bs_growth.get('profit_growth') is not None):
+            rg = bs_growth['revenue_growth']
+            pg = bs_growth['profit_growth']
+            return {
+                **self._new_data(),
+                'revenue_growth': [rg or 0, 0, 0],
+                'profit_growth': [pg or 0, 0, 0],
+                'receivable_growth': [0, 0, 0],
+                'inventory_growth': [0, 0, 0],
+                'gross_margin': [0, 0, 0],
+                'net_margin': [0, 0, 0],
+                'summary': {'gross_margin': 0, 'net_margin': 0, 'roe': 0, 'debt_ratio': 0},
+                'warnings': ['使用 Baostock 成长能力数据，其他财务字段需补充'],
+                'unavailable_checks': ['receivable', 'cashflow', 'inventory', 'margin', 'related_party']
+            }
         
         return None
     
