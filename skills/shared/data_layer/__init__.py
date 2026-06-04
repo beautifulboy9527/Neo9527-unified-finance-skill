@@ -36,26 +36,36 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QuoteData:
-    """实时行情标准 schema"""
+    """实时行情标准 schema
+    
+    ⚠️ None 表示"未获取到数据"，0.0 表示"获取到且值为零"。
+    投资决策时必须区分：None = 数据不可用，0.0 = 真实值。
+    """
     symbol: str
     name: str = ""
-    price: float = 0.0
-    open: float = 0.0
-    high: float = 0.0
-    low: float = 0.0
-    close: float = 0.0
-    volume: float = 0.0
-    amount: float = 0.0
-    change_pct: float = 0.0
-    turnover_rate: float = 0.0
-    market_cap: float = 0.0
-    pe: float = 0.0
-    pb: float = 0.0
+    price: Optional[float] = None      # ⚠️ None=未获取, 绝不为0作默认
+    open: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    close: Optional[float] = None
+    volume: Optional[float] = None
+    amount: Optional[float] = None
+    change_pct: Optional[float] = None
+    turnover_rate: Optional[float] = None
+    market_cap: Optional[float] = None
+    pe: Optional[float] = None
+    pb: Optional[float] = None
     source: str = ""
     fetched_at: datetime = field(default_factory=datetime.now)
 
+    @property
+    def has_real_data(self) -> bool:
+        """是否至少有一个非None字段（排除symbol/name/source/fetched_at）"""
+        return any(v is not None for k, v in self.__dict__.items() 
+                   if k not in ('symbol', 'name', 'source', 'fetched_at'))
+
     def to_dict(self) -> Dict[str, Any]:
-        return {k: v for k, v in self.__dict__.items() if v != 0 or k in ('price', 'open', 'high', 'low', 'close')}
+        return {k: v for k, v in self.__dict__.items() if v is not None}
 
 
 @dataclass
@@ -210,6 +220,7 @@ class SourceChain:
                             self.breakers[source.name].record_failure()
 
         logger.warning(f"All sources failed (method={method_name})")
+        # ⚠️ 返回 None 而非空对象，确保调用方能区分"无数据"与"真实0值"
         return None
 
 
@@ -284,13 +295,19 @@ class DataLayer:
         self._cache[key] = (data, time.time())
 
     def get_quote(self, symbol: str) -> Optional[QuoteData]:
+        """获取实时行情。返回 None 表示所有数据源均不可用，调用方必须处理此情况。"""
         key = self._cache_key("quote", symbol)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
         result = self._quote_chain.fetch("fetch_quote", symbol)
         if result is not None:
+            if not result.has_real_data:
+                logger.warning(f"QuoteData for {symbol} has no real data (all fields None)")
+                return None
             self._set_cached(key, result)
+        else:
+            logger.warning(f"All quote sources failed for {symbol} - data unavailable")
         return result
 
     def get_kline(self, symbol: str, start: Optional[str] = None, end: Optional[str] = None) -> Optional[KlineData]:

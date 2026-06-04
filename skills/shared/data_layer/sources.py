@@ -39,21 +39,24 @@ class AkShareQuoteSource:
             r = row.iloc[0]
             return QuoteData(
                 symbol=symbol,
-                name=str(r.get('名称', '')),
-                price=float(r.get('最新价', 0) or 0),
-                open=float(r.get('今开', 0) or 0),
-                high=float(r.get('最高', 0) or 0),
-                low=float(r.get('最低', 0) or 0),
-                close=float(r.get('收盘价', 0) or 0),
-                volume=float(r.get('成交量', 0) or 0),
-                amount=float(r.get('成交额', 0) or 0),
-                change_pct=float(r.get('涨跌幅', 0) or 0),
-                turnover_rate=float(r.get('换手率', 0) or 0),
-                market_cap=float(r.get('总市值', 0) or 0),
-                pe=float(r.get('市盈率-动态', 0) or 0),
-                pb=float(r.get('市净率', 0) or 0),
+                price=float(r.get('最新价') or 0) if r.get('最新价') else None,
+                open=float(r.get('今开') or 0) if r.get('今开') else None,
+                high=float(r.get('最高') or 0) if r.get('最高') else None,
+                low=float(r.get('最低') or 0) if r.get('最低') else None,
+                close=float(r.get('收盘价') or 0) if r.get('收盘价') else None,
+                volume=float(r.get('成交量') or 0) if r.get('成交量') else None,
+                amount=float(r.get('成交额') or 0) if r.get('成交额') else None,
+                change_pct=float(r.get('涨跌幅') or 0) if r.get('涨跌幅') else None,
+                turnover_rate=float(r.get('换手率') or 0) if r.get('换手率') else None,
+                market_cap=float(r.get('总市值') or 0) if r.get('总市值') else None,
+                pe=float(r.get('市盈率-动态') or 0) if r.get('市盈率-动态') else None,
+                pb=float(r.get('市净率') or 0) if r.get('市净率') else None,
                 source=self.name,
             )
+            # 核心字段缺失则返回None（防造假）
+            if q.price is None:
+                logger.debug(f"[akshare] quote for {symbol}: price missing, returning None")
+                return None
         except Exception as e:
             logger.debug(f"[akshare] quote error: {e}")
             return None
@@ -191,7 +194,7 @@ class SinaQuoteSource:
                 symbol=symbol,
                 name=fields[0],
                 open=float(fields[1] or 0),
-                close=float(fields[2] or 0),
+                close=float(fields[2]) if fields[2] else None,
                 price=float(fields[3] or 0),
                 high=float(fields[4] or 0),
                 low=float(fields[5] or 0),

@@ -155,7 +155,7 @@ class StockAnalysisSkill:
             if dl:
                 try:
                     q = dl.get_quote(symbol)
-                    if q:
+                    if q and q.has_real_data:
                         data['name'] = q.name
                         data['price'] = q.price
                         data['change_pct'] = q.change_pct
@@ -172,7 +172,7 @@ class StockAnalysisSkill:
                     print(f"  data_layer行情获取失败: {e}")
 
             # 回退: 直接调用 AkShare
-            if ('price' not in data or data.get('price') == 0) and AKSHARE_AVAILABLE:
+            if ('price' not in data or data.get('price') is None or data.get('price') == 0) and AKSHARE_AVAILABLE:
                 try:
                     df = ak.stock_zh_a_spot_em()
                     stock_data = df[df['代码'] == symbol]
@@ -213,7 +213,7 @@ class StockAnalysisSkill:
                     print(f"  基本面失败: {e}")
             
             # 备用：使用 yfinance
-            if 'price' not in data or data.get('price') == 0:
+            if 'price' not in data or data.get('price') is None or data.get('price') == 0:
                 yf_data = self._get_yf_data(symbol + '.SS')  # 上交所
                 if yf_data:
                     data.update(yf_data)
