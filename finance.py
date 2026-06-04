@@ -27,6 +27,7 @@ from cli.watchlist import cmd_watchlist, cmd_alerts, cmd_monitor
 from cli.portfolio import cmd_portfolio
 from cli.system import cmd_data_health, cmd_doctor, cmd_ask, cmd_workbench
 from cli.a_share import cmd_a_share
+from cli.backtest import cmd_backtest
 
 
 def main():
@@ -213,6 +214,17 @@ def main():
     ashare_north.add_argument('--top', action='store_true', help='十大持仓股')
     
     parser_ashare.set_defaults(func=cmd_a_share)
+
+    # backtest 命令 - 策略回测 (P2)
+    parser_backtest = subparsers.add_parser('backtest', help='策略回测')
+    parser_backtest.add_argument('symbol', help='股票代码')
+    parser_backtest.add_argument('--strategy', default='sma-cross', choices=['sma-cross', 'rsi-oversold'], help='策略 (默认sma-cross)')
+    parser_backtest.add_argument('--days', type=int, default=365, help='回测天数 (默认365)')
+    parser_backtest.add_argument('--capital', type=float, default=100000, help='初始资金 (默认10万)')
+    parser_backtest.add_argument('--walk-forward', action='store_true', help='Walk-Forward 分析')
+    parser_backtest.add_argument('--monte-carlo', action='store_true', help='Monte Carlo 模拟')
+    parser_backtest.add_argument('--detail', action='store_true', help='显示交易明细')
+    parser_backtest.set_defaults(func=cmd_backtest)
 
     # doctor 命令
     parser_doctor = subparsers.add_parser('doctor', help='检查本地数据源状态')

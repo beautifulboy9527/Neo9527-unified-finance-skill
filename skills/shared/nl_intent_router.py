@@ -199,6 +199,18 @@ def route_query(query: str) -> RoutedCommand:
             return _fallback("深度研报需要一个股票代码。")
         return RoutedCommand("deep_research", ["research", symbol], 0.82, "执行深度投研分析")
 
+    # P2: Backtest routing
+    if _has_any(lowered, ["回测", "backtest", "策略验证"]):
+        symbol = _first_symbol(symbols)
+        if not symbol:
+            return _fallback("回测需要一个股票代码，例如：回测 300750")
+        argv = ["backtest", symbol]
+        if _has_any(lowered, ["walk-forward", "wf", "滚动"]):
+            argv.append("--walk-forward")
+        if _has_any(lowered, ["monte-carlo", "mc", "蒙特卡洛"]):
+            argv.append("--monte-carlo")
+        return RoutedCommand("backtest", argv, 0.88, "执行策略回测")
+
     # P2: A股特色数据路由
     if _has_any(lowered, ["龙虎榜", "游资", "top-list", "toplist"]):
         argv = ["a-share", "top-list"]
