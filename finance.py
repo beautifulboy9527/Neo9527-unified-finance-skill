@@ -652,6 +652,75 @@ def cmd_report(args):
         print("未生成报告：正式报告模式要求核心数据齐备。")
         return
 
+    # ── P1: Enhancement data collection ──
+    enhanced_technical = {}
+    evidence_ledger = {}
+    entry_signals_data = {}
+    risk_management_data = {}
+
+    try:
+        ti_module = load_module("technical_indicators", os.path.join("skills", "shared", "technical_indicators.py"))
+        hist = technical.get("candles") or collected_data.get("market_data", {})
+        if hist is not None:
+            try:
+                vwap = ti_module.calculate_vwap(hist) if hasattr(ti_module, 'calculate_vwap') else None
+                fib = ti_module.calculate_fibonacci_retracements(hist) if hasattr(ti_module, 'calculate_fibonacci_retracements') else None
+                sr = ti_module.calculate_confluence_support_resistance(hist) if hasattr(ti_module, 'calculate_confluence_support_resistance') else None
+                enhanced_technical = {
+                    "vwap": vwap,
+                    "fibonacci": fib,
+                    "support_resistance": sr,
+                    "patterns": technical.get("patterns", []),
+                }
+            except Exception as e:
+                print(f"  增强技术指标部分失败: {e}")
+    except Exception as e:
+        print(f"  技术指标模块加载失败: {e}")
+
+    try:
+        ev_module = load_module("evidence", os.path.join("skills", "shared", "evidence.py"))
+        ledger = ev_module.EvidenceLedger()
+        for src in data_sources.get("collection", {}).get("sources", []):
+            ledger.add(source=src, field="行情数据", grade="B", note="外部数据源")
+        if collected_data.get("success"):
+            ledger.add(source="实时接口", field="行情采集", grade="A", note="采集成功")
+        evidence_ledger = {"items": ledger.to_list()}
+    except Exception as e:
+        print(f"  数据溯源模块失败: {e}")
+
+    try:
+        es_module = load_module("entry_signals", os.path.join("skills", "stock-skill", "entry_signals.py"))
+        signals = es_module.analyze_entry_signals(args.symbol)
+        entry_signals_data = signals or {}
+    except Exception as e:
+        print(f"  入场信号模块失败: {e}")
+
+    try:
+        rm_module = load_module("risk_management_pro", os.path.join("skills", "stock-skill", "risk_management_pro.py"))
+        rm = rm_module.RiskManagerPro()
+        hist_data = technical.get("candles")
+        if hist_data is not None:
+            import pandas as pd
+            if not isinstance(hist_data, pd.DataFrame):
+                hist_data = None
+            rm_result = {
+                "var": {"var_95": None, "cvar": None, "max_drawdown": None},
+                "stop_loss": {},
+                "position_sizing": {},
+            }
+            try:
+                if hist_data is not None and hasattr(hist_data, 'close'):
+                    returns = hist_data['close'].pct_change().dropna()
+                    if len(returns) > 20:
+                        var_95 = rm.var_parametric(returns, confidence=0.95)
+                        cvar = rm.cvar(returns, confidence=0.95)
+                        rm_result["var"] = {"var_95": f"{var_95*100:.2f}", "cvar": f"{cvar*100:.2f}", "max_drawdown": None}
+            except Exception:
+                pass
+            risk_management_data = rm_result
+    except Exception as e:
+        print(f"  风控模块失败: {e}")
+
     html_text = ReportClass().generate(
         args.symbol,
         display_name=stock_display_name(args.symbol, collected_data.get("profile", {})),
@@ -661,6 +730,10 @@ def cmd_report(args):
         technical_analysis=technical,
         fundamental_analysis=fundamental,
         data_sources=data_sources,
+        enhanced_technical=enhanced_technical,
+        evidence_ledger=evidence_ledger,
+        entry_signals=entry_signals_data,
+        risk_management=risk_management_data,
     )
 
     output_dir = Path(args.output_dir or os.path.join(SKILLS_DIR, "outputs", "html_reports"))

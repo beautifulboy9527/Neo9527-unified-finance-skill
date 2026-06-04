@@ -91,6 +91,10 @@ class KamiStyleStockReport:
         technical_analysis: Dict | None = None,
         fundamental_analysis: Dict | None = None,
         data_sources: Dict | None = None,
+        enhanced_technical: Dict | None = None,
+        evidence_ledger: Dict | None = None,
+        entry_signals: Dict | None = None,
+        risk_management: Dict | None = None,
         generated_at: datetime | None = None,
     ) -> str:
         generated_at = generated_at or datetime.now()
@@ -101,6 +105,10 @@ class KamiStyleStockReport:
         technical_analysis = technical_analysis or {}
         fundamental_analysis = fundamental_analysis or {}
         data_sources = data_sources or {}
+        enhanced_technical = enhanced_technical or {}
+        evidence_ledger = evidence_ledger or {}
+        entry_signals = entry_signals or {}
+        risk_management = risk_management or {}
         fundamental_analysis = self._enrich_fundamental(symbol, fundamental_analysis)
 
         html_text = f"""<!DOCTYPE html>
@@ -350,6 +358,7 @@ class KamiStyleStockReport:
       {self._multi_timeframe_block(technical_analysis)}
       {self._technical_playbook_block(technical_analysis)}
     </section>
+<section>      <h2>增强技术分析</h2>      {self._enhanced_technical_block(enhanced_technical, technical_analysis)}      {self._entry_signals_block(entry_signals)}    </section>
 
     <section>
       <h2>财务概览</h2>
@@ -367,6 +376,7 @@ class KamiStyleStockReport:
       <h2>主要风险</h2>
       {self._alerts_block(risk_alerts.get("alerts", []))}
     </section>
+<section>      <h2>风控建议</h2>      {self._risk_management_block(risk_management)}    </section>    <section>      <h2>数据溯源</h2>      {self._evidence_block(evidence_ledger)}    </section>
 
     <section>
       <h2>报告小结</h2>
@@ -1406,6 +1416,91 @@ class KamiStyleStockReport:
             f"风险结论为{alerts.get('highest_severity_cn', '提示')}。"
             "下一次复盘应优先更新订单/收入结构、毛利率、经营现金流和有效支撑位。"
         )
+
+
+    # ── P1 Enhancement Methods ────────────────────────────────
+
+    def _enhanced_technical_block(self, enhanced: Dict, technical: Dict) -> str:
+        """增强技术分析区块: VWAP/斐波那契/K线形态"""
+        if not enhanced:
+            return "<p>增强技术指标暂无数据。</p>"
+        parts = []
+        if enhanced.get("vwap"):
+            vwap = enhanced["vwap"]
+            parts.append(f'<div class="panel"><h3>VWAP 机构成本线</h3><p>VWAP: {self._num_text(vwap.get("vwap"))}｜偏离: {self._num_text(vwap.get("deviation_pct"), "%")}</p><p class="small">{html.escape(vwap.get("interpretation", ""))}</p></div>')
+        if enhanced.get("fibonacci"):
+            fib = enhanced["fibonacci"]
+            levels = fib.get("levels", {})
+            if levels:
+                parts.append('<div class="panel"><h3>斐波那契关键位</h3><table><thead><tr><th>级别</th><th>价格</th><th>含义</th></tr></thead><tbody>')
+                for name, price in sorted(levels.items(), key=lambda x: float(x[1]) if x[1] else 0, reverse=True):
+                    parts.append(f'<tr><td>{html.escape(str(name))}</td><td>{self._num_text(price)}</td><td>{"阻力" if float(price or 0) > float(technical.get("close", 0) or 0) else "支撑"}</td></tr>')
+                parts.append('</tbody></table></div>')
+        if enhanced.get("patterns"):
+            patterns = enhanced["patterns"]
+            if patterns:
+                parts.append('<div class="panel"><h3>K线形态识别</h3><table><thead><tr><th>形态</th><th>信号</th><th>可靠性</th></tr></thead><tbody>')
+                for p in patterns[:5]:
+                    parts.append(f'<tr><td>{html.escape(str(p.get("name", "")))}</td><td>{html.escape(str(p.get("signal", "")))}</td><td>{html.escape(str(p.get("reliability", "")))}</td></tr>')
+                parts.append('</tbody></table></div>')
+        if enhanced.get("support_resistance"):
+            sr = enhanced["support_resistance"]
+            parts.append(f'<div class="panel"><h3>支撑阻力聚合</h3><p>关键支撑: {self._num_text(sr.get("nearest_support"))}｜关键阻力: {self._num_text(sr.get("nearest_resistance"))}</p></div>')
+        return "\n".join(parts) if parts else "<p>增强技术指标暂无数据。</p>"
+
+    def _entry_signals_block(self, signals: Dict) -> str:
+        """入场信号区块"""
+        if not signals or not signals.get("signals"):
+            return ""
+        items = signals.get("signals", [])
+        if not items:
+            return ""
+        rows = []
+        for s in items[:5]:
+            rows.append(f'<tr><td>{html.escape(str(s.get("name", "")))}</td><td>{html.escape(str(s.get("type", "")))}</td><td>{html.escape(str(s.get("strength", "")))}</td><td>{html.escape(str(s.get("action", "")))}</td></tr>')
+        return f'<div class="panel"><h3>入场信号</h3><table><thead><tr><th>信号</th><th>类型</th><th>强度</th><th>建议</th></tr></thead><tbody>{"".join(rows)}</tbody></table><p class="small">综合评分: {html.escape(str(signals.get("overall_score", "N/A")))}</p></div>'
+
+    def _risk_management_block(self, rm: Dict) -> str:
+        """风控建议区块"""
+        if not rm:
+            return "<p>风控数据暂无。</p>"
+        parts = []
+        if rm.get("stop_loss"):
+            sl = rm["stop_loss"]
+            parts.append(f'<div class="panel"><h3>止损建议</h3><p>ATR 止损位: {self._num_text(sl.get("atr_stop"))}｜固定比例止损: {self._num_text(sl.get("pct_stop"))}</p></div>')
+        if rm.get("position_sizing"):
+            ps = rm["position_sizing"]
+            parts.append(f'<div class="panel"><h3>仓位建议</h3><p>Kelly 比例: {self._num_text(ps.get("kelly_pct"), "%")}｜建议仓位: {self._num_text(ps.get("suggested_pct"), "%")}</p></div>')
+        if rm.get("var"):
+            var = rm["var"]
+            parts.append(f'<div class="panel"><h3>风险度量</h3><p>VaR(95%): {self._num_text(var.get("var_95"), "%")}｜CVaR: {self._num_text(var.get("cvar"), "%")}｜最大回撤: {self._num_text(var.get("max_drawdown"), "%")}</p></div>')
+        return "\n".join(parts) if parts else "<p>风控数据暂无。</p>"
+
+    def _evidence_block(self, evidence: Dict) -> str:
+        """数据溯源区块"""
+        if not evidence or not evidence.get("items"):
+            return "<p>数据溯源信息暂无。</p>"
+        items = evidence.get("items", [])
+        rows = []
+        for e in items[:10]:
+            grade = e.get("grade", "N/A")
+            grade_class = "grade-a" if grade in ("A", "B") else "grade-c" if grade in ("D", "E") else "grade-b"
+            rows.append(f'<tr><td>{html.escape(str(e.get("field", "")))}</td><td>{html.escape(str(e.get("source", "")))}</td><td class="{grade_class}">{html.escape(str(grade))}</td><td>{html.escape(str(e.get("note", "")))}</td></tr>')
+        return f'<table><thead><tr><th>数据项</th><th>来源</th><th>评级</th><th>说明</th></tr></thead><tbody>{"".join(rows)}</tbody></table><p class="small">评级: A=实时验证 B=官方来源 C=第三方 D=估算 E=假设</p>'
+
+    def _num_text(self, value, suffix: str = "") -> str:
+        """格式化数字"""
+        if value is None:
+            return "N/A"
+        try:
+            v = float(value)
+            if abs(v) >= 1e8:
+                return f"{v/1e8:.2f}亿{suffix}"
+            if abs(v) >= 1e4:
+                return f"{v/1e4:.2f}万{suffix}"
+            return f"{v:.2f}{suffix}"
+        except (ValueError, TypeError):
+            return str(value) if value else "N/A"
 
 
 __all__ = ["KamiStyleStockReport"]
