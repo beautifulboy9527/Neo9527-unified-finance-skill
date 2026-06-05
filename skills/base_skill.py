@@ -196,7 +196,7 @@ def load_builtin_skills(base_dir: str = None) -> List[str]:
     base_dir = base_dir or os.path.dirname(os.path.abspath(__file__))
     modules = [
         ("crypto_skill_analyze", os.path.join("crypto-skill", "analyze.py")),
-        ("stock_skill_analyze", os.path.join("stock-skill", "analyze.py")),
+        ("stock_skill_analyze", os.path.join("stock-skill", "analyzer.py")),
         ("forex_skill_analyze", os.path.join("forex-skill", "analyze.py")),
         ("signal_skill_detect", os.path.join("signal-skill", "detect.py")),
         ("report_skill_commentary", os.path.join("report-skill", "commentary.py")),

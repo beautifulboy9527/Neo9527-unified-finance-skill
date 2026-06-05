@@ -20,6 +20,7 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from skills.base_skill import register_skill
 
 import pandas as pd
 import numpy as np
@@ -46,6 +47,7 @@ except ImportError:
 
 
 
+@register_skill
 class StockAnalysisSkill:
     """股票分析 Skill - 快速分析模式"""
     
