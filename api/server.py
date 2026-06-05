@@ -1186,6 +1186,114 @@ async def check_portfolio_warnings(request: PortfolioAnalyzeRequest):
         return {"success": False, "error": str(e)}
 
 
+
+
+# ============ Crypto / Forex 专用端点 ============
+
+@app.get("/api/crypto/quote/{symbol}")
+async def crypto_quote(symbol: str, exchange: str = Query(default="binance")):
+    """
+    加密货币实时行情
+
+    Args:
+        symbol: 交易对 (如 BTC/USDT)
+        exchange: 交易所 (默认 binance)
+    """
+    try:
+        from skills.crypto_skill.crypto import CryptoAnalyzer
+        analyzer = CryptoAnalyzer(exchange)
+        result = analyzer.get_quote(symbol)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/crypto/kline/{symbol}")
+async def crypto_kline(
+    symbol: str,
+    timeframe: str = Query(default="1d"),
+    limit: int = Query(default=30),
+    exchange: str = Query(default="binance")
+):
+    """
+    加密货币K线数据
+
+    Args:
+        symbol: 交易对
+        timeframe: 时间级别 (1m/5m/1h/1d)
+        limit: 数据条数
+        exchange: 交易所
+    """
+    try:
+        from skills.crypto_skill.crypto import CryptoAnalyzer
+        analyzer = CryptoAnalyzer(exchange)
+        result = analyzer.get_kline(symbol, timeframe, limit)
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/crypto/trending")
+async def crypto_trending(exchange: str = Query(default="binance")):
+    """热门加密货币"""
+    try:
+        from skills.crypto_skill.crypto import CryptoAnalyzer
+        analyzer = CryptoAnalyzer(exchange)
+        result = analyzer.get_trending()
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/forex/quote/{pair}")
+async def forex_quote(pair: str = "USD/CNY"):
+    """
+    外汇汇率查询
+
+    Args:
+        pair: 货币对 (如 USD/CNY, EUR/USD)
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "forex_analyze",
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "skills", "forex-skill", "analyze.py")
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        skill = module.ForexAnalysisSkill()
+        from skills.base_skill import SkillInput
+        output = skill.execute(SkillInput(symbol=pair, market="forex"))
+        return JSONResponse(output.to_dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/forex/analyze/{pair}")
+async def forex_analyze(pair: str = "USD/CNY", days: int = Query(default=60)):
+    """
+    外汇技术分析
+
+    Args:
+        pair: 货币对
+        days: 分析天数
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "forex_analyze",
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "skills", "forex-skill", "analyze.py")
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        skill = module.ForexAnalysisSkill()
+        from skills.base_skill import SkillInput
+        output = skill.execute(SkillInput(symbol=pair, market="forex", params={"days": days}))
+        return JSONResponse(output.to_dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 if __name__ == '__main__':
     import uvicorn
     
