@@ -712,7 +712,7 @@ class StockAnalysisSkill:
 def analyze_stock(symbol: str) -> Dict:
     """快速分析股票"""
     skill = StockAnalysisSkill()
-    return skill.execute(symbol)
+    return skill._analyze(symbol)
 
 
 # 测试
