@@ -230,6 +230,71 @@ def route_query(query: str) -> RoutedCommand:
             argv.append("--monte-carlo")
         return RoutedCommand("backtest", argv, 0.88, "执行策略回测")
 
+    # ── P5: Crypto / Forex / Onchain / Signal routing ──────────────
+
+    # 加密货币路由
+    if _has_any(lowered, ["比特币", "btc", "以太坊", "eth", "加密货币", "crypto", "数字货币", "币圈", "coin", "token"]):
+        symbol = _first_symbol(symbols) or "BTC/USDT"
+        if _has_any(lowered, ["行情", "价格", "quote", "价格查询"]):
+            return RoutedCommand("crypto_quote", ["crypto", "quote", symbol], 0.90, "查询加密货币行情")
+        if _has_any(lowered, ["深度", "订单簿", "orderbook", "买卖盘"]):
+            return RoutedCommand("crypto_orderbook", ["crypto", "orderbook", symbol], 0.89, "查看加密货币深度")
+        if _has_any(lowered, ["k线", "kline", "走势图", "图表"]):
+            return RoutedCommand("crypto_kline", ["crypto", "kline", symbol], 0.88, "查看加密货币K线")
+        if _has_any(lowered, ["热门", "trending", "排行榜"]):
+            return RoutedCommand("crypto_trending", ["crypto", "trending"], 0.88, "查看热门币种")
+        if _has_any(lowered, ["分析", "analyze", "综合", "全面分析"]):
+            return RoutedCommand("crypto_analyze", ["crypto", "analyze", symbol], 0.89, "加密货币综合分析")
+        if _has_any(lowered, ["搜索", "search", "查找币种"]):
+            keyword = text.split()[-1] if text.split() else "bitcoin"
+            return RoutedCommand("crypto_search", ["crypto", "search", "--keyword", keyword], 0.87, "搜索加密货币")
+        # 默认: 加密货币行情
+        return RoutedCommand("crypto_quote", ["crypto", "quote", symbol], 0.85, "默认查看加密货币行情")
+
+    # 外汇路由
+    if _has_any(lowered, ["汇率", "forex", "外汇", "美元", "欧元", "日元", "英镑", "货币对"]):
+        # 识别常见货币对
+        pair = "USD/CNY"
+        if _has_any(lowered, ["欧元", "eur", "usd/eur", "eur/usd"]):
+            pair = "EUR/USD"
+        elif _has_any(lowered, ["英镑", "gbp", "usd/gbp", "gbp/usd"]):
+            pair = "GBP/USD"
+        elif _has_any(lowered, ["日元", "jpy", "usd/jpy", "jpy/usd"]):
+            pair = "USD/JPY"
+        elif _has_any(lowered, ["港币", "hkd", "usd/hkd"]):
+            pair = "USD/HKD"
+        if _has_any(lowered, ["分析", "技术分析", "analyze"]):
+            return RoutedCommand("forex_analyze", ["forex", "analyze", "--pair", pair], 0.89, "外汇技术分析")
+        return RoutedCommand("forex_quote", ["forex", "quote", "--pair", pair], 0.88, "查询汇率")
+
+    # 链上数据路由
+    if _has_any(lowered, ["链上", "onchain", "tvl", "defi", "鲸鱼", "whale", "协议"]):
+        chain = "Ethereum"
+        if _has_any(lowered, ["bsc", "币安链"]):
+            chain = "BSC"
+        elif _has_any(lowered, ["arbitrum", "arb"]):
+            chain = "Arbitrum"
+        elif _has_any(lowered, ["solana", "sol"]):
+            chain = "Solana"
+        elif _has_any(lowered, ["polygon", "matic"]):
+            chain = "Polygon"
+        if _has_any(lowered, ["鲸鱼", "whale", "大户"]):
+            return RoutedCommand("onchain_whale", ["onchain", "whale", "--chain", chain], 0.89, "链上鲸鱼追踪")
+        if _has_any(lowered, ["协议", "protocol"]):
+            return RoutedCommand("onchain_protocol", ["onchain", "protocol"], 0.87, "查看DeFi协议详情")
+        return RoutedCommand("onchain_tvl", ["onchain", "tvl", "--chain", chain], 0.88, "查看链TVL数据")
+
+    # 信号检测路由
+    if _has_any(lowered, ["信号", "signal", "买入信号", "卖出信号", "入场", "出场"]):
+        symbol = _first_symbol(symbols)
+        if not symbol:
+            return _fallback("信号检测需要一个标的代码，例如: BTC信号、AAPL信号")
+        market = "stock"
+        if _has_any(lowered, ["比特币", "btc", "eth", "crypto", "加密货币"]):
+            market = "crypto"
+        elif _has_any(lowered, ["汇率", "forex", "外汇"]):
+            market = "forex"
+        return RoutedCommand("signal_detect", ["signal", symbol, "--market", market], 0.87, "执行信号检测")
     # P2: A股特色数据路由
     if _has_any(lowered, ["龙虎榜", "游资", "top-list", "toplist"]):
         argv = ["a-share", "top-list"]

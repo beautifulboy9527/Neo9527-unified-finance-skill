@@ -9,6 +9,10 @@ Commands are loaded from cli/ directory:
 - cli/screening.py: screen, discover, board
 - cli/earnings.py: earnings, preview, recap, compare
 - cli/watchlist.py: watchlist, alerts, monitor
+- cli/crypto.py: crypto (quote/orderbook/kline/trending/search/multi/analyze)
+- cli/forex.py: forex (quote/analyze)
+- cli/onchain.py: onchain (tvl/protocol/whale)
+- cli/signal.py: signal (多市场信号检测)
 - cli/portfolio.py: portfolio
 - cli/system.py: data-health, doctor, ask, workbench
 """
@@ -28,6 +32,10 @@ from cli.portfolio import cmd_portfolio
 from cli.system import cmd_data_health, cmd_doctor, cmd_ask, cmd_workbench
 from cli.a_share import cmd_a_share
 from cli.backtest import cmd_backtest
+from cli.crypto import cmd_crypto
+from cli.forex import cmd_forex
+from cli.onchain import cmd_onchain
+from cli.signal import cmd_signal
 
 
 def main():
@@ -342,6 +350,61 @@ def main():
     parser_compare.add_argument('symbols', nargs='+', help='股票代码列表 (至少2个)')
     parser_compare.set_defaults(func=cmd_compare)
     
+
+    # ── P5: Crypto / Forex / Onchain / Signal ────────────────────
+
+    # crypto 命令 (加密货币)
+    parser_crypto = subparsers.add_parser("crypto", help="加密货币: 行情/K线/分析")
+    crypto_sub = parser_crypto.add_subparsers(dest="crypto_subcmd", help="子命令")
+    crypto_quote = crypto_sub.add_parser("quote", help="行情查询")
+    crypto_quote.add_argument("symbol", nargs="?", default="BTC/USDT", help="币种代码 (如 BTC/USDT)")
+    crypto_quote.add_argument("--exchange", default="binance", help="交易所")
+    crypto_orderbook = crypto_sub.add_parser("orderbook", help="订单簿/深度")
+    crypto_orderbook.add_argument("symbol", nargs="?", default="BTC/USDT", help="币种代码")
+    crypto_orderbook.add_argument("--exchange", default="binance", help="交易所")
+    crypto_kline = crypto_sub.add_parser("kline", help="K线数据")
+    crypto_kline.add_argument("symbol", nargs="?", default="BTC/USDT", help="币种代码")
+    crypto_kline.add_argument("--timeframe", default="1d", help="时间级别 (1m/5m/1h/1d)")
+    crypto_kline.add_argument("--limit", type=int, default=30, help="数据条数")
+    crypto_kline.add_argument("--exchange", default="binance", help="交易所")
+    crypto_trending = crypto_sub.add_parser("trending", help="热门币种")
+    crypto_trending.add_argument("--exchange", default="binance", help="交易所")
+    crypto_search = crypto_sub.add_parser("search", help="搜索币种")
+    crypto_search.add_argument("--keyword", default="bitcoin", help="搜索关键词")
+    crypto_search.add_argument("--exchange", default="binance", help="交易所")
+    crypto_multi = crypto_sub.add_parser("multi", help="多交易所对比")
+    crypto_multi.add_argument("symbol", nargs="?", default="BTC/USDT", help="币种代码")
+    crypto_analyze = crypto_sub.add_parser("analyze", help="综合分析")
+    crypto_analyze.add_argument("symbol", nargs="?", default="BTC/USDT", help="币种代码")
+    parser_crypto.set_defaults(func=cmd_crypto)
+
+    # forex 命令 (外汇)
+    parser_forex = subparsers.add_parser("forex", help="外汇: 汇率/技术分析")
+    forex_sub = parser_forex.add_subparsers(dest="forex_subcmd", help="子命令")
+    forex_quote = forex_sub.add_parser("quote", help="汇率查询")
+    forex_quote.add_argument("--pair", default="USD/CNY", help="货币对 (如 USD/CNY, EUR/USD)")
+    forex_analyze = forex_sub.add_parser("analyze", help="技术分析")
+    forex_analyze.add_argument("--pair", default="USD/CNY", help="货币对")
+    forex_analyze.add_argument("--days", type=int, default=60, help="分析天数")
+    parser_forex.set_defaults(func=cmd_forex)
+
+    # onchain 命令 (链上数据)
+    parser_onchain = subparsers.add_parser("onchain", help="链上数据: TVL/鲸鱼/协议")
+    onchain_sub = parser_onchain.add_subparsers(dest="onchain_subcmd", help="子命令")
+    onchain_tvl = onchain_sub.add_parser("tvl", help="DeFi TVL数据")
+    onchain_tvl.add_argument("--chain", default="Ethereum", help="链名称")
+    onchain_protocol = onchain_sub.add_parser("protocol", help="协议详情")
+    onchain_protocol.add_argument("--protocol-name", default="aave", help="协议名称")
+    onchain_whale = onchain_sub.add_parser("whale", help="鲸鱼追踪")
+    onchain_whale.add_argument("--symbol", default="ETH", help="币种代码")
+    onchain_whale.add_argument("--chain", default="Ethereum", help="链名称")
+    parser_onchain.set_defaults(func=cmd_onchain)
+
+    # signal 命令 (信号检测)
+    parser_signal = subparsers.add_parser("signal", help="信号检测: 多因子信号分级")
+    parser_signal.add_argument("symbol", help="标的代码")
+    parser_signal.add_argument("--market", default="stock", choices=["stock", "crypto", "forex"], help="市场类型")
+    parser_signal.set_defaults(func=cmd_signal)
     args = parser.parse_args()
     
     if args.command is None:
