@@ -13,6 +13,7 @@ Commands are loaded from cli/ directory:
 - cli/forex.py: forex (quote/analyze)
 - cli/onchain.py: onchain (tvl/protocol/whale)
 - cli/signal.py: signal (多市场信号检测)
+- cli/commentary.py: commentary (AI专业解读)
 - cli/portfolio.py: portfolio
 - cli/system.py: data-health, doctor, ask, workbench
 """
@@ -36,6 +37,7 @@ from cli.crypto import cmd_crypto
 from cli.forex import cmd_forex
 from cli.onchain import cmd_onchain
 from cli.signal import cmd_signal
+from cli.commentary import cmd_commentary
 
 
 def main():
@@ -404,6 +406,12 @@ def main():
     parser_signal = subparsers.add_parser("signal", help="信号检测: 多因子信号分级")
     parser_signal.add_argument("symbol", help="标的代码")
     parser_signal.add_argument("--market", default="stock", choices=["stock", "crypto", "forex"], help="市场类型")
+
+    # commentary 命令 (AI专业解读)
+    parser_commentary = subparsers.add_parser("commentary", help="AI专业解读: 分析师语言生成")
+    parser_commentary.add_argument("symbol", help="标的代码")
+    parser_commentary.add_argument("--market", default="stock", choices=["stock", "crypto", "forex"], help="市场类型")
+    parser_commentary.set_defaults(func=cmd_commentary)
     parser_signal.set_defaults(func=cmd_signal)
     args = parser.parse_args()
     

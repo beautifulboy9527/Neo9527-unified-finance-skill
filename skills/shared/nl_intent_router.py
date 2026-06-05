@@ -284,6 +284,19 @@ def route_query(query: str) -> RoutedCommand:
             return RoutedCommand("onchain_protocol", ["onchain", "protocol"], 0.87, "查看DeFi协议详情")
         return RoutedCommand("onchain_tvl", ["onchain", "tvl", "--chain", chain], 0.88, "查看链TVL数据")
 
+    # AI解读路由
+    if _has_any(lowered, ["解读", "commentary", "分析师", "专业分析", "ai解读", "ai分析"]):
+        symbol = _first_symbol(symbols)
+        if not symbol:
+            return _fallback("AI解读需要一个标的代码，例如: 300943解读、BTC解读")
+        market = "stock"
+        if _has_any(lowered, ["比特币", "btc", "eth", "crypto", "加密货币"]):
+            market = "crypto"
+        elif _has_any(lowered, ["汇率", "forex", "外汇"]):
+            market = "forex"
+        return RoutedCommand("commentary", ["commentary", symbol, "--market", market], 0.87, "AI专业解读")
+
+    # 信号检测路由
     # 信号检测路由
     if _has_any(lowered, ["信号", "signal", "买入信号", "卖出信号", "入场", "出场"]):
         symbol = _first_symbol(symbols)
