@@ -20,7 +20,7 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from skills.base_skill import register_skill
+from skills.base_skill import register_skill, SkillInput, SkillOutput
 
 import pandas as pd
 import numpy as np
@@ -65,7 +65,37 @@ class StockAnalysisSkill:
                 pass
         return self._dl
 
-    def execute(self, symbol: str) -> Dict:
+    @property
+    def description(self) -> str:
+        return "A-share/US/HK stock analysis with technical, fundamental, and fund flow data"
+
+    @property
+    def supported_markets(self) -> list:
+        return ["stock", "cn", "us", "hk"]
+
+    def validate_input(self, input_data: SkillInput) -> bool:
+        return bool(input_data.symbol)
+
+    def execute(self, input_data_or_symbol) -> SkillOutput:
+        """SkillRegistry-compatible execute. Accepts SkillInput or plain str."""
+        if isinstance(input_data_or_symbol, SkillInput):
+            symbol = input_data_or_symbol.symbol
+        else:
+            symbol = str(input_data_or_symbol)
+        result = self._analyze(symbol)
+        return SkillOutput(
+            skill_name=self.name,
+            success=result.get("success", False),
+            data=result.get("data", {}),
+            signals=result.get("signals", []),
+            score=result.get("score", 0) or 0,
+            confidence=result.get("score", 0) / 100 if result.get("score") else 0,
+            timestamp=result.get("timestamp", ""),
+            data_source=["akshare", "yfinance"],
+            error=result.get("error"),
+        )
+
+    def _analyze(self, symbol: str) -> Dict:
         """
         执行分析
         

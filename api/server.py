@@ -16,6 +16,24 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse, HTMLResponse
+import math
+from datetime import datetime
+
+
+def _clean_nan(obj):
+    """Recursively replace NaN/inf with None for JSON compliance."""
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: _clean_nan(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean_nan(v) for v in obj]
+    return obj
+
+
+def safe_json(data):
+    """Return JSONResponse with NaN values cleaned."""
+    return JSONResponse(_clean_nan(data))
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -362,7 +380,7 @@ async def analyze(request: AnalyzeRequest):
             )
         )
         
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -384,7 +402,7 @@ async def signals(request: SignalRequest):
             )
         )
         
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -406,7 +424,7 @@ async def commentary(request: CommentaryRequest):
             )
         )
         
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -432,7 +450,7 @@ async def quick_analysis(
             SkillInput(symbol=symbol, market=market)
         )
         
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -476,7 +494,7 @@ async def financial_health(symbol: str):
     try:
         module = load_stock_module("financial_health.py", "stock_financial_health")
         result = module.analyze_financial_health(symbol)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -488,7 +506,7 @@ async def financial_health_with_inputs(symbol: str, request: FinancialHealthRequ
         module = load_stock_module("financial_health.py", "stock_financial_health")
         params = request.model_dump(exclude_none=True) if hasattr(request, "model_dump") else request.dict(exclude_none=True)
         result = module.analyze_financial_health(symbol, **params)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -499,7 +517,7 @@ async def risk_alerts(symbol: str):
     try:
         module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
         result = module.analyze_risk_alerts(symbol)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -510,7 +528,7 @@ async def watchlist_alerts(request: WatchlistAlertRequest):
     try:
         module = load_stock_module("risk_alerts.py", "stock_risk_alerts")
         result = module.analyze_watchlist_alerts(request.symbols)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -556,7 +574,7 @@ async def screen_stocks(request: ScreenRequest):
             top=request.top,
         )
         
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -598,7 +616,7 @@ async def valuation_workbench(symbol: str, request: ValuationWorkbenchRequest):
         params = request.model_dump(exclude_none=True) if hasattr(request, "model_dump") else request.dict(exclude_none=True)
         module = load_stock_module("valuation_workbench.py", "stock_valuation_workbench")
         result = module.analyze_valuation_workbench(symbol, **params)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1203,7 +1221,7 @@ async def crypto_quote(symbol: str, exchange: str = Query(default="binance")):
         from skills.crypto_skill.crypto import CryptoAnalyzer
         analyzer = CryptoAnalyzer(exchange)
         result = analyzer.get_quote(symbol)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1228,7 +1246,7 @@ async def crypto_kline(
         from skills.crypto_skill.crypto import CryptoAnalyzer
         analyzer = CryptoAnalyzer(exchange)
         result = analyzer.get_kline(symbol, timeframe, limit)
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1240,7 +1258,7 @@ async def crypto_trending(exchange: str = Query(default="binance")):
         from skills.crypto_skill.crypto import CryptoAnalyzer
         analyzer = CryptoAnalyzer(exchange)
         result = analyzer.get_trending()
-        return JSONResponse(result)
+        return safe_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1265,7 +1283,7 @@ async def forex_quote(pair: str = "USD/CNY"):
         skill = module.ForexAnalysisSkill()
         from skills.base_skill import SkillInput
         output = skill.execute(SkillInput(symbol=pair, market="forex"))
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1291,7 +1309,7 @@ async def forex_analyze(pair: str = "USD/CNY", days: int = Query(default=60)):
         skill = module.ForexAnalysisSkill()
         from skills.base_skill import SkillInput
         output = skill.execute(SkillInput(symbol=pair, market="forex", params={"days": days}))
-        return JSONResponse(output.to_dict())
+        return safe_json(output.to_dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 if __name__ == '__main__':
