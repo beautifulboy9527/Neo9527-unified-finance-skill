@@ -251,17 +251,19 @@ class DataLayer:
     统一数据层入口：所有模块通过 DataLayer 获取数据。
     同一只股票只取一次数据，全局缓存复用。
     """
-
     def __init__(self):
         from skills.shared.data_layer.sources import (
             AkShareQuoteSource, AkShareKlineSource, AkShareFinancialSource,
             EfinanceQuoteSource, SinaQuoteSource, BaostockKlineSource, BaostockFinancialSource,
+            CcxtQuoteSource, YFinanceForexQuoteSource,
         )
 
         self._quote_chain = SourceChain([
             EfinanceQuoteSource(),
             SinaQuoteSource(),
             AkShareQuoteSource(),
+            CcxtQuoteSource(),
+            YFinanceForexQuoteSource(),
         ])
 
         self._kline_chain = SourceChain([
@@ -275,6 +277,7 @@ class DataLayer:
         ])
 
         self._cache: Dict[str, tuple] = {}
+        self._cache_ttl = 300
         self._cache_ttl = 300
 
     def _cache_key(self, category: str, symbol: str, **kwargs) -> str:

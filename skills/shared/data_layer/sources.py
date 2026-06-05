@@ -37,7 +37,7 @@ class AkShareQuoteSource:
             if row.empty:
                 return None
             r = row.iloc[0]
-            return QuoteData(
+            q = QuoteData(
                 symbol=symbol,
                 price=float(r.get('最新价') or 0) if r.get('最新价') else None,
                 open=float(r.get('今开') or 0) if r.get('今开') else None,
@@ -57,7 +57,10 @@ class AkShareQuoteSource:
             if q.price is None:
                 logger.debug(f"[akshare] quote for {symbol}: price missing, returning None")
                 return None
+            return q
         except Exception as e:
+            logger.debug(f"[akshare] quote error: {e}")
+            return None
             logger.debug(f"[akshare] quote error: {e}")
             return None
 
@@ -310,4 +313,108 @@ class BaostockFinancialSource:
                 bs.logout()
         except Exception as e:
             logger.debug(f"[baostock] financial error: {e}")
+            return None
+
+
+# ── 加密货币数据源 (ccxt) ──────────────────────────────────────
+
+class CcxtQuoteSource:
+    """加密货币行情源 - 基于 ccxt (100+ 交易所)"""
+    name = "ccxt"
+    priority = 30
+
+    def __init__(self, exchange: str = 'binance'):
+        self.exchange_name = exchange
+        self._exchange = None
+
+    def _get_exchange(self):
+        if self._exchange is None:
+            try:
+                import ccxt
+                self._exchange = getattr(ccxt, self.exchange_name)({
+                    'enableRateLimit': True,
+                })
+            except ImportError:
+                raise ImportError("请安装 ccxt: pip install ccxt")
+        return self._exchange
+
+    def is_available(self) -> bool:
+        try:
+            import ccxt
+            return True
+        except ImportError:
+            return False
+
+    def fetch_quote(self, symbol: str) -> Optional[QuoteData]:
+        try:
+            exchange = self._get_exchange()
+            ticker = exchange.fetch_ticker(symbol)
+            if not ticker:
+                return None
+            return QuoteData(
+                symbol=symbol,
+                price=ticker.get('last'),
+                open=ticker.get('open'),
+                high=ticker.get('high'),
+                low=ticker.get('low'),
+                close=ticker.get('close'),
+                volume=ticker.get('baseVolume'),
+                amount=ticker.get('quoteVolume'),
+                change_pct=ticker.get('percentage'),
+                source=self.name,
+            )
+        except Exception as e:
+            logger.debug(f"[ccxt] quote error for {symbol}: {e}")
+            return None
+
+
+# ── 外汇数据源 (yfinance) ──────────────────────────────────────
+
+class YFinanceForexQuoteSource:
+    """外汇行情源 - 基于 yfinance"""
+    name = "yfinance_forex"
+    priority = 30
+
+    def is_available(self) -> bool:
+        try:
+            import yfinance
+            return True
+        except ImportError:
+            return False
+
+    def fetch_quote(self, symbol: str) -> Optional[QuoteData]:
+        try:
+            import yfinance as yf
+            # yfinance 外汇格式: USD/CNY -> USDCNY=X
+            ticker_symbol = symbol.replace('/', '') + '=X'
+            ticker = yf.Ticker(ticker_symbol)
+            info = ticker.info
+            if not info or 'regularMarketPrice' not in info:
+                # Fallback: 从历史数据获取最新价
+                hist = ticker.history(period='1d')
+                if hist.empty:
+                    return None
+                return QuoteData(
+                    symbol=symbol,
+                    price=float(hist['Close'].iloc[-1]),
+                    open=float(hist['Open'].iloc[-1]),
+                    high=float(hist['High'].iloc[-1]),
+                    low=float(hist['Low'].iloc[-1]),
+                    close=float(hist['Close'].iloc[-1]),
+                    volume=float(hist['Volume'].iloc[-1]) if 'Volume' in hist.columns else None,
+                    source=self.name,
+                )
+            return QuoteData(
+                symbol=symbol,
+                price=info.get('regularMarketPrice'),
+                open=info.get('regularMarketOpen'),
+                high=info.get('regularMarketDayHigh'),
+                low=info.get('regularMarketDayLow'),
+                close=info.get('regularMarketPrice'),
+                volume=info.get('regularMarketVolume'),
+                change_pct=info.get('regularMarketChangePercent'),
+                source=self.name,
+            )
+        except Exception as e:
+            logger.debug(f"[yfinance_forex] quote error for {symbol}: {e}")
             return None
